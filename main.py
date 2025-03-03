@@ -2,9 +2,10 @@ import os, sys
 import re, json, requests, time
 import subprocess, logging
 from collections import Counter
+from packaging.version import Version
 from dotenv import load_dotenv
 
-#logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 # import .env
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -19,7 +20,8 @@ UPGRADING="UPGRADING" #2
 DISABLED="DISABLED" #-1
 RESTARTING="RESTARTING" #3
 
-
+# A storage place for ant node data
+Workers=[]
 
 # Detect ANM (but don't upgrade)
 if os.path.exists("/var/antctl/system"):
@@ -30,7 +32,7 @@ if os.path.exists("/var/antctl/system"):
         #os.path.remove("/etc/cron.d/anm"):
     # Is anm sitll running? We'll wait
     if os.path.exists("/var/antctl/block"):
-        logging.debug("anm still running, waiting...")
+        logging.info("anm still running, waiting...")
         sys.exit(1)
 
 # Are we already running
@@ -92,7 +94,10 @@ def read_node_metadata(port):
         url = "http://127.0.0.1:{0}/metadata".format(port)
         response = requests.get(url)
         data=response.text
-    except:
+    except Exception as error:
+        template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+        message = template.format(type(error).__name__, error.args)
+        logging.info(message)
         return {"status": STOPPED}
     # collect a dict to return
     card={}
@@ -109,8 +114,11 @@ def read_node_metrics(port):
     try:
         url = "http://127.0.0.1:{0}/metrics".format(port)
         response = requests.get(url)
-        return {"status": response.text}
-    except:
+        return {"status": RUNNING or response.text}
+    except Exception as error:
+        template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+        message = template.format(type(error).__name__, error.args)
+        logging.info(message)
         return {"status": STOPPED}
     
 
@@ -126,28 +134,34 @@ def survey_nodes(antnodes):
               "service": node,
               "timestamp": int(time.time())
               }
+        # Load what systemd has configured
         card.update(read_systemd_service(node))
         #print(json.dumps(card,indent=2))
-        # Read port
+        # Read metadata from metrics_port
         metrics = read_node_metadata(card["metrics_port"])
         #print(json.dumps(metrics,indent=2))
-        if isinstance(metrics,dict) and \
-            "status" in metrics:
+        if  isinstance(metrics,dict) and \
+            "status" in metrics and \
+            metrics["status"]==RUNNING:
             # soak up metrics
             card.update(metrics)
         # Else run binary to get version
         else:
+            card["status"]=STOPPED
             try:
                 data = subprocess.run([card["binary"], '--version'], stdout=subprocess.PIPE).stdout.decode('utf-8')
                 card["version"]=re.findall(r'Autonomi Node v([\d\.]+)',data)[0]
-            except:
-                pass
+            except Exception as error:
+                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                message = template.format(type(error).__name__, error.args)
+                logging.info(message)
+                card["version"]="--"
         # Append the node dict to the detail list
         details.append(card)
     
     return details
 
-# Survey instance
+# Survey server instance
 def survey_machine():
     # Make a bucket
     antnodes=[]
@@ -158,23 +172,23 @@ def survey_machine():
             antnodes.append(file)
         #if len(antnodes)>=5:
         #   break
-    # Iterate over nodes and get initial details
-    #for antnode in antnodes:
-    #    details = read_systemd_service(antnode)
-    #antnodes=read_systemd_service(antnodes[0])
-    # Ingests a list of service file locations and outputs a list of dictionaries
+    # Iterate over defined nodes and get details
+    # Ingests a list of service files and outputs a list of dictionaries
     antnodes=survey_nodes(antnodes)
     return antnodes
 
 
 anm_config = load_anm_config()
-counter = survey_machine() or []
+Workers = survey_machine() or []
 
 
-#print(json.dumps(anm_config,indent=4))
-print("Found {counter} nodes configured".format(counter=len(counter)))
-data = Counter(node['status'] for node in counter)
+print(json.dumps(anm_config,indent=4))
+print("Found {counter} nodes configured".format(counter=len(Workers)))
+data = Counter(node['status'] for node in Workers)
 print("Running Nodes:",data[RUNNING])
 print("Stopped Nodes:",data[STOPPED])
+versions = [v for worker in Workers if (v := worker.get('version'))]
+data = Counter(ver for ver in versions)
+print(data)
 #print("details",counter)
 print("End of program")
