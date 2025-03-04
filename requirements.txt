@@ -1,3 +1,6 @@
 dotenv
 confuse
 requests
+packaging
+sqlalchemy
+sqlite3
