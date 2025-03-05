@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 # Turn a class into a storable object with ORM
 from typing import Optional
-from sqlalchemy import Integer, Unicode, UnicodeText
+from sqlalchemy import Integer, Unicode, UnicodeText, Float
 from sqlalchemy import create_engine, select, insert, update
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm import DeclarativeBase
@@ -30,6 +30,82 @@ config['DonateAddress'] = os.getenv('DonateAddress') or '0x270A246bcdD03A4A70dc8
 class Base(DeclarativeBase):
     pass
 
+# Extend the Base class to create our Node info
+class Machine(Base):
+    __tablename__ = 'machine'
+    # No schema in sqlite3
+    # __table_args__ = {"schema": "colony"}
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    CpuCount: Mapped[int] = mapped_column(Integer)
+    NodeCap: Mapped[int] = mapped_column(Integer)
+    CpuLessThan: Mapped[int] = mapped_column(Integer)
+    CpuRemove: Mapped[int] = mapped_column(Integer)
+    MemLessThan: Mapped[int] = mapped_column(Integer)
+    MemRemove: Mapped[int] = mapped_column(Integer)
+    HDLessThan: Mapped[int] = mapped_column(Integer)
+    HDRemove: Mapped[int] = mapped_column(Integer)
+    DelayStart: Mapped[int] = mapped_column(Integer)
+    DelayUpgrade: Mapped[int] = mapped_column(Integer)
+    NodeStorage: Mapped[str] = mapped_column(UnicodeText)
+    RewardsAddress: Mapped[str] = mapped_column(UnicodeText)
+    DonateAddress: Mapped[str] = mapped_column(UnicodeText)
+    MaxLoadAverageAllowed: Mapped[int] = mapped_column(Integer)
+    DesiredLoadAverage: Mapped[int] = mapped_column(Integer)
+    PortStart: Mapped[int] = mapped_column(Integer)
+    HDIOReadLessThan: Mapped[float] = mapped_column(Float)
+    HDIOReadRemove: Mapped[float] = mapped_column(Float)
+    HDIOWriteLessThan: Mapped[float] = mapped_column(Float)
+    HDIOWriteRemove: Mapped[float] = mapped_column(Float)
+    NetIOReadLessThan: Mapped[float] = mapped_column(Float)
+    NetIOReadRemove: Mapped[float] = mapped_column(Float)
+    NetIOWriteLessThan: Mapped[float] = mapped_column(Float)
+    NetIOWriteRemove: Mapped[float] = mapped_column(Float)
+
+    def __init__(self, CpuCount, NodeCap, CpuLessThan, CpuRemove,
+                 MemLessThan, MemRemove, HDLessThan, HDRemove,
+                 DelayStart, DelayUpgrade, NodeStorage,
+                 RewardsAddress, DonateAddress, MaxLoadAverageAllowed, 
+                 DesiredLoadAverage, PortStart, HDIOReadLessThan, 
+                 HDIOReadRemove, HDIOWriteLessThan, HDIOWriteRemove, 
+                 NetIOReadLessThan, NetIOReadRemove, NetIOWriteLessThan, 
+                 NetIOWriteRemove):
+        
+        self.CpuCount = CpuCount
+        self.NodeCap = NodeCap
+        self.CpuLessThan = CpuLessThan
+        self.CpuRemove = CpuRemove
+        self.MemLessThan = MemLessThan
+        self.MemRemove = MemRemove
+        self.HDLessThan = HDLessThan
+        self.HDRemove = HDRemove
+        self.DelayStart = DelayStart
+        self.DelayUpgrade = DelayUpgrade
+        self.NodeStorage = NodeStorage
+        self.RewardsAddress = RewardsAddress
+        self.DonateAddress = DonateAddress
+        self.MaxLoadAverageAllowed = MaxLoadAverageAllowed
+        self.DesiredLoadAverage = DesiredLoadAverage
+        self.PortStart = PortStart
+        self.HDIOReadLessThan = HDIOReadLessThan
+        self.HDIOReadRemove = HDIOReadRemove
+        self.HDIOWriteLessThan = HDIOWriteLessThan
+        self.HDIOWriteRemove = HDIOWriteRemove
+        self.NetIOReadLessThan = NetIOReadLessThan
+        self.NetIOReadRemove = NetIOReadRemove
+        self.NetIOWriteLessThan = NetIOWriteLessThan
+        self.NetIOWriteRemove = NetIOWriteRemove
+
+    def __repr__(self):
+        return f'Machine({self.CpuCount},{self.NodeCap},{self.CpuLessThan},{self.CpuRemove}' + \
+            f',{self.MemLessThan},{self.MemRemove},{self.HDLessThan}' + \
+            f',{self.HDRemove},{self.DelayStart},{self.DelayUpgrade}' + \
+            f',"{self.NodeStorage}","{self.RewardsAddress}","{self.DonateAddress}"' + \
+            f',{self.MaxLoadAverageAllowed},{self.DesiredLoadAverage}' + \
+            f',{self.PortStart},{self.HDIOReadLessThan},{self.HDIOReadRemove}' + \
+            f',{self.HDIOWriteLessThan},{self.HDIOWriteRemove}' + \
+            f',{self.NetIOReadLessThan},{self.NetIOReadRemove}' + \
+            f',{self.NetIOWriteLessThan},{self.NetIOWriteRemove})'
+    
 # Extend the Base class to create our Node info
 class Node(Base):
     __tablename__ = 'node'
@@ -312,6 +388,12 @@ else:
         )
         session.commit()
     #"""
+
+    with S() as session:
+        session.execute(
+            insert(Machine),[anm_config]
+        )
+        session.commit()
 
     """
     for worker in Workers:
