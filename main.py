@@ -4,6 +4,7 @@ import subprocess, logging
 from collections import Counter
 from packaging.version import Version
 from dotenv import load_dotenv
+import json_fix
 
 # Turn a class into a storable object with ORM
 from typing import Optional
@@ -49,8 +50,8 @@ class Machine(Base):
     NodeStorage: Mapped[str] = mapped_column(UnicodeText)
     RewardsAddress: Mapped[str] = mapped_column(UnicodeText)
     DonateAddress: Mapped[str] = mapped_column(UnicodeText)
-    MaxLoadAverageAllowed: Mapped[int] = mapped_column(Integer)
-    DesiredLoadAverage: Mapped[int] = mapped_column(Integer)
+    MaxLoadAverageAllowed: Mapped[float] = mapped_column(Float)
+    DesiredLoadAverage: Mapped[float] = mapped_column(Float)
     PortStart: Mapped[int] = mapped_column(Integer)
     HDIOReadLessThan: Mapped[float] = mapped_column(Float)
     HDIOReadRemove: Mapped[float] = mapped_column(Float)
@@ -106,6 +107,19 @@ class Machine(Base):
             f',{self.NetIOReadLessThan},{self.NetIOReadRemove}' + \
             f',{self.NetIOWriteLessThan},{self.NetIOWriteRemove})'
     
+    def __json__(self):
+        return { 'CpuCount': self.CpuCount, 'NodeCap': self.NodeCap, 'CpuLessThan': self.CpuLessThan,
+            'CpuRemove': self.CpuRemove, 'MemLessThan': self.MemLessThan, 'MemRemove': self.MemRemove,
+            'HDLessThan': self.HDLessThan, 'HDRemove': self.HDRemove, 'DelayStart': self.DelayStart,
+            'DelayUpgrade': self.DelayUpgrade, 'NodeStorage': f"{self.NodeStorage}",
+            'RewardsAddress': f"{self.RewardsAddress}", 'DonateAddress': f"{self.DonateAddress}",
+            'MaxLoadAverageAllowed': self.MaxLoadAverageAllowed, 'DesiredLoadAverage': self.DesiredLoadAverage,
+            'PortStart': self.PortStart, 'HDIOReadLessThan': self.HDIOReadLessThan, 'HDIOReadRemove': self.HDIOReadRemove,
+            'HDIOWriteLessThan': self.HDIOWriteLessThan, 'HDIOWriteRemove': self.HDIOWriteRemove,
+            'NetIOReadLessThan': self.NetIOReadLessThan, 'NetIOReadRemove': self.NetIOReadRemove,
+            'NetIOWriteLessThan': self.NetIOWriteLessThan, 'NetIOWriteRemove': self.NetIOWriteRemove }
+
+   
 # Extend the Base class to create our Node info
 class Node(Base):
     __tablename__ = 'node'
@@ -148,6 +162,13 @@ class Node(Base):
         return f'Node({self.id},"{self.nodename}","{self.service}","{self.user},"{self.binary}"'+\
             f',"{self.version}","{self.root_dir}",{self.port},{self.metrics_port}' + \
             f',"{self.network}","{self.wallet}","{self.peer_id}","{self.status}",{self.timestamp})'
+    
+    def __json__(self):
+        return { "id": self.id, "nodename": f"{self.nodename}", "service": f"{self.service}",
+            "user": f"{self.user}", "binary": f"{self.binary}", "version": f"{self.version}",
+            "root_dir": f"{self.root_dir}", "port": self.port, "metrics_port": self.metrics_port,
+            "network": self.network, "wallet": f"{self.wallet}", "peer_id": f"{self.peer_id}",
+            "status": f"{self.status}", "timestamp": self.timestamp }
 
 
 # Setup Database engine
@@ -206,15 +227,15 @@ def load_anm_config():
     # What can we save from /var/antctl/config
     if os.path.exists("/var/antctl/config"):
         load_dotenv("/var/antctl/config")
-    anm_config["NodeCap"] = os.getenv('NodeCap') or 20
-    anm_config["CpuLessThan"] = os.getenv('CpuLessThan') or 50
-    anm_config["CpuRemove"] = os.getenv('CpuRemove') or 70
-    anm_config["MemLessThan"] = os.getenv('MemLessThan') or 70
-    anm_config["MemRemove"] = os.getenv('MemRemove') or 90
-    anm_config["HDLessThan"] = os.getenv('HDLessThan') or 70
-    anm_config["HDRemove"] = os.getenv('HDRemove') or 90
-    anm_config["DelayStart"] = os.getenv('DelayStart') or 5
-    anm_config["DelayUpgrade"] = os.getenv('DelayUpgrade') or 5
+    anm_config["NodeCap"] = int(os.getenv('NodeCap') or 20)
+    anm_config["CpuLessThan"] = int(os.getenv('CpuLessThan') or 50)
+    anm_config["CpuRemove"] = int(os.getenv('CpuRemove') or 70)
+    anm_config["MemLessThan"] = int(os.getenv('MemLessThan') or 70)
+    anm_config["MemRemove"] = int(os.getenv('MemRemove') or 90)
+    anm_config["HDLessThan"] = int(os.getenv('HDLessThan') or 70)
+    anm_config["HDRemove"] = int(os.getenv('HDRemove') or 90)
+    anm_config["DelayStart"] = int(os.getenv('DelayStart') or 5)
+    anm_config["DelayUpgrade"] = int(os.getenv('DelayUpgrade') or 5)
     anm_config["NodeStorage"] = os.getenv('NodeStorage') or "/var/antctl/services"
     # Default to the faucet donation address
     try:
@@ -223,8 +244,8 @@ def load_anm_config():
         logging.warning("Unable to detect RewardsAddress, defaulting to Community Faucet wallet: "+DONATE)
         anm_config["RewardsAddress"] = DONATE
     anm_config["DonateAddress"]=os.getenv("DonateAddress") or DONATE
-    anm_config["MaxLoadAverageAllowed"]=os.getenv("MaxLoadAverageAllowed") or anm_config["CpuCount"]
-    anm_config["DesiredLoadAverage"]=os.getenv("DesiredLoadAverage") or (anm_config["CpuCount"] * .6)
+    anm_config["MaxLoadAverageAllowed"]=float(os.getenv("MaxLoadAverageAllowed") or anm_config["CpuCount"])
+    anm_config["DesiredLoadAverage"]=float(os.getenv("DesiredLoadAverage") or (anm_config["CpuCount"] * .6))
 
     try:
         with open('/usr/bin/anms.sh', 'r') as file:
@@ -233,14 +254,14 @@ def load_anm_config():
     except:
         anm_config["PortStart"]=55
 
-    anm_config["HDIOReadLessThan"] = os.getenv('HDIOReadLessThan') or 0.0
-    anm_config["HDIOReadRemove"] = os.getenv('HDIOReadRemove') or 0.0
-    anm_config["HDIOWriteLessThan"] = os.getenv('HDIOWriteLessThan') or 0.0
-    anm_config["HDIOWriteRemove"] = os.getenv('HDIOWriteRemove') or 0.0
-    anm_config["NetIOReadLessThan"] = os.getenv('NetIOReadLessThan') or 0.0
-    anm_config["NetIOReadRemove"] = os.getenv('NetIOReadRemove') or 0.0
-    anm_config["NetIOWriteLessThan"] = os.getenv('NetIOWriteLessThan') or 0.0
-    anm_config["NetIOWriteRemove"] = os.getenv('NetIOWriteRemove') or 0.0
+    anm_config["HDIOReadLessThan"] = float(os.getenv('HDIOReadLessThan') or 0.0)
+    anm_config["HDIOReadRemove"] = float(os.getenv('HDIOReadRemove') or 0.0)
+    anm_config["HDIOWriteLessThan"] = float(os.getenv('HDIOWriteLessThan') or 0.0)
+    anm_config["HDIOWriteRemove"] = float(os.getenv('HDIOWriteRemove') or 0.0)
+    anm_config["NetIOReadLessThan"] = float(os.getenv('NetIOReadLessThan') or 0.0)
+    anm_config["NetIOReadRemove"] = float(os.getenv('NetIOReadRemove') or 0.0)
+    anm_config["NetIOWriteLessThan"] = float(os.getenv('NetIOWriteLessThan') or 0.0)
+    anm_config["NetIOWriteRemove"] = float(os.getenv('NetIOWriteRemove') or 0.0)
 
 
     return anm_config
@@ -366,8 +387,11 @@ def survey_machine():
 # See if we already have a known state in the database
 with S() as session:
     db_nodes=session.execute(select(Node.status,Node.version)).all()
+    anm_config=session.execute(select(Machine)).all()
+
 if db_nodes:
-    anm_config = load_anm_config()
+    anm_config = anm_config[0][0] or load_anm_config()
+    print(anm_config)
     print(json.dumps(anm_config,indent=4))
     #print("Node: ",db_nodes)
     print("Found {counter} nodes migrated".format(counter=len(db_nodes)))
@@ -379,6 +403,7 @@ if db_nodes:
     print("Versions:",data)
 else:
     anm_config = load_anm_config()
+    print(anm_config)
     Workers = survey_machine() or []
 
     #""""
