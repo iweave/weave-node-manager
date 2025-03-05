@@ -3,4 +3,4 @@ confuse
 requests
 packaging
 sqlalchemy
-sqlite3
+alembic

@@ -142,19 +142,31 @@ def load_anm_config():
     anm_config["NodeStorage"] = os.getenv('NodeStorage') or "/var/antctl/services"
     # Default to the faucet donation address
     try:
-        anm_config["RewardsAddress"] = re.findall(r"--rewards-address ([\dA-Fa-fXx]+)",os.getenv('RewardsAddress'))[0] or DONATE
+        anm_config["RewardsAddress"] = re.findall(r"--rewards-address ([\dA-Fa-fXx]+)",os.getenv('RewardsAddress'))[0]
     except:
+        logging.warning("Unable to detect RewardsAddress, defaulting to Community Faucet wallet: "+DONATE)
         anm_config["RewardsAddress"] = DONATE
-
+    anm_config["DonateAddress"]=os.getenv("DonateAddress") or DONATE
     anm_config["MaxLoadAverageAllowed"]=os.getenv("MaxLoadAverageAllowed") or anm_config["CpuCount"]
     anm_config["DesiredLoadAverage"]=os.getenv("DesiredLoadAverage") or (anm_config["CpuCount"] * .6)
 
     try:
         with open('/usr/bin/anms.sh', 'r') as file:
             data = file.read()
-        anm_config["PortStart"]=int((re.findall(r"ntpr\=(\d+)",data) or [50])[0])
+        anm_config["PortStart"]=int(re.findall(r"ntpr\=(\d+)",data)[0])
     except:
-        pass
+        anm_config["PortStart"]=55
+
+    anm_config["HDIOReadLessThan"] = os.getenv('HDIOReadLessThan') or 0.0
+    anm_config["HDIOReadRemove"] = os.getenv('HDIOReadRemove') or 0.0
+    anm_config["HDIOWriteLessThan"] = os.getenv('HDIOWriteLessThan') or 0.0
+    anm_config["HDIOWriteRemove"] = os.getenv('HDIOWriteRemove') or 0.0
+    anm_config["NetIOReadLessThan"] = os.getenv('NetIOReadLessThan') or 0.0
+    anm_config["NetIOReadRemove"] = os.getenv('NetIOReadRemove') or 0.0
+    anm_config["NetIOWriteLessThan"] = os.getenv('NetIOWriteLessThan') or 0.0
+    anm_config["NetIOWriteRemove"] = os.getenv('NetIOWriteRemove') or 0.0
+
+
     return anm_config
 
 # Read confirm from systemd service file
