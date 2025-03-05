@@ -46,7 +46,7 @@ class Node(Base):
     metrics_port: Mapped[int] = mapped_column(Integer)
     network: Mapped[str] = mapped_column(UnicodeText)
     wallet: Mapped[Optional[str]] = mapped_column(Unicode(42),index=True)
-    peer_id: Mapped[str] = mapped_column(Unicode(52))
+    peer_id: Mapped[Optional[str]] = mapped_column(Unicode(52))
     status: Mapped[str] = mapped_column(Unicode(32),index=True)
     timestamp: Mapped[int] = mapped_column(Integer,index=True)
 
