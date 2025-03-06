@@ -178,7 +178,7 @@ def read_node_metrics(port):
         return {"status": STOPPED}
     
 
-# Survey nodes by reading metrics ports or binary --version
+# Survey nodes by reading metadata from metrics ports or binary --version
 def survey_nodes(antnodes):
     # Build a list of node dictionaries to return
     details=[]
@@ -197,6 +197,13 @@ def survey_nodes(antnodes):
         card.update(read_systemd_service(node))
         #print(json.dumps(card,indent=2))
         # Read metadata from metrics_port
+        metadata = read_node_metadata(card["host"],card["metrics_port"])
+        #print(json.dumps(metadata,indent=2))
+        if  isinstance(metadata,dict) and \
+            "status" in metadata and \
+            metadata["status"]==RUNNING:
+            # soak up metadata
+            card.update(metadata)
         metrics = read_node_metadata(card["metrics_port"])
         #print(json.dumps(metrics,indent=2))
         if  isinstance(metrics,dict) and \
