@@ -21,7 +21,7 @@ load_dotenv(os.path.join(basedir, '.env'))
 config = {}
 config['db']='sqlite:///colony.db'
 config['DonateAddress'] = os.getenv('DonateAddress') or '0x270A246bcdD03A4A70dc81C330586882a6ceDF8f'
-
+config['ANMHost'] = os.getenv('ANMHost') or '127.0.0.1'
 
 
 # Setup Database engine
@@ -49,6 +49,8 @@ RUNNING="RUNNING" #1
 UPGRADING="UPGRADING" #2
 DISABLED="DISABLED" #-1
 RESTARTING="RESTARTING" #3
+
+ANM_HOST=config["ANMHost"]
 
 # A storage place for ant node data
 Workers=[]
@@ -139,9 +141,9 @@ def read_systemd_service(antnode):
     return details
 
 # Read data from metadata endpoint
-def read_node_metadata(port):
+def read_node_metadata(host,port):
     try:
-        url = "http://127.0.0.1:{0}/metadata".format(port)
+        url = "http://{0}:{1}/metadata".format(host,port)
         response = requests.get(url)
         data=response.text
     except requests.exceptions.ConnectionError:
@@ -166,15 +168,19 @@ def read_node_metadata(port):
     return card
 
 # Read data from metrics port
-def read_node_metrics(port):
+def read_node_metrics(host,port):
+    metrics={}
     try:
-        url = "http://127.0.0.1:{0}/metrics".format(port)
+        url = "http://{0}:{1}/metrics".format(host,port)
         response = requests.get(url)
-        return {"status": RUNNING or response.text}
+        metrics["status"] = RUNNING
     except Exception as error:
         template = "An exception of type {0} occurred. Arguments:\n{1!r}"
         message = template.format(type(error).__name__, error.args)
         logging.info(message)
+        metrics["status"] = STOPPED
+    return metrics
+    
 # Read antnode binary version
 def get_antnode_version(binary):
     try:
@@ -199,7 +205,8 @@ def survey_nodes(antnodes):
             continue
         card={"nodename":re.findall(r"antnode([\d]+).service",node)[0],
               "service": node,
-              "timestamp": int(time.time())
+              "timestamp": int(time.time()),
+              "host": ANM_HOST or '127.0.0.1'
               }
         # Load what systemd has configured
         card.update(read_systemd_service(node))
@@ -212,18 +219,14 @@ def survey_nodes(antnodes):
             metadata["status"]==RUNNING:
             # soak up metadata
             card.update(metadata)
-        metrics = read_node_metadata(card["metrics_port"])
-        #print(json.dumps(metrics,indent=2))
-        if  isinstance(metrics,dict) and \
-            "status" in metrics and \
-            metrics["status"]==RUNNING:
-            # soak up metrics
-            card.update(metrics)
+            card.update(read_node_metrics(card["host"],card["metrics_port"]))
         # Else run binary to get version
         else:
             card["status"]=STOPPED
             card["peer_id"]=""
             card["version"]=get_antnode_version(card["binary"])
+        # harcoded for anm
+        card["host"]=ANM_HOST
         # Append the node dict to the detail list
         details.append(card)
     
@@ -247,13 +250,15 @@ def survey_machine():
 
 # See if we already have a known state in the database
 with S() as session:
-    db_nodes=session.execute(select(Node.status,Node.version)).all()
+    db_nodes=session.execute(select(Node.status,Node.version,Node.host,Node.metrics_port)).all()
     anm_config=session.execute(select(Machine)).all()
 
 if db_nodes:
     anm_config = anm_config[0][0] or load_anm_config()
-    print(anm_config)
-    print(json.dumps(anm_config,indent=4))
+    node_metrics = read_node_metrics(db_nodes[0][2],db_nodes[0][3])
+    print(node_metrics)
+    #print(anm_config)
+    #print(json.dumps(anm_config,indent=4))
     #print("Node: ",db_nodes)
     print("Found {counter} nodes migrated".format(counter=len(db_nodes)))
     data = Counter(status[0] for status in db_nodes)
