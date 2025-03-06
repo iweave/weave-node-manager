@@ -175,9 +175,17 @@ def read_node_metrics(port):
         template = "An exception of type {0} occurred. Arguments:\n{1!r}"
         message = template.format(type(error).__name__, error.args)
         logging.info(message)
-        return {"status": STOPPED}
+# Read antnode binary version
+def get_antnode_version(binary):
+    try:
+        data = subprocess.run([binary, '--version'], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        return re.findall(r'Autonomi Node v([\d\.]+)',data)[0]
+    except Exception as error:
+        template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+        message = template.format(type(error).__name__, error.args)
+        logging.info(message)
+        return 0
     
-
 # Survey nodes by reading metadata from metrics ports or binary --version
 def survey_nodes(antnodes):
     # Build a list of node dictionaries to return
@@ -215,14 +223,7 @@ def survey_nodes(antnodes):
         else:
             card["status"]=STOPPED
             card["peer_id"]=""
-            try:
-                data = subprocess.run([card["binary"], '--version'], stdout=subprocess.PIPE).stdout.decode('utf-8')
-                card["version"]=re.findall(r'Autonomi Node v([\d\.]+)',data)[0]
-            except Exception as error:
-                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
-                message = template.format(type(error).__name__, error.args)
-                logging.info(message)
-                card["version"]="0"
+            card["version"]=get_antnode_version(card["binary"])
         # Append the node dict to the detail list
         details.append(card)
     
