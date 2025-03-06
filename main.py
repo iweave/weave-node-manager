@@ -263,7 +263,7 @@ if db_nodes:
     print("Versions:",data)
 else:
     anm_config = load_anm_config()
-    print(anm_config)
+    #print(anm_config)
     Workers = survey_machine() or []
 
     #""""
@@ -280,30 +280,8 @@ else:
         )
         session.commit()
 
-    """
-    for worker in Workers:
-        card = Node(
-            id=worker["id"],
-            nodename = worker["nodename"],
-            service = worker["service"],
-            user = worker["user"],
-            binary = worker["binary"],
-            version = worker["version"],
-            root_dir = worker["root_dir"],
-            port = worker["port"],
-            metrics_port = worker["metrics_port"],
-            network = worker["network"],
-            wallet = worker["wallet"],
-            peer_id = worker["peer_id"],
-            status = worker["status"],
-            timestamp = worker["timestamp"],
-        )
-        with S() as session:
-            session.add(card)
-            session.commit()
-    """
 
-    print(json.dumps(anm_config,indent=4))
+    #print(json.dumps(anm_config,indent=4))
     print("Found {counter} nodes configured".format(counter=len(Workers)))
     data = Counter(node['status'] for node in Workers)
     print("Running Nodes:",data[RUNNING])
