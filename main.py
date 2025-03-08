@@ -4,6 +4,7 @@ import subprocess, logging
 from collections import Counter
 from packaging.version import Version
 from dotenv import load_dotenv
+import psutil, shutil, platform
 
 from models import Base, Machine, Node
 from sqlalchemy import create_engine, select, insert, update
@@ -147,7 +148,7 @@ def read_node_metadata(host,port):
         response = requests.get(url)
         data=response.text
     except requests.exceptions.ConnectionError:
-        logging.debug("Connection Refused on port: "+str(port))
+        logging.debug("Connection Refused on port: {0}:{1}".format(host,str(port)))
         return {"status": STOPPED, "version": "", "peer_id":""}
     except Exception as error:
         template = "An exception of type {0} occurred. Arguments:\n{1!r}"
@@ -174,11 +175,17 @@ def read_node_metrics(host,port):
         url = "http://{0}:{1}/metrics".format(host,port)
         response = requests.get(url)
         metrics["status"] = RUNNING
+        metrics["uptime"] = int((re.findall(r'ant_node_uptime ([\d]+)',response.text) or [0])[0])
+        metrics["records"] = int((re.findall(r'ant_networking_records_stored ([\d]+)',response.text) or [0])[0])
+        metrics["shunned"] = int((re.findall(r'ant_networking_shunned_by_close_group ([\d]+)',response.text) or [0])[0])
     except Exception as error:
         template = "An exception of type {0} occurred. Arguments:\n{1!r}"
         message = template.format(type(error).__name__, error.args)
         logging.info(message)
         metrics["status"] = STOPPED
+        metrics["uptime"] = 0
+        metrics["records"] = 0
+        metrics["shunned"] = 0
     return metrics
     
 # Read antnode binary version
@@ -192,8 +199,15 @@ def get_antnode_version(binary):
         logging.info(message)
         return 0
     
+# Determine how long this node has been around by looking at it's secret_key file
+def get_node_age(root_dir):
+    try:
+        return int(os.stat("{0}/secret-key".format(root_dir)).st_mtime)
+    except:
+        return 0
+    
 # Survey nodes by reading metadata from metrics ports or binary --version
-def survey_nodes(antnodes):
+def survey_anm_nodes(antnodes):
     # Build a list of node dictionaries to return
     details=[]
     # Iterate on nodes
@@ -225,6 +239,10 @@ def survey_nodes(antnodes):
             card["status"]=STOPPED
             card["peer_id"]=""
             card["version"]=get_antnode_version(card["binary"])
+            card["records"]=0
+            card["uptime"]=0
+            card["shunned"]=0
+        card["age"]=get_node_age(card["root_dir"])
         # harcoded for anm
         card["host"]=ANM_HOST
         # Append the node dict to the detail list
@@ -245,7 +263,60 @@ def survey_machine():
         #   break
     # Iterate over defined nodes and get details
     # Ingests a list of service files and outputs a list of dictionaries
-    return survey_nodes(antnodes)
+    return survey_anm_nodes(antnodes)
+
+# Read system status
+def get_machine_metrics(node_storage):
+    metrics = {}
+
+    with S() as session:
+        db_nodes=session.execute(select(Node.status)).all()
+    
+    # Get some initial stats for comparing after a few seconds
+    # We start these counters AFTER reading the database
+    start_time=time.time()
+    start_disk_counters=psutil.disk_io_counters()
+    start_net_counters=psutil.net_io_counters()
+
+    metrics["TotalNodes"]=len(db_nodes)
+    data = Counter(node[0] for node in db_nodes)
+    metrics[RUNNING] = data[RUNNING]
+    metrics[STOPPED] = data[STOPPED]
+    metrics[RESTARTING] = data[RESTARTING]
+    metrics[UPGRADING] = data[UPGRADING]
+    metrics["antnode"]=shutil.which("antnode")
+    if not metrics["antnode"]:
+        logging.warning("Unable to locate current antnode binary, exiting")
+        sys.exit(1)
+    metrics["NodesLatestV"]=get_antnode_version(metrics["antnode"])
+    # Windows has to build load average over 5 seconds. The first 5 seconds returns 0's
+    if platform.system() == "Windows":
+        discard=psutil.getloadavg()
+        time.sleep(5)
+    metrics["LoadAverage1"],metrics["LoadAverage5"],metrics["LoadAverage15"]=psutil.getloadavg()
+    metrics["UsedCPUPercent"],metrics["IOWait"] = psutil.cpu_times_percent(1)[3:5]
+    # Really we returned Idle percent, subtract from 100 to get used.
+    metrics["UsedCPUPercent"] = 100 - metrics["UsedCPUPercent"]
+    print(psutil.cpu_times_percent(1))
+    data=psutil.virtual_memory()
+    #print(data)
+    metrics["FreeMemPercent"]=data.percent
+    metrics["UsedMemPercent"]=100-metrics["FreeMemPercent"]
+    data=psutil.disk_io_counters()
+    # This only checks the drive mapped to the first node and will need to be updated
+    # when we eventually support multiple drives
+    data=psutil.disk_usage(node_storage)
+    metrics["UsedHDPercent"]=data.percent
+    end_time=time.time()
+    end_disk_counters=psutil.disk_io_counters()
+    end_net_counters=psutil.net_io_counters()
+    metrics["HDWriteBytes"]=int((end_disk_counters.write_bytes-start_disk_counters.write_bytes)/(end_time-start_time))
+    metrics["HDReadBytes"]=int((end_disk_counters.read_bytes-start_disk_counters.read_bytes)/(end_time-start_time))
+    metrics["NetWriteBytes"]=int((end_net_counters.bytes_sent-start_net_counters.bytes_sent)/(end_time-start_time))
+    metrics["NetReadBytes"]=int((end_net_counters.bytes_recv-start_net_counters.bytes_recv)/(end_time-start_time))
+    #print (json.dumps(metrics,indent=2))
+    return metrics
+
 
 
 # See if we already have a known state in the database
@@ -254,8 +325,12 @@ with S() as session:
     anm_config=session.execute(select(Machine)).all()
 
 if db_nodes:
-    anm_config = anm_config[0][0] or load_anm_config()
+    # anm_config by default loads a parameter array, 
+    # use the __json__ method to return a dict from the first node
+    anm_config = json.loads(json.dumps(anm_config[0][0])) or load_anm_config()
+    metrics=get_machine_metrics(anm_config["NodeStorage"])
     node_metrics = read_node_metrics(db_nodes[0][2],db_nodes[0][3])
+    print(db_nodes[0])
     print(node_metrics)
     #print(anm_config)
     #print(json.dumps(anm_config,indent=4))
@@ -296,4 +371,6 @@ else:
     data = Counter(ver for ver in versions)
     print("Versions:",data)
 
+metrics = get_machine_metrics(anm_config['NodeStorage'])
+print(json.dumps(metrics,indent=2))
 print("End of program")

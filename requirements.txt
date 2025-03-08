@@ -5,3 +5,5 @@ packaging
 sqlalchemy
 alembic
 json-fix
+platform
+psutil

@@ -120,10 +120,16 @@ class Node(Base):
     peer_id: Mapped[Optional[str]] = mapped_column(Unicode(52))
     status: Mapped[str] = mapped_column(Unicode(32),index=True)
     timestamp: Mapped[int] = mapped_column(Integer,index=True)
+    records: Mapped[int] = mapped_column(Integer,index=True)
+    uptime: Mapped[int] = mapped_column(Integer)
+    shunned: Mapped[int] = mapped_column(Integer)
+    age: Mapped[int] = mapped_column(Integer)
+    host: Mapped[Optional[str]] = mapped_column(UnicodeText)
 
     def __init__(self, id, nodename, service, user, binary, version, 
                  root_dir, port, metrics_port, network,
-                 wallet, peer_id, status, timestamp):
+                 wallet, peer_id, status, timestamp, records,
+                 uptime, shunned, age, host):
         self.id = id
         self.nodename = nodename
         self.service = service
@@ -138,15 +144,23 @@ class Node(Base):
         self.peer_id = peer_id
         self.status = status
         self.timestamp = timestamp
+        self.records = records
+        self.uptime = uptime
+        self.shunned = shunned
+        self.age = age
+        self.host = host
 
     def __repr__(self):
         return f'Node({self.id},"{self.nodename}","{self.service}","{self.user},"{self.binary}"'+\
             f',"{self.version}","{self.root_dir}",{self.port},{self.metrics_port}' + \
-            f',"{self.network}","{self.wallet}","{self.peer_id}","{self.status}",{self.timestamp})'
+            f',"{self.network}","{self.wallet}","{self.peer_id}","{self.status}",{self.timestamp}' + \
+            f',{self.records},{self.uptime},{self.shunned},{self.age},"{self.host}")'
     
     def __json__(self):
         return { "id": self.id, "nodename": f"{self.nodename}", "service": f"{self.service}",
             "user": f"{self.user}", "binary": f"{self.binary}", "version": f"{self.version}",
             "root_dir": f"{self.root_dir}", "port": self.port, "metrics_port": self.metrics_port,
-            "network": self.network, "wallet": f"{self.wallet}", "peer_id": f"{self.peer_id}",
-            "status": f"{self.status}", "timestamp": self.timestamp }
+            "network": f"{self.network}", "wallet": f"{self.wallet}", "peer_id": f"{self.peer_id}",
+            "status": f"{self.status}", "timestamp": self.timestamp, "records": self.records,
+            "uptime": self.uptime, "shunned": self.shunned, "age": self.age,
+            "host": f"{self.host}" }
