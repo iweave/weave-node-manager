@@ -23,6 +23,7 @@ config = {}
 config['db']='sqlite:///colony.db'
 config['DonateAddress'] = os.getenv('DonateAddress') or '0x270A246bcdD03A4A70dc81C330586882a6ceDF8f'
 config['ANMHost'] = os.getenv('ANMHost') or '127.0.0.1'
+config['CrisisBytes'] = os.getenv('CrisisBytes') or 2 * 10 ** 9 # default 2gb/node
 
 
 # Setup Database engine
@@ -45,13 +46,16 @@ QUEEN=1
 # Donation address
 DONATE=config["DonateAddress"]
 #Keep these as strings so they can be grepped in logs
-STOPPED="STOPPED" #0
-RUNNING="RUNNING" #1
-UPGRADING="UPGRADING" #2
-DISABLED="DISABLED" #-1
-RESTARTING="RESTARTING" #3
+STOPPED="STOPPED" #0 Node is not responding to it's metrics port
+RUNNING="RUNNING" #1 Node is responding to it's metrics port
+UPGRADING="UPGRADING" #2 Upgrade in progress
+DISABLED="DISABLED" #-1 Do not start
+RESTARTING="RESTARTING" #3 re/starting a server intionally
+MIGRATING="MIGRATING" #4 Moving volumes in progress
 
 ANM_HOST=config["ANMHost"]
+# Baseline bytes per node
+CRISIS_BYTES=config["CrisisBytes"]
 
 # A storage place for ant node data
 Workers=[]
@@ -266,7 +270,7 @@ def survey_machine():
     return survey_anm_nodes(antnodes)
 
 # Read system status
-def get_machine_metrics(node_storage):
+def get_machine_metrics(node_storage,remove_limit):
     metrics = {}
 
     with S() as session:
@@ -280,24 +284,27 @@ def get_machine_metrics(node_storage):
 
     metrics["TotalNodes"]=len(db_nodes)
     data = Counter(node[0] for node in db_nodes)
-    metrics[RUNNING] = data[RUNNING]
-    metrics[STOPPED] = data[STOPPED]
-    metrics[RESTARTING] = data[RESTARTING]
-    metrics[UPGRADING] = data[UPGRADING]
+    metrics["RunningNodes"] = data[RUNNING]
+    metrics["StoppedNodes"] = data[STOPPED]
+    metrics["RestaringNodes"] = data[RESTARTING]
+    metrics["UpgradingNodes"] = data[UPGRADING]
+    metrics["MigratingNodes"] = data[MIGRATING]
     metrics["antnode"]=shutil.which("antnode")
     if not metrics["antnode"]:
         logging.warning("Unable to locate current antnode binary, exiting")
         sys.exit(1)
     metrics["NodesLatestV"]=get_antnode_version(metrics["antnode"])
     # Windows has to build load average over 5 seconds. The first 5 seconds returns 0's
+    # I don't plan on supporting windows, but if this get's modular, I don't want this 
+    # issue to be skipped
     if platform.system() == "Windows":
         discard=psutil.getloadavg()
         time.sleep(5)
     metrics["LoadAverage1"],metrics["LoadAverage5"],metrics["LoadAverage15"]=psutil.getloadavg()
-    metrics["UsedCPUPercent"],metrics["IOWait"] = psutil.cpu_times_percent(1)[3:5]
+    # Get CPU Metrics over 1 second
+    metrics["UsedCpuPercent"],metrics["IOWait"] = psutil.cpu_times_percent(1)[3:5]
     # Really we returned Idle percent, subtract from 100 to get used.
-    metrics["UsedCPUPercent"] = 100 - metrics["UsedCPUPercent"]
-    print(psutil.cpu_times_percent(1))
+    metrics["UsedCpuPercent"] = 100 - metrics["UsedCpuPercent"]
     data=psutil.virtual_memory()
     #print(data)
     metrics["FreeMemPercent"]=data.percent
@@ -307,6 +314,7 @@ def get_machine_metrics(node_storage):
     # when we eventually support multiple drives
     data=psutil.disk_usage(node_storage)
     metrics["UsedHDPercent"]=data.percent
+    metrics["TotalHDBytes"]=data.total
     end_time=time.time()
     end_disk_counters=psutil.disk_io_counters()
     end_net_counters=psutil.net_io_counters()
@@ -315,7 +323,42 @@ def get_machine_metrics(node_storage):
     metrics["NetWriteBytes"]=int((end_net_counters.bytes_sent-start_net_counters.bytes_sent)/(end_time-start_time))
     metrics["NetReadBytes"]=int((end_net_counters.bytes_recv-start_net_counters.bytes_recv)/(end_time-start_time))
     #print (json.dumps(metrics,indent=2))
+    # How close (out of 100) to removal limit will we be with a max bytes per node (2GB default)
+    # For running nodes with Porpoise(tm).
+    metrics["NodeHDCrisis"]=int((((metrics["TotalNodes"])*CRISIS_BYTES)/(metrics["TotalHDBytes"]*(remove_limit/100)))*100)
     return metrics
+
+# Make a decision about what to do
+def choose_action(config,metrics):
+    # Gather knowlege
+    features={}
+    features["AllowCpu"]=metrics["UsedCpuPercent"] < config["CpuLessThan"]
+    features["AllowMem"]=metrics["UsedMemPercent"] < config["MemLessThan"]
+    features["AllowHD"]=metrics["UsedHDPercent"] < config["HDLessThan"]
+    features["RemCpu"]=metrics["UsedCpuPercent"] > config["CpuRemove"]
+    features["RemMem"]=metrics["UsedMemPercent"] > config["MemRemove"]
+    features["RemHD"]=metrics["UsedHDPercent"] > config["HDRemove"]
+    features["AllowNodeCap"]=metrics["TotalNodes"] < config["NodeCap"]
+    if (config["NetIOReadLessThan"]+config["NetIOReadRemove"]+
+        config["NetIOWriteLessThan"]+config["NetIOWriteRemove"]>1):
+        features["AllowNetIO"]=metrics["NetReadBytes"] < config["NetIOReadLessThan"] and \
+                              metrics["NetWriteBytes"] < config["NetIOWriteLessThan"]
+        features["RemoveNetIO"]=metrics["NetReadBytes"] > config["NetIORemoveThan"] or \
+                              metrics["NetWriteBytes"] > config["NetIORemoveThan"]
+    else:
+        features["AllowNetIO"]=1
+        features["RemoveNetIO"]=0
+    if (config["HDIOReadLessThan"]+config["HDIOReadRemove"]+
+        config["HDIOWriteLessThan"]+config["HDIOWriteRemove"]>1):
+        features["AllowHDIO"]=metrics["HDReadBytes"] < config["HDIOReadLessThan"] and \
+                              metrics["HDWriteBytes"] < config["HDIOWriteLessThan"]
+        features["RemoveHDIO"]=metrics["HDReadBytes"] > config["HDIORemoveThan"] or \
+                              metrics["HDWriteBytes"] > config["HDtIORemoveThan"]
+    else:
+        features["AllowHDIO"]=1
+        features["RemoveHDIO"]=0
+    # Decisions
+
 
 
 
@@ -328,7 +371,7 @@ if db_nodes:
     # anm_config by default loads a parameter array, 
     # use the __json__ method to return a dict from the first node
     anm_config = json.loads(json.dumps(anm_config[0][0])) or load_anm_config()
-    metrics=get_machine_metrics(anm_config["NodeStorage"])
+    metrics=get_machine_metrics(anm_config["NodeStorage"],anm_config["HDRemove"])
     node_metrics = read_node_metrics(db_nodes[0][2],db_nodes[0][3])
     print(db_nodes[0])
     print(node_metrics)
@@ -340,6 +383,7 @@ if db_nodes:
     #print(data)
     print("Running Nodes:",data[RUNNING])
     print("Stopped Nodes:",data[STOPPED])
+    print("Upgrading Nodes:",data[UPGRADING])
     data = Counter(ver[1] for ver in db_nodes)
     print("Versions:",data)
 else:
@@ -367,10 +411,12 @@ else:
     data = Counter(node['status'] for node in Workers)
     print("Running Nodes:",data[RUNNING])
     print("Stopped Nodes:",data[STOPPED])
+    print("Upgrading Nodes:",data[UPGRADING])
     versions = [v[1] for worker in Workers if (v := worker.get('version'))]
     data = Counter(ver for ver in versions)
     print("Versions:",data)
 
-metrics = get_machine_metrics(anm_config['NodeStorage'])
-print(json.dumps(metrics,indent=2))
+machine_metrics = get_machine_metrics(anm_config['NodeStorage'],anm_config["HDRemove"])
+print(json.dumps(machine_metrics,indent=2))
+next_action=choose_action(anm_config,machine_metrics)
 print("End of program")
