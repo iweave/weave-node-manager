@@ -96,6 +96,8 @@ def load_anm_config():
     anm_config["HDRemove"] = int(os.getenv('HDRemove') or 90)
     anm_config["DelayStart"] = int(os.getenv('DelayStart') or 5)
     anm_config["DelayUpgrade"] = int(os.getenv('DelayUpgrade') or 5)
+    anm_config["DelayRestart"] = int(os.getenv('DelayRestart') or 10)
+    anm_config["DelayRemove"] = int(os.getenv('DelayRemove') or 300)
     anm_config["NodeStorage"] = os.getenv('NodeStorage') or "/var/antctl/services"
     # Default to the faucet donation address
     try:
