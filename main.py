@@ -348,8 +348,8 @@ def choose_action(config,metrics):
         config["NetIOWriteLessThan"]+config["NetIOWriteRemove"]>1):
         features["AllowNetIO"]=metrics["NetReadBytes"] < config["NetIOReadLessThan"] and \
                               metrics["NetWriteBytes"] < config["NetIOWriteLessThan"]
-        features["RemoveNetIO"]=metrics["NetReadBytes"] > config["NetIORemoveThan"] or \
-                              metrics["NetWriteBytes"] > config["NetIORemoveThan"]
+        features["RemoveNetIO"]=metrics["NetReadBytes"] > config["NetIORemove"] or \
+                              metrics["NetWriteBytes"] > config["NetIORemove"]
     else:
         features["AllowNetIO"]=1
         features["RemoveNetIO"]=0
@@ -357,8 +357,8 @@ def choose_action(config,metrics):
         config["HDIOWriteLessThan"]+config["HDIOWriteRemove"]>1):
         features["AllowHDIO"]=metrics["HDReadBytes"] < config["HDIOReadLessThan"] and \
                               metrics["HDWriteBytes"] < config["HDIOWriteLessThan"]
-        features["RemoveHDIO"]=metrics["HDReadBytes"] > config["HDIORemoveThan"] or \
-                              metrics["HDWriteBytes"] > config["HDtIORemoveThan"]
+        features["RemoveHDIO"]=metrics["HDReadBytes"] > config["HDIORemove"] or \
+                              metrics["HDWriteBytes"] > config["HDtIORemove"]
     else:
         features["AllowHDIO"]=1
         features["RemoveHDIO"]=0
