@@ -101,8 +101,11 @@ def load_anm_config():
     try:
         anm_config["RewardsAddress"] = re.findall(r"--rewards-address ([\dA-Fa-fXx]+)",os.getenv('RewardsAddress'))[0]
     except:
-        logging.warning("Unable to detect RewardsAddress, defaulting to Community Faucet wallet: "+DONATE)
-        anm_config["RewardsAddress"] = DONATE
+        try:
+            anm_config["RewardsAddress"] = re.findall(r"([\dA-Fa-fXx]+)",os.getenv("RewardsAddress"))[0]
+        except:
+            logging.warning("Unable to detect RewardsAddress")
+            sys.exit(1)
     anm_config["DonateAddress"]=os.getenv("DonateAddress") or DONATE
     anm_config["MaxLoadAverageAllowed"]=float(os.getenv("MaxLoadAverageAllowed") or anm_config["CpuCount"])
     anm_config["DesiredLoadAverage"]=float(os.getenv("DesiredLoadAverage") or (anm_config["CpuCount"] * .6))
