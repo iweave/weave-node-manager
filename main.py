@@ -21,7 +21,7 @@ load_dotenv(os.path.join(basedir, '.env'))
 # simulate arg/yaml configuration
 config = {}
 config['db']='sqlite:///colony.db'
-config['DonateAddress'] = os.getenv('DonateAddress') or '0x270A246bcdD03A4A70dc81C330586882a6ceDF8f'
+config['DonateAddress'] = os.getenv('DonateAddress') or '0x00455d78f850b0358E8cea5be24d415E01E107CF'
 config['ANMHost'] = os.getenv('ANMHost') or '127.0.0.1'
 config['CrisisBytes'] = os.getenv('CrisisBytes') or 2 * 10 ** 9 # default 2gb/node
 
