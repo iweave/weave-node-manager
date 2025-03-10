@@ -307,9 +307,9 @@ def get_machine_metrics(node_storage,remove_limit):
         time.sleep(5)
     metrics["LoadAverage1"],metrics["LoadAverage5"],metrics["LoadAverage15"]=psutil.getloadavg()
     # Get CPU Metrics over 1 second
-    metrics["UsedCpuPercent"],metrics["IOWait"] = psutil.cpu_times_percent(1)[3:5]
+    metrics["IdleCpuPercent"],metrics["IOWait"] = psutil.cpu_times_percent(1)[3:5]
     # Really we returned Idle percent, subtract from 100 to get used.
-    metrics["UsedCpuPercent"] = 100 - metrics["UsedCpuPercent"]
+    metrics["UsedCpuPercent"] = 100 - metrics["IdleCpuPercent"]
     data=psutil.virtual_memory()
     #print(data)
     metrics["FreeMemPercent"]=data.percent
