@@ -33,6 +33,7 @@ class Machine(Base):
     DonateAddress: Mapped[str] = mapped_column(UnicodeText)
     MaxLoadAverageAllowed: Mapped[float] = mapped_column(Float)
     DesiredLoadAverage: Mapped[float] = mapped_column(Float)
+    # What port to begin assigning nodes
     PortStart: Mapped[int] = mapped_column(Integer)
     HDIOReadLessThan: Mapped[float] = mapped_column(Float)
     HDIOReadRemove: Mapped[float] = mapped_column(Float)
@@ -107,23 +108,41 @@ class Node(Base):
     # No schema in sqlite3
     #__table_args__ = {"schema": "colony"}
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Maps to antnode-{nodename}
     nodename: Mapped[str] = mapped_column(Unicode(10))
+    # service definition name
     service: Mapped[str] = mapped_column(UnicodeText)
+    # User running node
     user: Mapped[str] = mapped_column(Unicode(24))
+    # Full path to node binary
     binary: Mapped[str] = mapped_column(UnicodeText)
+    # Last polled version of the binary
     version: Mapped[Optional[str]] = mapped_column(UnicodeText)
+    # Root directory of the node
     root_dir: Mapped[str] = mapped_column(UnicodeText)
+    # Node open port
     port: Mapped[int] = mapped_column(Integer)
+    # Node metrics port
     metrics_port: Mapped[int] = mapped_column(Integer)
+    # Network to use ( Live is evm-arbitrum-one )
     network: Mapped[str] = mapped_column(UnicodeText)
+    # Reward address
     wallet: Mapped[Optional[str]] = mapped_column(Unicode(42),index=True)
+    # Reported peer_id
     peer_id: Mapped[Optional[str]] = mapped_column(Unicode(52))
+    # Node's last probed status
     status: Mapped[str] = mapped_column(Unicode(32),index=True)
+    # Timestamp of last update
     timestamp: Mapped[int] = mapped_column(Integer,index=True)
+    # Number of node records stored as reported by node
     records: Mapped[int] = mapped_column(Integer,index=True)
+    # Node reported uptime
     uptime: Mapped[int] = mapped_column(Integer)
+    # Number of shuns
     shunned: Mapped[int] = mapped_column(Integer)
+    # Timestamp of node first launch
     age: Mapped[int] = mapped_column(Integer)
+    # Host ip/name for data and metrics ports
     host: Mapped[Optional[str]] = mapped_column(UnicodeText)
 
     def __init__(self, id, nodename, service, user, binary, version, 
