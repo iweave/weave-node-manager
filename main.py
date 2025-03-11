@@ -52,6 +52,7 @@ UPGRADING="UPGRADING" #2 Upgrade in progress
 DISABLED="DISABLED" #-1 Do not start
 RESTARTING="RESTARTING" #3 re/starting a server intionally
 MIGRATING="MIGRATING" #4 Moving volumes in progress
+REMOVING="REMOVING" #5 Removing node in progress
 
 ANM_HOST=config["ANMHost"]
 # Baseline bytes per node
@@ -279,7 +280,7 @@ def get_machine_metrics(node_storage,remove_limit):
     metrics = {}
 
     with S() as session:
-        db_nodes=session.execute(select(Node.status)).all()
+        db_nodes=session.execute(select(Node.status,Node.version)).all()
     
     # Get some initial stats for comparing after a few seconds
     # We start these counters AFTER reading the database
@@ -291,14 +292,18 @@ def get_machine_metrics(node_storage,remove_limit):
     data = Counter(node[0] for node in db_nodes)
     metrics["RunningNodes"] = data[RUNNING]
     metrics["StoppedNodes"] = data[STOPPED]
-    metrics["RestaringNodes"] = data[RESTARTING]
+    metrics["RestartingNodes"] = data[RESTARTING]
     metrics["UpgradingNodes"] = data[UPGRADING]
     metrics["MigratingNodes"] = data[MIGRATING]
+    metrics["RemovingNodes"] = data[REMOVING]
     metrics["antnode"]=shutil.which("antnode")
     if not metrics["antnode"]:
         logging.warning("Unable to locate current antnode binary, exiting")
         sys.exit(1)
-    metrics["NodesLatestV"]=get_antnode_version(metrics["antnode"])
+    metrics["AntNodeVersion"]=get_antnode_version(metrics["antnode"])
+    metrics["NodesLatestV"]=sum(1 for node in db_nodes if node[1]==metrics["AntNodeVersion"]) or 0
+    metrics["NodesToUpgrade"]=metrics["TotalNodes"] - metrics["NodesLatestV"]
+
     # Windows has to build load average over 5 seconds. The first 5 seconds returns 0's
     # I don't plan on supporting windows, but if this get's modular, I don't want this 
     # issue to be skipped
@@ -334,7 +339,7 @@ def get_machine_metrics(node_storage,remove_limit):
     return metrics
 
 # Make a decision about what to do
-def choose_action(config,metrics):
+def choose_action(config,metrics,db_nodes):
     # Gather knowlege
     features={}
     features["AllowCpu"]=metrics["UsedCpuPercent"] < config["CpuLessThan"]
@@ -344,6 +349,7 @@ def choose_action(config,metrics):
     features["RemMem"]=metrics["UsedMemPercent"] > config["MemRemove"]
     features["RemHD"]=metrics["UsedHDPercent"] > config["HDRemove"]
     features["AllowNodeCap"]=metrics["TotalNodes"] < config["NodeCap"]
+    # These are new features, so ignore them if not configured
     if (config["NetIOReadLessThan"]+config["NetIOReadRemove"]+
         config["NetIOWriteLessThan"]+config["NetIOWriteRemove"]>1):
         features["AllowNetIO"]=metrics["NetReadBytes"] < config["NetIOReadLessThan"] and \
@@ -351,8 +357,8 @@ def choose_action(config,metrics):
         features["RemoveNetIO"]=metrics["NetReadBytes"] > config["NetIORemove"] or \
                               metrics["NetWriteBytes"] > config["NetIORemove"]
     else:
-        features["AllowNetIO"]=1
-        features["RemoveNetIO"]=0
+        features["AllowNetIO"]=True
+        features["RemoveNetIO"]=False
     if (config["HDIOReadLessThan"]+config["HDIOReadRemove"]+
         config["HDIOWriteLessThan"]+config["HDIOWriteRemove"]>1):
         features["AllowHDIO"]=metrics["HDReadBytes"] < config["HDIOReadLessThan"] and \
@@ -360,8 +366,38 @@ def choose_action(config,metrics):
         features["RemoveHDIO"]=metrics["HDReadBytes"] > config["HDIORemove"] or \
                               metrics["HDWriteBytes"] > config["HDtIORemove"]
     else:
-        features["AllowHDIO"]=1
-        features["RemoveHDIO"]=0
+        features["AllowHDIO"]=True
+        features["RemoveHDIO"]=False
+    features["LoadAllow"] = metrics["LoadAverage1"] < config["DesiredLoadAverage"] and \
+                            metrics["LoadAverage5"] < config["DesiredLoadAverage"] and \
+                            metrics["LoadAverage15"] < config["DesiredLoadAverage"] 
+    features["LoadNotAllow"] = metrics["LoadAverage1"] > config["MaxLoadAverageAllowed"] or \
+                            metrics["LoadAverage5"] > config["MaxLoadAverageAllowed"] or \
+                            metrics["LoadAverage15"] > config["MaxLoadAverageAllowed"] 
+    # If we have other thing going on, don't add more nodes
+    features["AddNewNode"]=sum([ metrics.get(m, 0) \
+                                for m in ['StoppedNodes','UpgradingNodes',
+                                          'RestartingNodes','MigratingNodes',
+                                          'RemovingNodes'] ]) == 0 and \
+                            features["AllowCpu"] and features["AllowHD"] and \
+                            features["AllowMem"] and features["AllowNodeCap"] and \
+                            features["AllowHDIO"] and features["AllowNetIO"] and \
+                            features["LoadAllow"]
+    # If we have nodes to upgrade
+    if metrics["NodesToUpgrade"] >= 1:
+        # Make sure current version is equal or newer than version on first node.
+        if Version(metrics["AntNodeVersion"]) < Version(db_nodes[0][1]):
+            logging.warning("node upgrade cancelled due to lower version")
+            features["Upgrade"]=False
+        else:
+            features["Upgrade"]=True
+    else:
+        features["Upgrade"]=False
+    features["Remove"] = metrics["StoppedNodes"] > 0 or features["RemCpu"] or \
+                        features["RemHD"] or features["RemMem"] or \
+                        features["RemoveHDIO"] or features["RemoveNetIO"] or \
+                        features["LoadNotAllow"]
+    print(json.dumps(features,indent=2))
     # Decisions
 
 
@@ -369,7 +405,10 @@ def choose_action(config,metrics):
 
 # See if we already have a known state in the database
 with S() as session:
-    db_nodes=session.execute(select(Node.status,Node.version,Node.host,Node.metrics_port)).all()
+    db_nodes=session.execute(select(Node.status,Node.version,
+                                    Node.host,Node.metrics_port,
+                                    Node.port,Node.age,Node.id,
+                                    Node.timestamp)).all()
     anm_config=session.execute(select(Machine)).all()
 
 if db_nodes:
@@ -377,20 +416,14 @@ if db_nodes:
     # use the __json__ method to return a dict from the first node
     anm_config = json.loads(json.dumps(anm_config[0][0])) or load_anm_config()
     metrics=get_machine_metrics(anm_config["NodeStorage"],anm_config["HDRemove"])
-    node_metrics = read_node_metrics(db_nodes[0][2],db_nodes[0][3])
-    print(db_nodes[0])
-    print(node_metrics)
+    #node_metrics = read_node_metrics(db_nodes[0][2],db_nodes[0][3])
+    #print(db_nodes[0])
+    #print(node_metrics)
     #print(anm_config)
     #print(json.dumps(anm_config,indent=4))
     #print("Node: ",db_nodes)
     print("Found {counter} nodes migrated".format(counter=len(db_nodes)))
-    data = Counter(status[0] for status in db_nodes)
-    #print(data)
-    print("Running Nodes:",data[RUNNING])
-    print("Stopped Nodes:",data[STOPPED])
-    print("Upgrading Nodes:",data[UPGRADING])
-    data = Counter(ver[1] for ver in db_nodes)
-    print("Versions:",data)
+
 else:
     anm_config = load_anm_config()
     #print(anm_config)
@@ -410,18 +443,31 @@ else:
         )
         session.commit()
 
+    # Now load subset of data to work with
+    with S() as session:
+        db_nodes=session.execute(select(Node.status,Node.version,
+                                        Node.host,Node.metrics_port,
+                                        Node.port,Node.age,Node.id,
+                                        Node.timestamp)).all()
+
+
 
     #print(json.dumps(anm_config,indent=4))
-    print("Found {counter} nodes configured".format(counter=len(Workers)))
-    data = Counter(node['status'] for node in Workers)
-    print("Running Nodes:",data[RUNNING])
-    print("Stopped Nodes:",data[STOPPED])
-    print("Upgrading Nodes:",data[UPGRADING])
-    versions = [v[1] for worker in Workers if (v := worker.get('version'))]
-    data = Counter(ver for ver in versions)
-    print("Versions:",data)
+    print("Found {counter} nodes configured".format(counter=len(db_nodes)))
+
+    #versions = [v[1] for worker in Workers if (v := worker.get('version'))]
+    #data = Counter(ver for ver in versions)
+
+
+data = Counter(status[0] for status in db_nodes)
+#print(data)
+print("Running Nodes:",data[RUNNING])
+print("Stopped Nodes:",data[STOPPED])
+print("Upgrading Nodes:",data[UPGRADING])
+data = Counter(ver[1] for ver in db_nodes)
+print("Versions:",data)
 
 machine_metrics = get_machine_metrics(anm_config['NodeStorage'],anm_config["HDRemove"])
 print(json.dumps(machine_metrics,indent=2))
-next_action=choose_action(anm_config,machine_metrics)
+next_action=choose_action(anm_config,machine_metrics,db_nodes)
 print("End of program")
