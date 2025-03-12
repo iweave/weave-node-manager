@@ -338,6 +338,24 @@ def get_machine_metrics(node_storage,remove_limit):
     metrics["NodeHDCrisis"]=int((((metrics["TotalNodes"])*CRISIS_BYTES)/(metrics["TotalHDBytes"]*(remove_limit/100)))*100)
     return metrics
 
+# Update node with metrics result
+def update_node_from_metrics(id,metrics,metadata):
+    try:
+        with S() as session:
+            session.query(Node).filter(Node.id == id).\
+                update({'status': metrics["status"], 'timestamp': int(time.time()),
+                        'uptime': metrics["uptime"], 'records': metrics["records"],
+                        'shunned': metrics["shunned"], 'version': metadata["version"],
+                        'peer_id': metadata["peer_id"]})
+            session.commit()
+    except:
+        template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+        message = template.format(type(error).__name__, error.args)
+        logging.warning(message)
+        return False
+    else:
+        return True
+    
 # Set Node status
 def set_node_status(id,status):
     logging.info("Setting node status: {0} {1}".format(id,status))
@@ -373,6 +391,29 @@ def stop_systemd_node(node):
 
     return True
 
+# Upgrade a node
+def upgrade_node(node,metrics):
+    logging.info("Upgrading node "+str(node.id))
+    # Copy current node binary
+    try:
+        subprocess.run(['sudo', 'cp', '-f', metrics["antnode"], node.binary])
+    except subprocess.CalledProcessError as err:
+        print( 'ERROR:', err )
+    try:
+        subprocess.run(['sudo', 'systemctl', 'restart', node.service])
+    except subprocess.CalledProcessError as err:
+        print( 'ERROR:', err )
+    version=get_antnode_version(node.binary)
+    try:
+        with S() as session:
+            session.query(Node).filter(Node.id == node.id).\
+                update({'status': UPGRADING, 'timestamp': int(time.time()),
+                        'version': version})
+            session.commit()
+    except:
+        return False
+    else:
+        return True
 
 # Remove a node
 def remove_node(id):
@@ -444,7 +485,7 @@ def choose_action(config,metrics,db_nodes):
                             metrics["LoadAverage15"] > config["MaxLoadAverageAllowed"] 
     # If we have other thing going on, don't add more nodes
     features["AddNewNode"]=sum([ metrics.get(m, 0) \
-                                for m in ['StoppedNodes','UpgradingNodes',
+                                for m in ['UpgradingNodes',
                                           'RestartingNodes','MigratingNodes',
                                           'RemovingNodes'] ]) == 0 and \
                             features["AllowCpu"] and features["AllowHD"] and \
@@ -510,7 +551,53 @@ def choose_action(config,metrics,db_nodes):
             remove_node(youngest[0])
             return{"status": REMOVING}
         return{"status": "nothing-to-remove"}
-
+    
+    # Do we have upgrading to do?
+    if features["Upgrade"]:
+        # Are we already upgrading a node
+        with S() as session:
+            upgrades=session.execute(select(Node.timestamp,Node.id,Node.host,Node.metrics_port)\
+                                         .where(Node.status == UPGRADING)\
+                                         .order_by(Node.timestamp.asc())).all()
+        # Iterate through active upgrades
+        records_to_upgrade = len(upgrades)
+        for check in upgrades:
+            # If the DelayUpgrade timer has expired, check on status
+            if isinstance(check[0],int) and \
+                check[0] < (int(time.time()) - (config["DelayUpgrade"]*60)):
+                logging.info("Updating upgraded node "+str(check[1]))
+                node_metrics=read_node_metrics(check[2],check[3])
+                node_metadata=read_node_metadata(check[2],check[3])
+                if node_metrics and node_metadata:
+                    update_node_from_metrics(check[1],node_metrics,node_metadata)
+                records_to_upgrade-=1
+        # If we still have unexpired upgrade records, wait
+        if records_to_upgrade:
+            logging.info("Still waiting for UpgradeDelay")
+            #return {"status": UPGRADING}
+        # Let's find the oldest running node not using the current version
+        with S() as session:
+            oldest=session.execute(select(Node)\
+                                        .where(Node.status == RUNNING)\
+                                        .where(Node.version != metrics["AntNodeVersion"])
+                                        .order_by(Node.age.asc())).first()
+        if oldest:
+            # Get Node from Row
+            oldest = oldest[0]
+            #print(json.dumps(oldest))
+            # Upgrade the oldest node
+            upgrade_node(oldest,metrics)
+            return{"status": UPGRADING}
+    # If AddNewNode
+    # and AddNewNode not running
+    #   If stopped nodes available
+    #     Check oldest stopped version
+    #     If out of date
+    #         upgrade node which starts it
+    #     else
+    #         restart node
+    #   else
+    #     Create a Node which starts it
     return{"status": "idle"}
 
 
