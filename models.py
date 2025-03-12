@@ -28,6 +28,7 @@ class Machine(Base):
     HDRemove: Mapped[int] = mapped_column(Integer)
     DelayStart: Mapped[int] = mapped_column(Integer)
     DelayUpgrade: Mapped[int] = mapped_column(Integer)
+    DelayRemove: Mapped[int] = mapped_column(Integer)
     NodeStorage: Mapped[str] = mapped_column(UnicodeText)
     RewardsAddress: Mapped[str] = mapped_column(UnicodeText)
     DonateAddress: Mapped[str] = mapped_column(UnicodeText)
@@ -46,7 +47,7 @@ class Machine(Base):
 
     def __init__(self, CpuCount, NodeCap, CpuLessThan, CpuRemove,
                  MemLessThan, MemRemove, HDLessThan, HDRemove,
-                 DelayStart, DelayUpgrade, NodeStorage,
+                 DelayStart, DelayUpgrade, DelayRemove, NodeStorage,
                  RewardsAddress, DonateAddress, MaxLoadAverageAllowed, 
                  DesiredLoadAverage, PortStart, HDIOReadLessThan, 
                  HDIOReadRemove, HDIOWriteLessThan, HDIOWriteRemove, 
@@ -63,6 +64,7 @@ class Machine(Base):
         self.HDRemove = HDRemove
         self.DelayStart = DelayStart
         self.DelayUpgrade = DelayUpgrade
+        self.DelayRemove = DelayRemove
         self.NodeStorage = NodeStorage
         self.RewardsAddress = RewardsAddress
         self.DonateAddress = DonateAddress
@@ -82,6 +84,7 @@ class Machine(Base):
         return f'Machine({self.CpuCount},{self.NodeCap},{self.CpuLessThan},{self.CpuRemove}' + \
             f',{self.MemLessThan},{self.MemRemove},{self.HDLessThan}' + \
             f',{self.HDRemove},{self.DelayStart},{self.DelayUpgrade}' + \
+            f',{self.DelayRemove}' + \
             f',"{self.NodeStorage}","{self.RewardsAddress}","{self.DonateAddress}"' + \
             f',{self.MaxLoadAverageAllowed},{self.DesiredLoadAverage}' + \
             f',{self.PortStart},{self.HDIOReadLessThan},{self.HDIOReadRemove}' + \
@@ -93,7 +96,7 @@ class Machine(Base):
         return { 'CpuCount': self.CpuCount, 'NodeCap': self.NodeCap, 'CpuLessThan': self.CpuLessThan,
             'CpuRemove': self.CpuRemove, 'MemLessThan': self.MemLessThan, 'MemRemove': self.MemRemove,
             'HDLessThan': self.HDLessThan, 'HDRemove': self.HDRemove, 'DelayStart': self.DelayStart,
-            'DelayUpgrade': self.DelayUpgrade, 'NodeStorage': f"{self.NodeStorage}",
+            'DelayUpgrade': self.DelayUpgrade, 'DelayRemove': self.DelayRemove, 'NodeStorage': f"{self.NodeStorage}",
             'RewardsAddress': f"{self.RewardsAddress}", 'DonateAddress': f"{self.DonateAddress}",
             'MaxLoadAverageAllowed': self.MaxLoadAverageAllowed, 'DesiredLoadAverage': self.DesiredLoadAverage,
             'PortStart': self.PortStart, 'HDIOReadLessThan': self.HDIOReadLessThan, 'HDIOReadRemove': self.HDIOReadRemove,
