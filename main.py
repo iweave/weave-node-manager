@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import psutil, shutil, platform
 
 from models import Base, Machine, Node
-from sqlalchemy import create_engine, select, insert, update
+from sqlalchemy import create_engine, select, insert, update, delete
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 logging.basicConfig(level=logging.INFO)
@@ -338,6 +338,66 @@ def get_machine_metrics(node_storage,remove_limit):
     metrics["NodeHDCrisis"]=int((((metrics["TotalNodes"])*CRISIS_BYTES)/(metrics["TotalHDBytes"]*(remove_limit/100)))*100)
     return metrics
 
+# Disable firewall for port
+def disable_firewall(port):
+    logging.info("disable firewall port {0}/udp".format(port))
+    # Close ufw firewall
+    try:
+        subprocess.run(['sudo','ufw','delete','allow',"{0}/udp".format(port)], stdout=subprocess.PIPE)
+    except subprocess.CalledProcessError as err:
+            print( 'ERROR:', err )
+     
+# Stop a systemd node
+def stop_systemd_node(node):
+    logging.info("Stopping node: "+node.service)
+    # Send a stop signal to the process
+    try:
+        subprocess.run(['sudo', 'systemctl', 'stop', node.service], stdout=subprocess.PIPE)
+    except subprocess.CalledProcessError as err:
+            print( 'ERROR:', err )
+    disable_firewall(node.port)
+    with S() as session:
+        session.query(Node).filter(Node.id == node.id).\
+        update({'status': STOPPED, 'timestamp': int(time.time())})
+        session.commit()
+    return True
+
+# Remove a node
+def remove_node(id):
+    print("Removing",id)
+
+    with S() as session:
+        node = session.execute(select(Node).where(Node.id == id)).first()
+    # Grab Node from Row
+    node=node[0]
+    if stop_systemd_node(node):
+        # Mark this node as REMOVING
+        #'''
+        with S() as session:
+            session.query(Node).filter(Node.id == id).\
+            update({'status': REMOVING, 'timestamp': int(time.time())})
+            session.commit()
+        #''''
+        nodename=f"antnode{node.nodename}"
+        # Remove node data and log
+        try:
+            subprocess.run(['sudo', 'rm', '-rf', node.root_dir, f"/var/log/{nodename}"])
+        except subprocess.CalledProcessError as err:
+            print( 'ERROR:', err )
+        # Remove systemd service file
+        try:
+            subprocess.run(['sudo', 'rm', f"/etc/systemd/system/{node.service}"])
+        except subprocess.CalledProcessError as err:
+            print( 'ERROR:', err )
+        # Tell system to reload systemd files   
+        try:
+            subprocess.run(['sudo', 'systemctl', 'daemon-reload'])
+        except subprocess.CalledProcessError as err:
+            print( 'ERROR:', err ) 
+    print(json.dumps(node,indent=2))
+        
+        
+
 # Make a decision about what to do
 def choose_action(config,metrics,db_nodes):
     # Gather knowlege
@@ -393,14 +453,57 @@ def choose_action(config,metrics,db_nodes):
             features["Upgrade"]=True
     else:
         features["Upgrade"]=False
-    features["Remove"] = metrics["StoppedNodes"] > 0 or features["RemCpu"] or \
+    features["Remove"] =features["LoadNotAllow"] or features["RemCpu"] or \
                         features["RemHD"] or features["RemMem"] or \
-                        features["RemoveHDIO"] or features["RemoveNetIO"] or \
-                        features["LoadNotAllow"]
+                        features["RemoveHDIO"] or features["RemoveNetIO"]
+
     print(json.dumps(features,indent=2))
-    # Decisions
+    ##### Decisions
+    # First if we're removing, that takes top priority
+    if features["Remove"]:
+        # Are we already removing a node
+        with S() as session:
+            removals=session.execute(select(Node.timestamp,Node.id)\
+                                         .where(Node.status == REMOVING)\
+                                         .order_by(Node.timestamp.asc())).all()
+        # Iterate through active removals
+        records_to_remove = len(removals)
+        for check in removals:
+            # If the DelayRemove timer has expired, delete the entry
+            if isinstance(check[0],int) and \
+                check[0] < (int(time.time()) - (config["DelayRemove"]*60)):
+                logging.info("Deleting removed node "+str(check[1]))
+                with S() as session:
+                    session.execute(delete(Node).where(Node.id==check[1]))
+                    session.commit()
+                records_to_remove-=1
+        # If we still have unexpired removal records, wait
+        if records_to_remove:
+            logging.info("Still waiting for RemoveDelay")
+            return {"status": REMOVING}
+        # Start removing with stopped nodes
+        if metrics["StoppedNodes"] > 0:
+            # What is the youngest stopped node
+            with S() as session:
+                youngest=session.execute(select(Node.id)\
+                                        .where(Node.status == STOPPED)\
+                                        .order_by(Node.age)).first()
+            if youngest:
+                # Remove the youngest node
+                remove_node(youngest[0][0])
+                return{"status": REMOVING}
+        # No low hanging fruit. let's start with the youngest running node
+        with S() as session:
+            youngest=session.execute(select(Node.id)\
+                                    .where(Node.status == RUNNING)\
+                                    .order_by(Node.age)).first()
+        if youngest:
+            # Remove the youngest node
+            remove_node(youngest[0][0])
+            return{"status": REMOVING}
+        return{"status": "nothing-to-remove"}
 
-
+    return{"status": "idle"}
 
 
 # See if we already have a known state in the database
@@ -469,5 +572,6 @@ print("Versions:",data)
 
 machine_metrics = get_machine_metrics(anm_config['NodeStorage'],anm_config["HDRemove"])
 print(json.dumps(machine_metrics,indent=2))
-next_action=choose_action(anm_config,machine_metrics,db_nodes)
+this_action=choose_action(anm_config,machine_metrics,db_nodes)
+print("Action:",json.dumps(this_action,indent=2))
 print("End of program")
