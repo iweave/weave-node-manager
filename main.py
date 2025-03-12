@@ -338,6 +338,19 @@ def get_machine_metrics(node_storage,remove_limit):
     metrics["NodeHDCrisis"]=int((((metrics["TotalNodes"])*CRISIS_BYTES)/(metrics["TotalHDBytes"]*(remove_limit/100)))*100)
     return metrics
 
+# Set Node status
+def set_node_status(id,status):
+    logging.info("Setting node status: {0} {1}".format(id,status))
+    try:
+        with S() as session:
+            session.query(Node).filter(Node.id == id).\
+                update({'status': status, 'timestamp': int(time.time())})
+            session.commit()
+    except:
+        return False
+    else:
+        return True
+
 # Disable firewall for port
 def disable_firewall(port):
     logging.info("disable firewall port {0}/udp".format(port))
@@ -356,15 +369,14 @@ def stop_systemd_node(node):
     except subprocess.CalledProcessError as err:
             print( 'ERROR:', err )
     disable_firewall(node.port)
-    with S() as session:
-        session.query(Node).filter(Node.id == node.id).\
-        update({'status': STOPPED, 'timestamp': int(time.time())})
-        session.commit()
+    set_node_status(node.id,STOPPED)
+
     return True
+
 
 # Remove a node
 def remove_node(id):
-    print("Removing",id)
+    logging.info("Removing node "+str(id))
 
     with S() as session:
         node = session.execute(select(Node).where(Node.id == id)).first()
@@ -372,12 +384,8 @@ def remove_node(id):
     node=node[0]
     if stop_systemd_node(node):
         # Mark this node as REMOVING
-        #'''
-        with S() as session:
-            session.query(Node).filter(Node.id == id).\
-            update({'status': REMOVING, 'timestamp': int(time.time())})
-            session.commit()
-        #''''
+        set_node_status(id,REMOVING)
+
         nodename=f"antnode{node.nodename}"
         # Remove node data and log
         try:
@@ -386,7 +394,7 @@ def remove_node(id):
             print( 'ERROR:', err )
         # Remove systemd service file
         try:
-            subprocess.run(['sudo', 'rm', f"/etc/systemd/system/{node.service}"])
+            subprocess.run(['sudo', 'rm', '-f', f"/etc/systemd/system/{node.service}"])
         except subprocess.CalledProcessError as err:
             print( 'ERROR:', err )
         # Tell system to reload systemd files   
@@ -394,7 +402,7 @@ def remove_node(id):
             subprocess.run(['sudo', 'systemctl', 'daemon-reload'])
         except subprocess.CalledProcessError as err:
             print( 'ERROR:', err ) 
-    print(json.dumps(node,indent=2))
+    #print(json.dumps(node,indent=2))
         
         
 
@@ -457,7 +465,7 @@ def choose_action(config,metrics,db_nodes):
                         features["RemHD"] or features["RemMem"] or \
                         features["RemoveHDIO"] or features["RemoveNetIO"]
 
-    print(json.dumps(features,indent=2))
+    logging.info(json.dumps(features,indent=2))
     ##### Decisions
     # First if we're removing, that takes top priority
     if features["Remove"]:
@@ -487,19 +495,19 @@ def choose_action(config,metrics,db_nodes):
             with S() as session:
                 youngest=session.execute(select(Node.id)\
                                         .where(Node.status == STOPPED)\
-                                        .order_by(Node.age)).first()
+                                        .order_by(Node.age.desc())).first()
             if youngest:
                 # Remove the youngest node
-                remove_node(youngest[0][0])
+                remove_node(youngest[0])
                 return{"status": REMOVING}
         # No low hanging fruit. let's start with the youngest running node
         with S() as session:
             youngest=session.execute(select(Node.id)\
                                     .where(Node.status == RUNNING)\
-                                    .order_by(Node.age)).first()
+                                    .order_by(Node.age.desc())).first()
         if youngest:
             # Remove the youngest node
-            remove_node(youngest[0][0])
+            remove_node(youngest[0])
             return{"status": REMOVING}
         return{"status": "nothing-to-remove"}
 
@@ -571,6 +579,7 @@ data = Counter(ver[1] for ver in db_nodes)
 print("Versions:",data)
 
 machine_metrics = get_machine_metrics(anm_config['NodeStorage'],anm_config["HDRemove"])
+print(json.dumps(anm_config,indent=2))
 print(json.dumps(machine_metrics,indent=2))
 this_action=choose_action(anm_config,machine_metrics,db_nodes)
 print("Action:",json.dumps(this_action,indent=2))
