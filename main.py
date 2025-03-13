@@ -53,6 +53,7 @@ DISABLED="DISABLED" #-1 Do not start
 RESTARTING="RESTARTING" #3 re/starting a server intionally
 MIGRATING="MIGRATING" #4 Moving volumes in progress
 REMOVING="REMOVING" #5 Removing node in progress
+DEAD="DEAD" #-86 Broken node to cleanup
 
 ANM_HOST=config["ANMHost"]
 # Baseline bytes per node
@@ -243,12 +244,18 @@ def survey_anm_nodes(antnodes):
             metadata["status"]==RUNNING:
             # soak up metadata
             card.update(metadata)
+            # The ports up, so grab metrics too
             card.update(read_node_metrics(card["host"],card["metrics_port"]))
         # Else run binary to get version
         else:
-            card["status"]=STOPPED
-            card["peer_id"]=""
-            card["version"]=get_antnode_version(card["binary"])
+            # If the root directory of the node is missing, it's a bad node
+            if not os.path.isdir(card["root_dir"]):
+                card["status"]=DEAD
+                card["version"]=''
+            else:
+                card["status"]=STOPPED
+                card["version"]=get_antnode_version(card["binary"])
+            card["peer_id"]=''
             card["records"]=0
             card["uptime"]=0
             card["shunned"]=0
@@ -296,6 +303,7 @@ def get_machine_metrics(node_storage,remove_limit):
     metrics["UpgradingNodes"] = data[UPGRADING]
     metrics["MigratingNodes"] = data[MIGRATING]
     metrics["RemovingNodes"] = data[REMOVING]
+    metrics["DeadNodes"] = data[DEAD]
     metrics["antnode"]=shutil.which("antnode")
     if not metrics["antnode"]:
         logging.warning("Unable to locate current antnode binary, exiting")
@@ -348,7 +356,7 @@ def update_node_from_metrics(id,metrics,metadata):
                         'shunned': metrics["shunned"], 'version': metadata["version"],
                         'peer_id': metadata["peer_id"]})
             session.commit()
-    except:
+    except Exception as error:
         template = "An exception of type {0} occurred. Arguments:\n{1!r}"
         message = template.format(type(error).__name__, error.args)
         logging.warning(message)
@@ -570,6 +578,19 @@ def choose_action(config,metrics,db_nodes):
 
     logging.info(json.dumps(features,indent=2))
     ##### Decisions
+
+    # Actually, removing DEAD nodes take priority
+    if metrics["DeadNodes"] > 1:
+        with S() as session:
+            broken=session.execute(select(Node.timestamp,Node.id,Node.host,Node.metrics_port)\
+                                         .where(Node.status == DEAD)\
+                                         .order_by(Node.timestamp.asc())).all()
+        # Iterate through dead nodes and remove them all
+        for check in broken:
+            # Remove broken nodes
+            logging.info("Removing dead node "+str(check[1]))
+            remove_node(check[1])
+        return {"status": "removed-dead-nodes"}
     # First if we're removing, that takes top priority
     if features["Remove"]:
         # If we still have unexpired removal records, wait
