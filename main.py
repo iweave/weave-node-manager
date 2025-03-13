@@ -437,6 +437,15 @@ def update_counters(old,config):
         old["RestartingNodes"]=records_to_restart
     return(old)
 
+# Enable firewall for port
+def enable_firewall(port,node):
+    logging.info("enable firewall port {0}/udp".format(port))
+    # Close ufw firewall
+    try:
+        subprocess.run(['sudo','ufw','allow',"{0}/udp".format(port),'comment',node], stdout=subprocess.PIPE)
+    except subprocess.CalledProcessError as err:
+            print( 'ERROR:', err )
+
 # Disable firewall for port
 def disable_firewall(port):
     logging.info("disable firewall port {0}/udp".format(port))
@@ -445,7 +454,22 @@ def disable_firewall(port):
         subprocess.run(['sudo','ufw','delete','allow',"{0}/udp".format(port)], stdout=subprocess.PIPE)
     except subprocess.CalledProcessError as err:
             print( 'ERROR:', err )
-     
+
+# Start a systemd node
+def start_systemd_node(node):
+    logging.info("Starting node "+str(node.id))
+    # Try to start the service
+    try:
+        subprocess.run(['sudo', 'systemctl', 'start', node.service], stdout=subprocess.PIPE)
+    except subprocess.CalledProcessError as err:
+            print( 'ERROR:', err )
+            return False
+    # Open a firewall hole for the data port
+    enable_firewall(node.port,node.service)
+    # Update node status
+    set_node_status(node.id,RESTARTING)
+    return True
+
 # Stop a systemd node
 def stop_systemd_node(node):
     logging.info("Stopping node: "+node.service)
@@ -624,7 +648,7 @@ def choose_action(config,metrics,db_nodes):
         # If we still have unexpired upgrade records, wait
         if metrics["UpgradingNodes"]:
             logging.info("Still waiting for UpgradeDelay")
-            #return {"status": UPGRADING}
+            return {"status": UPGRADING}
         # Let's find the oldest running node not using the current version
         with S() as session:
             oldest=session.execute(select(Node)\
@@ -639,7 +663,6 @@ def choose_action(config,metrics,db_nodes):
             upgrade_node(oldest,metrics)
             return{"status": UPGRADING}
     # If AddNewNode
-    # and AddNewNode not running
     #   If stopped nodes available
     #     Check oldest stopped version
     #     If out of date
@@ -648,6 +671,25 @@ def choose_action(config,metrics,db_nodes):
     #         restart node
     #   else
     #     Create a Node which starts it
+    if features["AddNewNode"]:
+        # Start adding with stopped nodes
+        if metrics["StoppedNodes"] > 0:
+            # What is the oldest stopped node
+            with S() as session:
+                oldest=session.execute(select(Node)\
+                                        .where(Node.status == STOPPED)\
+                                        .order_by(Node.age.asc())).first()
+            if oldest:
+                # Get Node from Row
+                oldest=oldest[0]
+                # If the stopped version is old, upgrade it
+                if Version(metrics["AntNodeVersion"]) > Version(oldest.version):
+                    upgrade_node(oldest,metrics)
+                    return{"status": UPGRADING}
+                else:
+                    start_systemd_node(oldest)
+            return {"status": 'START'}
+        return {"status": "ADD"}
     return{"status": "idle"}
 
 
