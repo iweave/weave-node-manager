@@ -586,6 +586,10 @@ def choose_action(config,metrics,db_nodes):
                             features["AllowMem"] and features["AllowNodeCap"] and \
                             features["AllowHDIO"] and features["AllowNetIO"] and \
                             features["LoadAllow"]
+    # Are we overlimit on nodes
+    features["Remove"] =features["LoadNotAllow"] or features["RemCpu"] or \
+                        features["RemHD"] or features["RemMem"] or \
+                        features["RemoveHDIO"] or features["RemoveNetIO"]
     # If we have nodes to upgrade
     if metrics["NodesToUpgrade"] >= 1:
         # Make sure current version is equal or newer than version on first node.
@@ -593,12 +597,14 @@ def choose_action(config,metrics,db_nodes):
             logging.warning("node upgrade cancelled due to lower version")
             features["Upgrade"]=False
         else:
-            features["Upgrade"]=True
+            if features["Remove"]:
+                logging.info("Can't upgrade while removing is required")
+                features["Upgrade"]=False
+            else:
+                features["Upgrade"]=True
     else:
         features["Upgrade"]=False
-    features["Remove"] =features["LoadNotAllow"] or features["RemCpu"] or \
-                        features["RemHD"] or features["RemMem"] or \
-                        features["RemoveHDIO"] or features["RemoveNetIO"]
+
 
     logging.info(json.dumps(features,indent=2))
     ##### Decisions
@@ -621,27 +627,42 @@ def choose_action(config,metrics,db_nodes):
         if metrics["RemovingNodes"]:
             logging.info("Still waiting for RemoveDelay")
             return {"status": REMOVING}
-        # Start removing with stopped nodes
-        if metrics["StoppedNodes"] > 0:
-            # What is the youngest stopped node
+        # If we're under HD pressure, remove nodes
+        if features["RemHD"]:
+            # Start removing with stopped nodes
+            if metrics["StoppedNodes"] > 0:
+                # What is the youngest stopped node
+                with S() as session:
+                    youngest=session.execute(select(Node.id)\
+                                            .where(Node.status == STOPPED)\
+                                            .order_by(Node.age.desc())).first()
+                if youngest:
+                    # Remove the youngest node
+                    remove_node(youngest[0])
+                    return{"status": REMOVING}
+            # No low hanging fruit. let's start with the youngest running node
             with S() as session:
                 youngest=session.execute(select(Node.id)\
-                                        .where(Node.status == STOPPED)\
+                                        .where(Node.status == RUNNING)\
                                         .order_by(Node.age.desc())).first()
             if youngest:
                 # Remove the youngest node
                 remove_node(youngest[0])
                 return{"status": REMOVING}
-        # No low hanging fruit. let's start with the youngest running node
-        with S() as session:
-            youngest=session.execute(select(Node.id)\
-                                    .where(Node.status == RUNNING)\
-                                    .order_by(Node.age.desc())).first()
-        if youngest:
-            # Remove the youngest node
-            remove_node(youngest[0])
-            return{"status": REMOVING}
-        return{"status": "nothing-to-remove"}
+            return{"status": "nothing-to-remove"}
+        # Otherwise, let's try just stopping a node to bring IO/Mem/Cpu down
+        else:
+            # Start with the youngest running node
+            with S() as session:
+                youngest=session.execute(select(Node.id)\
+                                        .where(Node.status == RUNNING)\
+                                        .order_by(Node.age.desc())).first()
+            if youngest:
+                # Stop the youngest node
+                stop_systemd_node(youngest[0])
+                return{"status": STOPPED}
+            else:
+                return{"status": "nothing-to-stop"}
     
     # Do we have upgrading to do?
     if features["Upgrade"]:    
@@ -688,7 +709,10 @@ def choose_action(config,metrics,db_nodes):
                     return{"status": UPGRADING}
                 else:
                     start_systemd_node(oldest)
+                    return{"status": RESTARTING}
+            # Hmm, still in Start mode, we shouldn't get here
             return {"status": 'START'}
+        # Still in Add mode, add a new node
         return {"status": "ADD"}
     return{"status": "idle"}
 
