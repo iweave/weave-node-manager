@@ -369,6 +369,66 @@ def set_node_status(id,status):
     else:
         return True
 
+# Update metrics after checking counters
+def update_counters(old,config):
+    # Are we already removing a node
+    if old["RemovingNodes"]:
+        with S() as session:
+            removals=session.execute(select(Node.timestamp,Node.id)\
+                                         .where(Node.status == REMOVING)\
+                                         .order_by(Node.timestamp.asc())).all()
+        # Iterate through active removals
+        records_to_remove = len(removals)
+        for check in removals:
+            # If the DelayRemove timer has expired, delete the entry
+            if isinstance(check[0],int) and \
+                check[0] < (int(time.time()) - (config["DelayRemove"]*60)):
+                logging.info("Deleting removed node "+str(check[1]))
+                with S() as session:
+                    session.execute(delete(Node).where(Node.id==check[1]))
+                    session.commit()
+                records_to_remove-=1
+        old["RemovingNodes"]=records_to_remove
+    # Are we already upgrading a node
+    if old["UpgradingNodes"]:
+        with S() as session:
+            upgrades=session.execute(select(Node.timestamp,Node.id,Node.host,Node.metrics_port)\
+                                         .where(Node.status == UPGRADING)\
+                                         .order_by(Node.timestamp.asc())).all()
+        # Iterate through active upgrades
+        records_to_upgrade = len(upgrades)
+        for check in upgrades:
+            # If the DelayUpgrade timer has expired, check on status
+            if isinstance(check[0],int) and \
+                check[0] < (int(time.time()) - (config["DelayUpgrade"]*60)):
+                logging.info("Updating upgraded node "+str(check[1]))
+                node_metrics=read_node_metrics(check[2],check[3])
+                node_metadata=read_node_metadata(check[2],check[3])
+                if node_metrics and node_metadata:
+                    update_node_from_metrics(check[1],node_metrics,node_metadata)
+                records_to_upgrade-=1
+        old["UpgradingNodes"]=records_to_upgrade
+    # Are we already restarting a node
+    if old["RestartingNodes"]:
+        with S() as session:
+            restarts=session.execute(select(Node.timestamp,Node.id,Node.host,Node.metrics_port)\
+                                         .where(Node.status == RESTARTING)\
+                                         .order_by(Node.timestamp.asc())).all()
+        # Iterate through active upgrades
+        records_to_restart = len(restarts)
+        for check in restarts:
+            # If the DelayUpgrade timer has expired, check on status
+            if isinstance(check[0],int) and \
+                check[0] < (int(time.time()) - (config["DelayStart"]*60)):
+                logging.info("Updating restarted node "+str(check[1]))
+                node_metrics=read_node_metrics(check[2],check[3])
+                node_metadata=read_node_metadata(check[2],check[3])
+                if node_metrics and node_metadata:
+                    update_node_from_metrics(check[1],node_metrics,node_metadata)
+                records_to_restart-=1
+        old["RestartingNodes"]=records_to_restart
+    return(old)
+
 # Disable firewall for port
 def disable_firewall(port):
     logging.info("disable firewall port {0}/udp".format(port))
@@ -483,6 +543,8 @@ def choose_action(config,metrics,db_nodes):
     features["LoadNotAllow"] = metrics["LoadAverage1"] > config["MaxLoadAverageAllowed"] or \
                             metrics["LoadAverage5"] > config["MaxLoadAverageAllowed"] or \
                             metrics["LoadAverage15"] > config["MaxLoadAverageAllowed"] 
+    # Check records for expired status
+    metrics=update_counters(metrics,config)
     # If we have other thing going on, don't add more nodes
     features["AddNewNode"]=sum([ metrics.get(m, 0) \
                                 for m in ['UpgradingNodes',
@@ -510,24 +572,8 @@ def choose_action(config,metrics,db_nodes):
     ##### Decisions
     # First if we're removing, that takes top priority
     if features["Remove"]:
-        # Are we already removing a node
-        with S() as session:
-            removals=session.execute(select(Node.timestamp,Node.id)\
-                                         .where(Node.status == REMOVING)\
-                                         .order_by(Node.timestamp.asc())).all()
-        # Iterate through active removals
-        records_to_remove = len(removals)
-        for check in removals:
-            # If the DelayRemove timer has expired, delete the entry
-            if isinstance(check[0],int) and \
-                check[0] < (int(time.time()) - (config["DelayRemove"]*60)):
-                logging.info("Deleting removed node "+str(check[1]))
-                with S() as session:
-                    session.execute(delete(Node).where(Node.id==check[1]))
-                    session.commit()
-                records_to_remove-=1
         # If we still have unexpired removal records, wait
-        if records_to_remove:
+        if metrics["RemovingNodes"]:
             logging.info("Still waiting for RemoveDelay")
             return {"status": REMOVING}
         # Start removing with stopped nodes
@@ -553,26 +599,9 @@ def choose_action(config,metrics,db_nodes):
         return{"status": "nothing-to-remove"}
     
     # Do we have upgrading to do?
-    if features["Upgrade"]:
-        # Are we already upgrading a node
-        with S() as session:
-            upgrades=session.execute(select(Node.timestamp,Node.id,Node.host,Node.metrics_port)\
-                                         .where(Node.status == UPGRADING)\
-                                         .order_by(Node.timestamp.asc())).all()
-        # Iterate through active upgrades
-        records_to_upgrade = len(upgrades)
-        for check in upgrades:
-            # If the DelayUpgrade timer has expired, check on status
-            if isinstance(check[0],int) and \
-                check[0] < (int(time.time()) - (config["DelayUpgrade"]*60)):
-                logging.info("Updating upgraded node "+str(check[1]))
-                node_metrics=read_node_metrics(check[2],check[3])
-                node_metadata=read_node_metadata(check[2],check[3])
-                if node_metrics and node_metadata:
-                    update_node_from_metrics(check[1],node_metrics,node_metadata)
-                records_to_upgrade-=1
+    if features["Upgrade"]:    
         # If we still have unexpired upgrade records, wait
-        if records_to_upgrade:
+        if metrics["UpgradingNodes"]:
             logging.info("Still waiting for UpgradeDelay")
             #return {"status": UPGRADING}
         # Let's find the oldest running node not using the current version
