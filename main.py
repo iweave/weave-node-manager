@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import psutil, shutil, platform
 
 from models import Base, Machine, Node
-from sqlalchemy import create_engine, select, insert, update, delete
+from sqlalchemy import create_engine, select, insert, update, delete, text
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 logging.basicConfig(level=logging.INFO)
@@ -189,6 +189,12 @@ def read_node_metrics(host,port):
         metrics["uptime"] = int((re.findall(r'ant_node_uptime ([\d]+)',response.text) or [0])[0])
         metrics["records"] = int((re.findall(r'ant_networking_records_stored ([\d]+)',response.text) or [0])[0])
         metrics["shunned"] = int((re.findall(r'ant_networking_shunned_by_close_group ([\d]+)',response.text) or [0])[0])
+    except requests.exceptions.ConnectionError:
+        logging.debug("Connection Refused on port: {0}:{1}".format(host,str(port)))
+        metrics["status"] = STOPPED
+        metrics["uptime"] = 0
+        metrics["records"] = 0
+        metrics["shunned"] = 0
     except Exception as error:
         template = "An exception of type {0} occurred. Arguments:\n{1!r}"
         message = template.format(type(error).__name__, error.args)
@@ -547,13 +553,102 @@ def update_nodes():
     for check in nodes:
         # Check on status
         if isinstance(check[0],int):
-            logging.info("Updating info on node "+str(check[1]))
+            logging.debug("Updating info on node "+str(check[1]))
             node_metrics=read_node_metrics(check[2],check[3])
             node_metadata=read_node_metadata(check[2],check[3])
             if node_metrics and node_metadata:
                 update_node_from_metrics(check[1],node_metrics,node_metadata)
      
-        
+# Create a new node
+def create_node(config,metrics):
+    logging.info("Creating new node")
+    # Create a holding place for the new node
+    card = {}
+    # Find the next available node number by first looking for holes
+    sql = text('select n1.id + 1 as id from node n1 ' + \
+                'left join node n2 on n2.id = n1.id + 1 ' + \
+                'where n2.id is null ' + \
+                'and n1.id <> (select max(id) from node) ' + \
+                'order by n1.id;')
+    with S() as session:
+        result = session.execute(sql).first()
+    if result:
+        card['id']=result[0]
+    # Otherwise get the max node number and add 1
+    else:
+        with S() as session:
+            result = session.execute(select(Node.id).order_by(Node.id.desc())).first()
+        card['id']=result[0]+1
+    # Set the node name
+    card['nodename']=f'{card['id']:04}'
+    card['service']=f'antnode{card['nodename']}.service'
+    card['user']='ant'
+    card['version']=metrics["AntNodeVersion"]
+    card['root_dir']=f"{config['NodeStorage']}/antnode{card['nodename']}"
+    card['binary']=f"{card['root_dir']}/antnode"
+    card['port']=config["PortStart"]*1000+card['id']
+    card['metrics_port']=13*1000+card['id']
+    card['network']='evm-arbitrum-one'
+    card['wallet']=config["RewardsAddress"]
+    card['peer_id']=''
+    card['status']=STOPPED
+    card['timestamp']=int(time.time())
+    card['records']=0
+    card['uptime']=0
+    card['shunned']=0
+    card['age']=card['timestamp']
+    card['host']=ANM_HOST
+    log_dir=f"/var/log/antnode/antnode{card['nodename']}"
+    # Create the node directory and log directory
+    try:
+        subprocess.run(['sudo','mkdir','-p',card["root_dir"],log_dir], stdout=subprocess.PIPE)
+    except subprocess.CalledProcessError as err:
+            print( 'ERROR:', err )
+    # Copy the binary to the node directory
+    try:
+        subprocess.run(['sudo','cp',metrics["antnode"],card["root_dir"]], stdout=subprocess.PIPE)
+    except subprocess.CalledProcessError as err:
+            print( 'ERROR:', err )
+    # Change owner of the node directory and log directories
+    try:
+        subprocess.run(['sudo','chown','-R',f'{card["user"]}:{card["user"]}',card["root_dir"],log_dir], stdout=subprocess.PIPE)
+    except subprocess.CalledProcessError as err:
+            print( 'ERROR:', err )
+    # build the systemd service unit
+    service=f"""[Unit]
+Description=antnode{card['nodename']}
+[Service]
+User={card['user']}
+ExecStart={card['binary']} --bootstrap-cache-dir /var/antctl/bootstrap-cache --root-dir {card['root_dir']} --port {card['port']} --enable-metrics-server --metrics-server-port {card['metrics_port']} --log-output-dest {log_dir} --max-log-files 1 --max-archived-log-files 1 --rewards-address {card['wallet']} {card['network']}
+Restart=always
+#RestartSec=300
+"""
+    # Write the systemd service unit with sudo tee since we're running as not root
+    try:
+        subprocess.run(['sudo','tee',f'/etc/systemd/system/{card["service"]}'],input=service,text=True, stdout=subprocess.PIPE)
+    except subprocess.CalledProcessError as err:
+            print( 'ERROR:', err )
+    # Reload systemd service files to get our new one
+    try:
+        subprocess.run(['sudo','systemctl','daemon-reload'], stdout=subprocess.PIPE)
+    except subprocess.CalledProcessError as err:
+            print( 'ERROR:', err )
+    # Add the new node to the database
+    with S() as session:
+        session.execute(
+            insert(Node),[card]
+        )
+        session.commit()
+    # Now we grab the node object from the database to pass to start node
+    with S() as session:
+        card=session.execute(select(Node).where(Node.id == card['id'])).first()
+    # Get the Node object from the Row
+    card=card[0]
+    # Start the new node
+    start_systemd_node(card)
+    #print(json.dumps(card,indent=2))
+    return True
+    
 
 # Make a decision about what to do
 def choose_action(config,metrics,db_nodes):
@@ -637,6 +732,10 @@ def choose_action(config,metrics,db_nodes):
             logging.info("Removing dead node "+str(check[1]))
             remove_node(check[1])
         return {"status": "removed-dead-nodes"}
+    # If we're restarting, wait patiently as metrics could be skewed
+    if metrics["RestartingNodes"]:
+        logging.info("Still waiting for RestartDelay")
+        return {"status": RESTARTING}
     # First if we're removing, that takes top priority
     if features["Remove"]:
         # If we still have unexpired removal records, wait
@@ -670,7 +769,7 @@ def choose_action(config,metrics,db_nodes):
         else:
             # Start with the youngest running node
             with S() as session:
-                youngest=session.execute(select(Node.id)\
+                youngest=session.execute(select(Node)\
                                         .where(Node.status == RUNNING)\
                                         .order_by(Node.age.desc())).first()
             if youngest:
@@ -729,8 +828,11 @@ def choose_action(config,metrics,db_nodes):
             # Hmm, still in Start mode, we shouldn't get here
             return {"status": 'START'}
         # Still in Add mode, add a new node
-        #return {"status": "ADD"}
-    # Survey the node ports
+        if create_node(config,metrics):
+            return {"status": "ADD"}
+        else:
+            return {"status": "failed-create-node"}
+    # If we have nothing to do, Survey the node ports
     update_nodes()
     return{"status": "idle"}
 
@@ -794,8 +896,10 @@ else:
 data = Counter(status[0] for status in db_nodes)
 #print(data)
 print("Running Nodes:",data[RUNNING])
+print("Restarting Nodes:",data[RESTARTING])
 print("Stopped Nodes:",data[STOPPED])
 print("Upgrading Nodes:",data[UPGRADING])
+print("Removing Nodes:",data[REMOVING])
 data = Counter(ver[1] for ver in db_nodes)
 print("Versions:",data)
 
