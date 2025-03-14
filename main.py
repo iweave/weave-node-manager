@@ -536,7 +536,23 @@ def remove_node(id):
         except subprocess.CalledProcessError as err:
             print( 'ERROR:', err ) 
     #print(json.dumps(node,indent=2))
-        
+
+# Rescan nodes for status
+def update_nodes():
+    with S() as session:
+        nodes=session.execute(select(Node.timestamp,Node.id,Node.host,Node.metrics_port)\
+                                        .where(Node.status != DISABLED)\
+                                        .order_by(Node.timestamp.asc())).all()
+    # Iterate through all records
+    for check in nodes:
+        # Check on status
+        if isinstance(check[0],int):
+            logging.info("Updating info on node "+str(check[1]))
+            node_metrics=read_node_metrics(check[2],check[3])
+            node_metadata=read_node_metadata(check[2],check[3])
+            if node_metrics and node_metadata:
+                update_node_from_metrics(check[1],node_metrics,node_metadata)
+     
         
 
 # Make a decision about what to do
@@ -713,7 +729,9 @@ def choose_action(config,metrics,db_nodes):
             # Hmm, still in Start mode, we shouldn't get here
             return {"status": 'START'}
         # Still in Add mode, add a new node
-        return {"status": "ADD"}
+        #return {"status": "ADD"}
+    # Survey the node ports
+    update_nodes()
     return{"status": "idle"}
 
 
