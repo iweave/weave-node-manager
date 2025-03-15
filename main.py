@@ -154,29 +154,30 @@ def read_systemd_service(antnode):
 
 # Read data from metadata endpoint
 def read_node_metadata(host,port):
+    # Only return version number when we have one, to stop clobbering the binary check
     try:
         url = "http://{0}:{1}/metadata".format(host,port)
         response = requests.get(url)
         data=response.text
     except requests.exceptions.ConnectionError:
         logging.debug("Connection Refused on port: {0}:{1}".format(host,str(port)))
-        return {"status": STOPPED, "version": "", "peer_id":""}
+        return {"status": STOPPED, "peer_id":""}
     except Exception as error:
-        template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+        template = "In RNMd - An exception of type {0} occurred. Arguments:\n{1!r}"
         message = template.format(type(error).__name__, error.args)
         logging.info(message)
-        return {"status": STOPPED, "version": "", "peer_id":""}
+        return {"status": STOPPED, "peer_id":""}
     # collect a dict to return
     card={}
     try:
         card["version"] = re.findall(r'{antnode_version="([\d\.]+)"}',data)[0]
     except:
-        card["version"] = ""
+        logging.info('No version found')
     try:
         card["peer_id"] = re.findall(r'{peer_id="([\w\d]+)"}',data)[0]
     except:
         card["peer_id"] = ""
-    card["status"] = RUNNING if card["version"] else STOPPED
+    card["status"] = RUNNING if "version" in card else STOPPED
     return card
 
 # Read data from metrics port
@@ -196,7 +197,7 @@ def read_node_metrics(host,port):
         metrics["records"] = 0
         metrics["shunned"] = 0
     except Exception as error:
-        template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+        template = "in:RNM - An exception of type {0} occurred. Arguments:\n{1!r}"
         message = template.format(type(error).__name__, error.args)
         logging.info(message)
         metrics["status"] = STOPPED
@@ -211,7 +212,7 @@ def get_antnode_version(binary):
         data = subprocess.run([binary, '--version'], stdout=subprocess.PIPE).stdout.decode('utf-8')
         return re.findall(r'Autonomi Node v([\d\.]+)',data)[0]
     except Exception as error:
-        template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+        template = "In GAV - An exception of type {0} occurred. Arguments:\n{1!r}"
         message = template.format(type(error).__name__, error.args)
         logging.info(message)
         return 0
@@ -316,14 +317,15 @@ def get_machine_metrics(node_storage,remove_limit):
         sys.exit(1)
     metrics["AntNodeVersion"]=get_antnode_version(metrics["antnode"])
     metrics["NodesLatestV"]=sum(1 for node in db_nodes if node[1]==metrics["AntNodeVersion"]) or 0
-    metrics["NodesToUpgrade"]=metrics["TotalNodes"] - metrics["NodesLatestV"]
+    metrics["NodesNoVersion"]=sum(1 for node in db_nodes if not node[1]) or 0
+    metrics["NodesToUpgrade"]=metrics["TotalNodes"] - metrics["NodesLatestV"] - metrics["NodesNoVersion"]
 
     # Windows has to build load average over 5 seconds. The first 5 seconds returns 0's
     # I don't plan on supporting windows, but if this get's modular, I don't want this 
     # issue to be skipped
-    if platform.system() == "Windows":
-        discard=psutil.getloadavg()
-        time.sleep(5)
+    #if platform.system() == "Windows":
+    #    discard=psutil.getloadavg()
+    #    time.sleep(5)
     metrics["LoadAverage1"],metrics["LoadAverage5"],metrics["LoadAverage15"]=psutil.getloadavg()
     # Get CPU Metrics over 1 second
     metrics["IdleCpuPercent"],metrics["IOWait"] = psutil.cpu_times_percent(1)[3:5]
@@ -355,15 +357,19 @@ def get_machine_metrics(node_storage,remove_limit):
 # Update node with metrics result
 def update_node_from_metrics(id,metrics,metadata):
     try:
+        # We check the binary version in other code, so lets stop clobbering it when a node is stopped
+        card={'status': metrics["status"], 'timestamp': int(time.time()),
+                        'uptime': metrics["uptime"], 'records': metrics["records"],
+                        'shunned': metrics["shunned"],
+                        'peer_id': metadata["peer_id"]}
+        if "version" in metadata:
+            card['version']=metadata["version"]
         with S() as session:
             session.query(Node).filter(Node.id == id).\
-                update({'status': metrics["status"], 'timestamp': int(time.time()),
-                        'uptime': metrics["uptime"], 'records': metrics["records"],
-                        'shunned': metrics["shunned"], 'version': metadata["version"],
-                        'peer_id': metadata["peer_id"]})
+                update(card)
             session.commit()
     except Exception as error:
-        template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+        template = "In UNFM - An exception of type {0} occurred. Arguments:\n{1!r}"
         message = template.format(type(error).__name__, error.args)
         logging.warning(message)
         return False
@@ -450,7 +456,7 @@ def enable_firewall(port,node):
     try:
         subprocess.run(['sudo','ufw','allow',"{0}/udp".format(port),'comment',node], stdout=subprocess.PIPE)
     except subprocess.CalledProcessError as err:
-            print( 'ERROR:', err )
+            logging.error( 'EF Error:', err )
 
 # Disable firewall for port
 def disable_firewall(port):
@@ -459,7 +465,7 @@ def disable_firewall(port):
     try:
         subprocess.run(['sudo','ufw','delete','allow',"{0}/udp".format(port)], stdout=subprocess.PIPE)
     except subprocess.CalledProcessError as err:
-            print( 'ERROR:', err )
+            logging.error( 'DF ERROR:', err )
 
 # Start a systemd node
 def start_systemd_node(node):
@@ -468,7 +474,7 @@ def start_systemd_node(node):
     try:
         subprocess.run(['sudo', 'systemctl', 'start', node.service], stdout=subprocess.PIPE)
     except subprocess.CalledProcessError as err:
-            print( 'ERROR:', err )
+            logging.error( 'SSN1 ERROR:', err )
             return False
     # Open a firewall hole for the data port
     enable_firewall(node.port,node.service)
@@ -483,7 +489,7 @@ def stop_systemd_node(node):
     try:
         subprocess.run(['sudo', 'systemctl', 'stop', node.service], stdout=subprocess.PIPE)
     except subprocess.CalledProcessError as err:
-            print( 'ERROR:', err )
+            logging.error( 'SSN2 ERROR:', err )
     disable_firewall(node.port)
     set_node_status(node.id,STOPPED)
 
@@ -496,17 +502,17 @@ def upgrade_node(node,metrics):
     try:
         subprocess.run(['sudo', 'cp', '-f', metrics["antnode"], node.binary])
     except subprocess.CalledProcessError as err:
-        print( 'ERROR:', err )
+        logging.error( 'UN1 ERROR:', err )
     try:
         subprocess.run(['sudo', 'systemctl', 'restart', node.service])
     except subprocess.CalledProcessError as err:
-        print( 'ERROR:', err )
+        logging.error( 'UN2 ERROR:', err )
     version=get_antnode_version(node.binary)
     try:
         with S() as session:
             session.query(Node).filter(Node.id == node.id).\
                 update({'status': UPGRADING, 'timestamp': int(time.time()),
-                        'version': version})
+                        'version': metrics["AntNodeVersion"]})
             session.commit()
     except:
         return False
@@ -530,17 +536,17 @@ def remove_node(id):
         try:
             subprocess.run(['sudo', 'rm', '-rf', node.root_dir, f"/var/log/{nodename}"])
         except subprocess.CalledProcessError as err:
-            print( 'ERROR:', err )
+            logging.error( 'RN1 ERROR:', err )
         # Remove systemd service file
         try:
             subprocess.run(['sudo', 'rm', '-f', f"/etc/systemd/system/{node.service}"])
         except subprocess.CalledProcessError as err:
-            print( 'ERROR:', err )
+            logging.error( 'RN2 ERROR:', err )
         # Tell system to reload systemd files   
         try:
             subprocess.run(['sudo', 'systemctl', 'daemon-reload'])
         except subprocess.CalledProcessError as err:
-            print( 'ERROR:', err ) 
+            logging.error( 'RN3 ERROR:', err ) 
     #print(json.dumps(node,indent=2))
 
 # Rescan nodes for status
@@ -603,17 +609,17 @@ def create_node(config,metrics):
     try:
         subprocess.run(['sudo','mkdir','-p',card["root_dir"],log_dir], stdout=subprocess.PIPE)
     except subprocess.CalledProcessError as err:
-            print( 'ERROR:', err )
+            logging.error( 'CN1 ERROR:', err )
     # Copy the binary to the node directory
     try:
         subprocess.run(['sudo','cp',metrics["antnode"],card["root_dir"]], stdout=subprocess.PIPE)
     except subprocess.CalledProcessError as err:
-            print( 'ERROR:', err )
+            logging.error( 'CN2 ERROR:', err )
     # Change owner of the node directory and log directories
     try:
         subprocess.run(['sudo','chown','-R',f'{card["user"]}:{card["user"]}',card["root_dir"],log_dir], stdout=subprocess.PIPE)
     except subprocess.CalledProcessError as err:
-            print( 'ERROR:', err )
+            logging.error( 'CN3 ERROR:', err )
     # build the systemd service unit
     service=f"""[Unit]
 Description=antnode{card['nodename']}
@@ -627,12 +633,12 @@ Restart=always
     try:
         subprocess.run(['sudo','tee',f'/etc/systemd/system/{card["service"]}'],input=service,text=True, stdout=subprocess.PIPE)
     except subprocess.CalledProcessError as err:
-            print( 'ERROR:', err )
+            logging.error( 'CN4 ERROR:', err )
     # Reload systemd service files to get our new one
     try:
         subprocess.run(['sudo','systemctl','daemon-reload'], stdout=subprocess.PIPE)
     except subprocess.CalledProcessError as err:
-            print( 'ERROR:', err )
+            logging.error( 'CN5 ERROR:', err )
     # Add the new node to the database
     with S() as session:
         session.execute(
@@ -660,7 +666,7 @@ def choose_action(config,metrics,db_nodes):
     features["RemCpu"]=metrics["UsedCpuPercent"] > config["CpuRemove"]
     features["RemMem"]=metrics["UsedMemPercent"] > config["MemRemove"]
     features["RemHD"]=metrics["UsedHDPercent"] > config["HDRemove"]
-    features["AllowNodeCap"]=metrics["TotalNodes"] < config["NodeCap"]
+    features["AllowNodeCap"]=metrics["TotalNodes"] <= config["NodeCap"]
     # These are new features, so ignore them if not configured
     if (config["NetIOReadLessThan"]+config["NetIOReadRemove"]+
         config["NetIOWriteLessThan"]+config["NetIOWriteRemove"]>1):
@@ -732,6 +738,22 @@ def choose_action(config,metrics,db_nodes):
             logging.info("Removing dead node "+str(check[1]))
             remove_node(check[1])
         return {"status": "removed-dead-nodes"}
+    # If we have nodes with no version number, update from binary
+    if metrics["NodesNoVersion"] > 1:
+        with S() as session:
+            no_version=session.execute(select(Node.timestamp,Node.id,Node.binary)\
+                                         .where(Node.version == '')\
+                                         .order_by(Node.timestamp.asc())).all()
+        # Iterate through nodes with no version number
+        for check in no_version:
+            # Update version number from binary
+            version=get_antnode_version(check[2])
+            logging.info(f"Updating version number for node {check[1]} to {version}")
+            with S() as session:
+                session.query(Node).filter(Node.id == check[1]).\
+                    update({'version': version})
+                session.commit()
+            
     # If we're restarting, wait patiently as metrics could be skewed
     if metrics["RestartingNodes"]:
         logging.info("Still waiting for RestartDelay")
@@ -794,10 +816,14 @@ def choose_action(config,metrics,db_nodes):
         if oldest:
             # Get Node from Row
             oldest = oldest[0]
+            # If we don't have a version number from metadata, grab from binary
+            if not oldest.version:
+                oldest.version=get_antnode_version(oldest.binary)
             #print(json.dumps(oldest))
             # Upgrade the oldest node
             upgrade_node(oldest,metrics)
             return{"status": UPGRADING}
+        
     # If AddNewNode
     #   If stopped nodes available
     #     Check oldest stopped version
@@ -818,6 +844,9 @@ def choose_action(config,metrics,db_nodes):
             if oldest:
                 # Get Node from Row
                 oldest=oldest[0]
+                # If we don't have a version number from metadata, grab from binary
+                if not oldest.version:
+                    oldest.version=get_antnode_version(oldest.binary)
                 # If the stopped version is old, upgrade it
                 if Version(metrics["AntNodeVersion"]) > Version(oldest.version):
                     upgrade_node(oldest,metrics)
@@ -856,7 +885,7 @@ if db_nodes:
     #print(anm_config)
     #print(json.dumps(anm_config,indent=4))
     #print("Node: ",db_nodes)
-    print("Found {counter} nodes migrated".format(counter=len(db_nodes)))
+    logging.info("Found {counter} nodes migrated".format(counter=len(db_nodes)))
 
 else:
     anm_config = load_anm_config()
@@ -887,7 +916,7 @@ else:
 
 
     #print(json.dumps(anm_config,indent=4))
-    print("Found {counter} nodes configured".format(counter=len(db_nodes)))
+    logging.info("Found {counter} nodes configured".format(counter=len(db_nodes)))
 
     #versions = [v[1] for worker in Workers if (v := worker.get('version'))]
     #data = Counter(ver for ver in versions)
