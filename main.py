@@ -4,7 +4,7 @@ import subprocess, logging
 from collections import Counter
 from packaging.version import Version
 from dotenv import load_dotenv
-import psutil, shutil, platform
+import psutil, shutil
 
 from models import Base, Machine, Node
 from sqlalchemy import create_engine, select, insert, update, delete, text
