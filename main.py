@@ -668,7 +668,7 @@ def choose_action(config,metrics,db_nodes):
     features["RemCpu"]=metrics["UsedCpuPercent"] > config["CpuRemove"]
     features["RemMem"]=metrics["UsedMemPercent"] > config["MemRemove"]
     features["RemHD"]=metrics["UsedHDPercent"] > config["HDRemove"]
-    features["AllowNodeCap"]=metrics["TotalNodes"] <= config["NodeCap"]
+    features["AllowNodeCap"]=metrics["RunningNodes"] < config["NodeCap"]
     # These are new features, so ignore them if not configured
     if (config["NetIOReadLessThan"]+config["NetIOReadRemove"]+
         config["NetIOWriteLessThan"]+config["NetIOWriteRemove"]>1):
