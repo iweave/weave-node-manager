@@ -67,10 +67,9 @@ if os.path.exists("/var/antctl/system"):
     # Is anm scheduled to run
     if os.path.exists("/etc/cron.d/anm"):
         # remove cron to disable old anm
-        pass
-        #os.path.remove("/etc/cron.d/anm"):
+        os.remove("/etc/cron.d/anm")
     # Is anm sitll running? We'll wait
-    if False and os.path.exists("/var/antctl/block"):
+    if os.path.exists("/var/antctl/block"):
         logging.info("anm still running, waiting...")
         sys.exit(1)
 
@@ -791,6 +790,10 @@ def choose_action(config,metrics,db_nodes):
             return{"status": "nothing-to-remove"}
         # Otherwise, let's try just stopping a node to bring IO/Mem/Cpu down
         else:
+            # If we just stopped a node, wait
+            if int(config["LastStoppedAt"] or 0) > (int(time.time()) - (config["DelayRemove"]*60)):
+                logging.info("Still waiting for RemoveDelay")
+                return {"status": 'waiting-to-stop'}
             # Start with the youngest running node
             with S() as session:
                 youngest=session.execute(select(Node)\
@@ -873,6 +876,14 @@ def choose_action(config,metrics,db_nodes):
     return{"status": "idle"}
 
 
+# We're starting, so lets create a lock file
+try:
+    with open('/var/antctl/wnm_active', 'w') as file:
+         file.write(str(int(time.time())))
+except:
+    logging.error("Unable to create lock file, exiting")
+    sys.exit(1)
+
 # See if we already have a known state in the database
 with S() as session:
     db_nodes=session.execute(select(Node.status,Node.version,
@@ -944,4 +955,7 @@ print(json.dumps(anm_config,indent=2))
 print(json.dumps(machine_metrics,indent=2))
 this_action=choose_action(anm_config,machine_metrics,db_nodes)
 print("Action:",json.dumps(this_action,indent=2))
+# Remove lock file
+os.remove("/var/antctl/wnm_active")
+
 print("End of program")
