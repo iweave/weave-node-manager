@@ -129,6 +129,8 @@ def load_anm_config():
     anm_config["NetIOReadRemove"] = float(os.getenv('NetIOReadRemove') or 0.0)
     anm_config["NetIOWriteLessThan"] = float(os.getenv('NetIOWriteLessThan') or 0.0)
     anm_config["NetIOWriteRemove"] = float(os.getenv('NetIOWriteRemove') or 0.0)
+    # Timer for last stopped nodes
+    anm_config["LastStoppedAt"]=0
 
 
     return anm_config
@@ -333,8 +335,8 @@ def get_machine_metrics(node_storage,remove_limit):
     metrics["UsedCpuPercent"] = 100 - metrics["IdleCpuPercent"]
     data=psutil.virtual_memory()
     #print(data)
-    metrics["FreeMemPercent"]=data.percent
-    metrics["UsedMemPercent"]=100-metrics["FreeMemPercent"]
+    metrics["UsedMemPercent"]=data.percent
+    metrics["FreeMemPercent"]=100-metrics["UsedMemPercent"]
     data=psutil.disk_io_counters()
     # This only checks the drive mapped to the first node and will need to be updated
     # when we eventually support multiple drives
@@ -797,6 +799,11 @@ def choose_action(config,metrics,db_nodes):
             if youngest:
                 # Stop the youngest node
                 stop_systemd_node(youngest[0])
+                # Update the last stopped time
+                with S() as session:
+                    session.query(Machine).filter(Machine.id == 1).\
+                        update({'LastStoppedAt': int(time.time())})
+                    session.commit()
                 return{"status": STOPPED}
             else:
                 return{"status": "nothing-to-stop"}

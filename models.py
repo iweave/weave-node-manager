@@ -44,6 +44,7 @@ class Machine(Base):
     NetIOReadRemove: Mapped[float] = mapped_column(Float)
     NetIOWriteLessThan: Mapped[float] = mapped_column(Float)
     NetIOWriteRemove: Mapped[float] = mapped_column(Float)
+    LastStoppedAt: Mapped[int] = mapped_column(Integer)
 
     def __init__(self, CpuCount, NodeCap, CpuLessThan, CpuRemove,
                  MemLessThan, MemRemove, HDLessThan, HDRemove,
@@ -52,7 +53,7 @@ class Machine(Base):
                  DesiredLoadAverage, PortStart, HDIOReadLessThan, 
                  HDIOReadRemove, HDIOWriteLessThan, HDIOWriteRemove, 
                  NetIOReadLessThan, NetIOReadRemove, NetIOWriteLessThan, 
-                 NetIOWriteRemove):
+                 NetIOWriteRemove, LastStoppedAt):
         
         self.CpuCount = CpuCount
         self.NodeCap = NodeCap
@@ -79,6 +80,7 @@ class Machine(Base):
         self.NetIOReadRemove = NetIOReadRemove
         self.NetIOWriteLessThan = NetIOWriteLessThan
         self.NetIOWriteRemove = NetIOWriteRemove
+        self.LastStoppedAt = LastStoppedAt
 
     def __repr__(self):
         return f'Machine({self.CpuCount},{self.NodeCap},{self.CpuLessThan},{self.CpuRemove}' + \
@@ -90,7 +92,8 @@ class Machine(Base):
             f',{self.PortStart},{self.HDIOReadLessThan},{self.HDIOReadRemove}' + \
             f',{self.HDIOWriteLessThan},{self.HDIOWriteRemove}' + \
             f',{self.NetIOReadLessThan},{self.NetIOReadRemove}' + \
-            f',{self.NetIOWriteLessThan},{self.NetIOWriteRemove})'
+            f',{self.NetIOWriteLessThan},{self.NetIOWriteRemove}' + \
+            f',{self.LastStoppedAt})'
     
     def __json__(self):
         return { 'CpuCount': self.CpuCount, 'NodeCap': self.NodeCap, 'CpuLessThan': self.CpuLessThan,
@@ -102,7 +105,8 @@ class Machine(Base):
             'PortStart': self.PortStart, 'HDIOReadLessThan': self.HDIOReadLessThan, 'HDIOReadRemove': self.HDIOReadRemove,
             'HDIOWriteLessThan': self.HDIOWriteLessThan, 'HDIOWriteRemove': self.HDIOWriteRemove,
             'NetIOReadLessThan': self.NetIOReadLessThan, 'NetIOReadRemove': self.NetIOReadRemove,
-            'NetIOWriteLessThan': self.NetIOWriteLessThan, 'NetIOWriteRemove': self.NetIOWriteRemove }
+            'NetIOWriteLessThan': self.NetIOWriteLessThan, 'NetIOWriteRemove': self.NetIOWriteRemove,
+            'LastStoppedAt': self.LastStoppedAt }
 
    
 # Extend the Base class to create our Node info
