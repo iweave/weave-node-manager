@@ -707,7 +707,8 @@ def choose_action(config,metrics,db_nodes):
     # Are we overlimit on nodes
     features["Remove"] =features["LoadNotAllow"] or features["RemCpu"] or \
                         features["RemHD"] or features["RemMem"] or \
-                        features["RemoveHDIO"] or features["RemoveNetIO"]
+                        features["RemoveHDIO"] or features["RemoveNetIO"] or \
+                        metrics["TotalNodes"] > config["NodeCap"]
     # If we have nodes to upgrade
     if metrics["NodesToUpgrade"] >= 1:
         # Make sure current version is equal or newer than version on first node.
@@ -765,8 +766,8 @@ def choose_action(config,metrics,db_nodes):
         if metrics["RemovingNodes"]:
             logging.info("Still waiting for RemoveDelay")
             return {"status": REMOVING}
-        # If we're under HD pressure, remove nodes
-        if features["RemHD"]:
+        # If we're under HD pressure or trimming node cap, remove nodes
+        if features["RemHD"] or metrics["TotalNodes"] > config["NodeCap"]:
             # Start removing with stopped nodes
             if metrics["StoppedNodes"] > 0:
                 # What is the youngest stopped node
