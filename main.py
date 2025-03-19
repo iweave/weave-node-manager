@@ -760,6 +760,10 @@ def choose_action(config,metrics,db_nodes):
     if metrics["RestartingNodes"]:
         logging.info("Still waiting for RestartDelay")
         return {"status": RESTARTING}
+    # If we still have unexpired upgrade records, wait
+    if metrics["UpgradingNodes"]:
+        logging.info("Still waiting for UpgradeDelay")
+        return {"status": UPGRADING}
     # First if we're removing, that takes top priority
     if features["Remove"]:
         # If we still have unexpired removal records, wait
@@ -814,10 +818,6 @@ def choose_action(config,metrics,db_nodes):
     
     # Do we have upgrading to do?
     if features["Upgrade"]:    
-        # If we still have unexpired upgrade records, wait
-        if metrics["UpgradingNodes"]:
-            logging.info("Still waiting for UpgradeDelay")
-            return {"status": UPGRADING}
         # Let's find the oldest running node not using the current version
         with S() as session:
             oldest=session.execute(select(Node)\
