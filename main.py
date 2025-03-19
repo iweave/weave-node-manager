@@ -876,87 +876,90 @@ def choose_action(config,metrics,db_nodes):
     update_nodes()
     return{"status": "idle"}
 
+def process_server():
+    # We're starting, so lets create a lock file
+    try:
+        with open('/var/antctl/wnm_active', 'w') as file:
+            file.write(str(int(time.time())))
+    except:
+        logging.error("Unable to create lock file, exiting")
+        sys.exit(1)
 
-# We're starting, so lets create a lock file
-try:
-    with open('/var/antctl/wnm_active', 'w') as file:
-         file.write(str(int(time.time())))
-except:
-    logging.error("Unable to create lock file, exiting")
-    sys.exit(1)
-
-# See if we already have a known state in the database
-with S() as session:
-    db_nodes=session.execute(select(Node.status,Node.version,
-                                    Node.host,Node.metrics_port,
-                                    Node.port,Node.age,Node.id,
-                                    Node.timestamp)).all()
-    anm_config=session.execute(select(Machine)).all()
-
-if db_nodes:
-    # anm_config by default loads a parameter array, 
-    # use the __json__ method to return a dict from the first node
-    anm_config = json.loads(json.dumps(anm_config[0][0])) or load_anm_config()
-    metrics=get_machine_metrics(anm_config["NodeStorage"],anm_config["HDRemove"])
-    #node_metrics = read_node_metrics(db_nodes[0][2],db_nodes[0][3])
-    #print(db_nodes[0])
-    #print(node_metrics)
-    #print(anm_config)
-    #print(json.dumps(anm_config,indent=4))
-    #print("Node: ",db_nodes)
-    logging.info("Found {counter} nodes migrated".format(counter=len(db_nodes)))
-
-else:
-    anm_config = load_anm_config()
-    #print(anm_config)
-    Workers = survey_machine() or []
-
-    #""""
-    with S() as session:
-        session.execute(
-            insert(Node),Workers
-        )
-        session.commit()
-    #"""
-
-    with S() as session:
-        session.execute(
-            insert(Machine),[anm_config]
-        )
-        session.commit()
-
-    # Now load subset of data to work with
+    # See if we already have a known state in the database
     with S() as session:
         db_nodes=session.execute(select(Node.status,Node.version,
                                         Node.host,Node.metrics_port,
                                         Node.port,Node.age,Node.id,
                                         Node.timestamp)).all()
+        anm_config=session.execute(select(Machine)).all()
+
+    if db_nodes:
+        # anm_config by default loads a parameter array, 
+        # use the __json__ method to return a dict from the first node
+        anm_config = json.loads(json.dumps(anm_config[0][0])) or load_anm_config()
+        metrics=get_machine_metrics(anm_config["NodeStorage"],anm_config["HDRemove"])
+        #node_metrics = read_node_metrics(db_nodes[0][2],db_nodes[0][3])
+        #print(db_nodes[0])
+        #print(node_metrics)
+        #print(anm_config)
+        #print(json.dumps(anm_config,indent=4))
+        #print("Node: ",db_nodes)
+        logging.info("Found {counter} nodes migrated".format(counter=len(db_nodes)))
+
+    else:
+        anm_config = load_anm_config()
+        #print(anm_config)
+        Workers = survey_machine() or []
+
+        #""""
+        with S() as session:
+            session.execute(
+                insert(Node),Workers
+            )
+            session.commit()
+        #"""
+
+        with S() as session:
+            session.execute(
+                insert(Machine),[anm_config]
+            )
+            session.commit()
+
+        # Now load subset of data to work with
+        with S() as session:
+            db_nodes=session.execute(select(Node.status,Node.version,
+                                            Node.host,Node.metrics_port,
+                                            Node.port,Node.age,Node.id,
+                                            Node.timestamp)).all()
 
 
 
-    #print(json.dumps(anm_config,indent=4))
-    logging.info("Found {counter} nodes configured".format(counter=len(db_nodes)))
+        #print(json.dumps(anm_config,indent=4))
+        logging.info("Found {counter} nodes configured".format(counter=len(db_nodes)))
 
-    #versions = [v[1] for worker in Workers if (v := worker.get('version'))]
-    #data = Counter(ver for ver in versions)
+        #versions = [v[1] for worker in Workers if (v := worker.get('version'))]
+        #data = Counter(ver for ver in versions)
 
 
-data = Counter(status[0] for status in db_nodes)
-#print(data)
-print("Running Nodes:",data[RUNNING])
-print("Restarting Nodes:",data[RESTARTING])
-print("Stopped Nodes:",data[STOPPED])
-print("Upgrading Nodes:",data[UPGRADING])
-print("Removing Nodes:",data[REMOVING])
-data = Counter(ver[1] for ver in db_nodes)
-print("Versions:",data)
+    data = Counter(status[0] for status in db_nodes)
+    #print(data)
+    print("Running Nodes:",data[RUNNING])
+    print("Restarting Nodes:",data[RESTARTING])
+    print("Stopped Nodes:",data[STOPPED])
+    print("Upgrading Nodes:",data[UPGRADING])
+    print("Removing Nodes:",data[REMOVING])
+    data = Counter(ver[1] for ver in db_nodes)
+    print("Versions:",data)
 
-machine_metrics = get_machine_metrics(anm_config['NodeStorage'],anm_config["HDRemove"])
-print(json.dumps(anm_config,indent=2))
-print(json.dumps(machine_metrics,indent=2))
-this_action=choose_action(anm_config,machine_metrics,db_nodes)
-print("Action:",json.dumps(this_action,indent=2))
-# Remove lock file
-os.remove("/var/antctl/wnm_active")
+    machine_metrics = get_machine_metrics(anm_config['NodeStorage'],anm_config["HDRemove"])
+    print(json.dumps(anm_config,indent=2))
+    print(json.dumps(machine_metrics,indent=2))
+    this_action=choose_action(anm_config,machine_metrics,db_nodes)
+    print("Action:",json.dumps(this_action,indent=2))
+    # Remove lock file
+    os.remove("/var/antctl/wnm_active")
+
+if __name__ == "__main__":
+    process_server()
 
 print("End of program")
