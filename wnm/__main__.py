@@ -871,10 +871,13 @@ def choose_action(config,metrics,db_nodes):
             # Hmm, still in Start mode, we shouldn't get here
             return {"status": 'START'}
         # Still in Add mode, add a new node
-        if create_node(config,metrics):
-            return {"status": "ADD"}
+        if metrics["TotalNodes"] < config["NodeCap"]:
+            if create_node(config,metrics):
+                return {"status": "ADD"}
+            else:
+                return {"status": "failed-create-node"}
         else:
-            return {"status": "failed-create-node"}
+            return {"status": "node-cap-reached"}
     # If we have nothing to do, Survey the node ports
     update_nodes()
     return{"status": "idle"}
