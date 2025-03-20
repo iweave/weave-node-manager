@@ -535,7 +535,7 @@ def remove_node(id):
         nodename=f"antnode{node.nodename}"
         # Remove node data and log
         try:
-            subprocess.run(['sudo', 'rm', '-rf', node.root_dir, f"/var/log/{nodename}"])
+            subprocess.run(['sudo', 'rm', '-rf', node.root_dir, f"/var/log/antnode/{nodename}"])
         except subprocess.CalledProcessError as err:
             logging.error( 'RN1 ERROR:', err )
         # Remove systemd service file
