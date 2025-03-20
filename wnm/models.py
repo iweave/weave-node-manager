@@ -12,7 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 class Base(DeclarativeBase):
     pass
 
-# Extend the Base class to create our Node info
+# Extend the Base class to create our Host info
 class Machine(Base):
     __tablename__ = 'machine'
     # No schema in sqlite3

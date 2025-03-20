@@ -6,7 +6,7 @@ from packaging.version import Version
 from dotenv import load_dotenv
 import psutil, shutil
 
-from models import Base, Machine, Node
+from wnm.models import Base, Machine, Node
 from sqlalchemy import create_engine, select, insert, update, delete, text
 from sqlalchemy.orm import sessionmaker, scoped_session
 
