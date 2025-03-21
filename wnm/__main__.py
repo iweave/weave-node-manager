@@ -473,7 +473,10 @@ def start_systemd_node(node):
     logging.info("Starting node "+str(node.id))
     # Try to start the service
     try:
-        subprocess.run(['sudo', 'systemctl', 'start', node.service], stdout=subprocess.PIPE)
+        p = subprocess.run(['sudo', 'systemctl', 'start', node.service], stdout=subprocess.PIPE,stderr=subprocess.STDOUT).stdout.decode('utf-8')
+        if re.match(r'Failed to start',p):
+            logging.error( 'SSN2 ERROR:', p )
+            return False
     except subprocess.CalledProcessError as err:
             logging.error( 'SSN1 ERROR:', err )
             return False
@@ -655,7 +658,7 @@ Restart=always
     # Get the Node object from the Row
     card=card[0]
     # Start the new node
-    start_systemd_node(card)
+    return start_systemd_node(card)
     #print(json.dumps(card,indent=2))
     return True
     
@@ -866,8 +869,10 @@ def choose_action(config,metrics,db_nodes):
                     upgrade_node(oldest,metrics)
                     return{"status": UPGRADING}
                 else:
-                    start_systemd_node(oldest)
-                    return{"status": RESTARTING}
+                    if start_systemd_node(oldest):
+                        return{"status": RESTARTING}
+                    else:
+                        return{"status": "failed-start-node"}
             # Hmm, still in Start mode, we shouldn't get here
             return {"status": 'START'}
         # Still in Add mode, add a new node
