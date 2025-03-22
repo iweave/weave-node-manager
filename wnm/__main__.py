@@ -887,7 +887,7 @@ def choose_action(config,metrics,db_nodes):
     update_nodes()
     return{"status": "idle"}
 
-def process_server():
+def main():
     # We're starting, so lets create a lock file
     try:
         with open('/var/antctl/wnm_active', 'w') as file:
@@ -971,6 +971,6 @@ def process_server():
     os.remove("/var/antctl/wnm_active")
 
 if __name__ == "__main__":
-    process_server()
+    main()
 
 print("End of program")
