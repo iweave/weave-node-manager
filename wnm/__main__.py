@@ -67,6 +67,13 @@ if os.path.exists("/var/antctl/system"):
     # Is anm scheduled to run
     if os.path.exists("/etc/cron.d/anm"):
         # remove cron to disable old anm
+        try:
+            subprocess.run(['sudo','rm', '/etc/cron.d/anm'])
+        except Exception as error:
+            template = "In GAV - An exception of type {0} occurred. Arguments:\n{1!r}"
+            message = template.format(type(error).__name__, error.args)
+            logging.info(message)
+            sys.exit(1)
         os.remove("/etc/cron.d/anm")
     # Is anm sitll running? We'll wait
     if os.path.exists("/var/antctl/block"):
