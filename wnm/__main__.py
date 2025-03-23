@@ -879,6 +879,7 @@ def choose_action(config, metrics, db_nodes):
         and features["AllowHDIO"]
         and features["AllowNetIO"]
         and features["LoadAllow"]
+        and metrics["TotalNodes"] < config["NodeCap"]
     )
     # Are we overlimit on nodes
     features["Remove"] = (
