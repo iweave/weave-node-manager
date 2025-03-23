@@ -9,24 +9,40 @@ Weave Node Manager (wnm) is a Python application designed to manage nodes for de
 - Support for configuration via YAML, JSON, or command-line parameters.
 
 ## Installation
-1. Clone the repository:
+1. Create a directory to hold data:
    ```
-   git clone https://github.com/iweave/weave-node-manager.git
+   mkdir /home/ubuntu/wnm
    ```
 2. Navigate to the project directory:
    ```
-   cd weave-node-manager
-3. Create a virtual environment
+   cd /home/ubuntu/wnm
+3. Install the required dependencies:
+   ```
+   sudo apt install -y python3.12-venv python3-dotenv
+   ```
+4. Create a virtual environment
    ```
    python3 -m venv .venv
    ```
-4. Activate the virtual environment
+5. Activate the virtual environment
    ```
    . .venv/bin/activate
    ```
-5. Install the required dependencies:
+6. Install the package:
    ```
-   pip install -r requirements.txt
+   pip install wnm 
+   ```
+7. Run to initialize environment from anm
+   ```
+   wnm
+   ```
+8. Add to cron to run every minute
+   ```
+   echo <<EOF
+   SHELL=/bin/bash
+   PATH=/home/ubuntu/.local/bin:/home/ubuntu/wnm/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+   */1 * * * * ubuntu cd /home/ubuntu/wnm && wnm > /home/ubuntu/wnm/cron.out 2>&1
+   EOF
    ```
 
 ## Configuration
