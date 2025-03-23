@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wnm"
+authors = [
+    {name = "Troy Johnson", email = "troy@weave.sh"}
+]
+description = "Manager for Autonomi nodes"
+license = {text = "GPL-3.0"}
+keywords = ["Autonomi", "antnode", "weave", "xd7"]
+dynamic = ["version", "dependencies", "optional-dependencies"]
+readme = {file = "README.md", content-type = "text/markdown"}
+requires-python = ">=3.12.3"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Distributed Computing",
+]
+
+[project.urls]
+Repository = "https://github.com/iweave/weave-node-manager.git"
+Issues = "https://github.com/iweave/weave-node-manager/issues"
+
+[project.scripts]
+wnm = "wnm.__main__:main"
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+optional-dependencies.dev = { file = ["requirements-dev.txt"] }
+version = {attr = "wnm.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
