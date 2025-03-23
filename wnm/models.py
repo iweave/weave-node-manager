@@ -8,13 +8,15 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped, mapped_column
 
+
 # create a Base class bound to sqlalchemy
 class Base(DeclarativeBase):
     pass
 
+
 # Extend the Base class to create our Host info
 class Machine(Base):
-    __tablename__ = 'machine'
+    __tablename__ = "machine"
     # No schema in sqlite3
     # __table_args__ = {"schema": "colony"}
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -46,15 +48,36 @@ class Machine(Base):
     NetIOWriteRemove: Mapped[float] = mapped_column(Float)
     LastStoppedAt: Mapped[int] = mapped_column(Integer)
 
-    def __init__(self, CpuCount, NodeCap, CpuLessThan, CpuRemove,
-                 MemLessThan, MemRemove, HDLessThan, HDRemove,
-                 DelayStart, DelayUpgrade, DelayRemove, NodeStorage,
-                 RewardsAddress, DonateAddress, MaxLoadAverageAllowed, 
-                 DesiredLoadAverage, PortStart, HDIOReadLessThan, 
-                 HDIOReadRemove, HDIOWriteLessThan, HDIOWriteRemove, 
-                 NetIOReadLessThan, NetIOReadRemove, NetIOWriteLessThan, 
-                 NetIOWriteRemove, LastStoppedAt):
-        
+    def __init__(
+        self,
+        CpuCount,
+        NodeCap,
+        CpuLessThan,
+        CpuRemove,
+        MemLessThan,
+        MemRemove,
+        HDLessThan,
+        HDRemove,
+        DelayStart,
+        DelayUpgrade,
+        DelayRemove,
+        NodeStorage,
+        RewardsAddress,
+        DonateAddress,
+        MaxLoadAverageAllowed,
+        DesiredLoadAverage,
+        PortStart,
+        HDIOReadLessThan,
+        HDIOReadRemove,
+        HDIOWriteLessThan,
+        HDIOWriteRemove,
+        NetIOReadLessThan,
+        NetIOReadRemove,
+        NetIOWriteLessThan,
+        NetIOWriteRemove,
+        LastStoppedAt,
+    ):
+
         self.CpuCount = CpuCount
         self.NodeCap = NodeCap
         self.CpuLessThan = CpuLessThan
@@ -83,37 +106,56 @@ class Machine(Base):
         self.LastStoppedAt = LastStoppedAt
 
     def __repr__(self):
-        return f'Machine({self.CpuCount},{self.NodeCap},{self.CpuLessThan},{self.CpuRemove}' + \
-            f',{self.MemLessThan},{self.MemRemove},{self.HDLessThan}' + \
-            f',{self.HDRemove},{self.DelayStart},{self.DelayUpgrade}' + \
-            f',{self.DelayRemove}' + \
-            f',"{self.NodeStorage}","{self.RewardsAddress}","{self.DonateAddress}"' + \
-            f',{self.MaxLoadAverageAllowed},{self.DesiredLoadAverage}' + \
-            f',{self.PortStart},{self.HDIOReadLessThan},{self.HDIOReadRemove}' + \
-            f',{self.HDIOWriteLessThan},{self.HDIOWriteRemove}' + \
-            f',{self.NetIOReadLessThan},{self.NetIOReadRemove}' + \
-            f',{self.NetIOWriteLessThan},{self.NetIOWriteRemove}' + \
-            f',{self.LastStoppedAt})'
-    
-    def __json__(self):
-        return { 'CpuCount': self.CpuCount, 'NodeCap': self.NodeCap, 'CpuLessThan': self.CpuLessThan,
-            'CpuRemove': self.CpuRemove, 'MemLessThan': self.MemLessThan, 'MemRemove': self.MemRemove,
-            'HDLessThan': self.HDLessThan, 'HDRemove': self.HDRemove, 'DelayStart': self.DelayStart,
-            'DelayUpgrade': self.DelayUpgrade, 'DelayRemove': self.DelayRemove, 'NodeStorage': f"{self.NodeStorage}",
-            'RewardsAddress': f"{self.RewardsAddress}", 'DonateAddress': f"{self.DonateAddress}",
-            'MaxLoadAverageAllowed': self.MaxLoadAverageAllowed, 'DesiredLoadAverage': self.DesiredLoadAverage,
-            'PortStart': self.PortStart, 'HDIOReadLessThan': self.HDIOReadLessThan, 'HDIOReadRemove': self.HDIOReadRemove,
-            'HDIOWriteLessThan': self.HDIOWriteLessThan, 'HDIOWriteRemove': self.HDIOWriteRemove,
-            'NetIOReadLessThan': self.NetIOReadLessThan, 'NetIOReadRemove': self.NetIOReadRemove,
-            'NetIOWriteLessThan': self.NetIOWriteLessThan, 'NetIOWriteRemove': self.NetIOWriteRemove,
-            'LastStoppedAt': self.LastStoppedAt }
+        return (
+            f"Machine({self.CpuCount},{self.NodeCap},{self.CpuLessThan},{self.CpuRemove}"
+            + f",{self.MemLessThan},{self.MemRemove},{self.HDLessThan}"
+            + f",{self.HDRemove},{self.DelayStart},{self.DelayUpgrade}"
+            + f",{self.DelayRemove}"
+            + f',"{self.NodeStorage}","{self.RewardsAddress}","{self.DonateAddress}"'
+            + f",{self.MaxLoadAverageAllowed},{self.DesiredLoadAverage}"
+            + f",{self.PortStart},{self.HDIOReadLessThan},{self.HDIOReadRemove}"
+            + f",{self.HDIOWriteLessThan},{self.HDIOWriteRemove}"
+            + f",{self.NetIOReadLessThan},{self.NetIOReadRemove}"
+            + f",{self.NetIOWriteLessThan},{self.NetIOWriteRemove}"
+            + f",{self.LastStoppedAt})"
+        )
 
-   
+    def __json__(self):
+        return {
+            "CpuCount": self.CpuCount,
+            "NodeCap": self.NodeCap,
+            "CpuLessThan": self.CpuLessThan,
+            "CpuRemove": self.CpuRemove,
+            "MemLessThan": self.MemLessThan,
+            "MemRemove": self.MemRemove,
+            "HDLessThan": self.HDLessThan,
+            "HDRemove": self.HDRemove,
+            "DelayStart": self.DelayStart,
+            "DelayUpgrade": self.DelayUpgrade,
+            "DelayRemove": self.DelayRemove,
+            "NodeStorage": f"{self.NodeStorage}",
+            "RewardsAddress": f"{self.RewardsAddress}",
+            "DonateAddress": f"{self.DonateAddress}",
+            "MaxLoadAverageAllowed": self.MaxLoadAverageAllowed,
+            "DesiredLoadAverage": self.DesiredLoadAverage,
+            "PortStart": self.PortStart,
+            "HDIOReadLessThan": self.HDIOReadLessThan,
+            "HDIOReadRemove": self.HDIOReadRemove,
+            "HDIOWriteLessThan": self.HDIOWriteLessThan,
+            "HDIOWriteRemove": self.HDIOWriteRemove,
+            "NetIOReadLessThan": self.NetIOReadLessThan,
+            "NetIOReadRemove": self.NetIOReadRemove,
+            "NetIOWriteLessThan": self.NetIOWriteLessThan,
+            "NetIOWriteRemove": self.NetIOWriteRemove,
+            "LastStoppedAt": self.LastStoppedAt,
+        }
+
+
 # Extend the Base class to create our Node info
 class Node(Base):
-    __tablename__ = 'node'
+    __tablename__ = "node"
     # No schema in sqlite3
-    #__table_args__ = {"schema": "colony"}
+    # __table_args__ = {"schema": "colony"}
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     # Maps to antnode-{nodename}
     nodename: Mapped[str] = mapped_column(Unicode(10))
@@ -134,15 +176,15 @@ class Node(Base):
     # Network to use ( Live is evm-arbitrum-one )
     network: Mapped[str] = mapped_column(UnicodeText)
     # Reward address
-    wallet: Mapped[Optional[str]] = mapped_column(Unicode(42),index=True)
+    wallet: Mapped[Optional[str]] = mapped_column(Unicode(42), index=True)
     # Reported peer_id
     peer_id: Mapped[Optional[str]] = mapped_column(Unicode(52))
     # Node's last probed status
-    status: Mapped[str] = mapped_column(Unicode(32),index=True)
+    status: Mapped[str] = mapped_column(Unicode(32), index=True)
     # Timestamp of last update
-    timestamp: Mapped[int] = mapped_column(Integer,index=True)
+    timestamp: Mapped[int] = mapped_column(Integer, index=True)
     # Number of node records stored as reported by node
-    records: Mapped[int] = mapped_column(Integer,index=True)
+    records: Mapped[int] = mapped_column(Integer, index=True)
     # Node reported uptime
     uptime: Mapped[int] = mapped_column(Integer)
     # Number of shuns
@@ -152,10 +194,28 @@ class Node(Base):
     # Host ip/name for data and metrics ports
     host: Mapped[Optional[str]] = mapped_column(UnicodeText)
 
-    def __init__(self, id, nodename, service, user, binary, version, 
-                 root_dir, port, metrics_port, network,
-                 wallet, peer_id, status, timestamp, records,
-                 uptime, shunned, age, host):
+    def __init__(
+        self,
+        id,
+        nodename,
+        service,
+        user,
+        binary,
+        version,
+        root_dir,
+        port,
+        metrics_port,
+        network,
+        wallet,
+        peer_id,
+        status,
+        timestamp,
+        records,
+        uptime,
+        shunned,
+        age,
+        host,
+    ):
         self.id = id
         self.nodename = nodename
         self.service = service
@@ -177,16 +237,32 @@ class Node(Base):
         self.host = host
 
     def __repr__(self):
-        return f'Node({self.id},"{self.nodename}","{self.service}","{self.user},"{self.binary}"'+\
-            f',"{self.version}","{self.root_dir}",{self.port},{self.metrics_port}' + \
-            f',"{self.network}","{self.wallet}","{self.peer_id}","{self.status}",{self.timestamp}' + \
-            f',{self.records},{self.uptime},{self.shunned},{self.age},"{self.host}")'
-    
+        return (
+            f'Node({self.id},"{self.nodename}","{self.service}","{self.user},"{self.binary}"'
+            + f',"{self.version}","{self.root_dir}",{self.port},{self.metrics_port}'
+            + f',"{self.network}","{self.wallet}","{self.peer_id}","{self.status}",{self.timestamp}'
+            + f',{self.records},{self.uptime},{self.shunned},{self.age},"{self.host}")'
+        )
+
     def __json__(self):
-        return { "id": self.id, "nodename": f"{self.nodename}", "service": f"{self.service}",
-            "user": f"{self.user}", "binary": f"{self.binary}", "version": f"{self.version}",
-            "root_dir": f"{self.root_dir}", "port": self.port, "metrics_port": self.metrics_port,
-            "network": f"{self.network}", "wallet": f"{self.wallet}", "peer_id": f"{self.peer_id}",
-            "status": f"{self.status}", "timestamp": self.timestamp, "records": self.records,
-            "uptime": self.uptime, "shunned": self.shunned, "age": self.age,
-            "host": f"{self.host}" }
+        return {
+            "id": self.id,
+            "nodename": f"{self.nodename}",
+            "service": f"{self.service}",
+            "user": f"{self.user}",
+            "binary": f"{self.binary}",
+            "version": f"{self.version}",
+            "root_dir": f"{self.root_dir}",
+            "port": self.port,
+            "metrics_port": self.metrics_port,
+            "network": f"{self.network}",
+            "wallet": f"{self.wallet}",
+            "peer_id": f"{self.peer_id}",
+            "status": f"{self.status}",
+            "timestamp": self.timestamp,
+            "records": self.records,
+            "uptime": self.uptime,
+            "shunned": self.shunned,
+            "age": self.age,
+            "host": f"{self.host}",
+        }
