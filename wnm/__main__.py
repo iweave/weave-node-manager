@@ -1,14 +1,21 @@
-import os, sys
-import re, json, requests, time
-import subprocess, logging
+import json
+import logging
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
 from collections import Counter
-from packaging.version import Version
+
+import psutil
+import requests
 from dotenv import load_dotenv
-import psutil, shutil
+from packaging.version import Version
+from sqlalchemy import create_engine, delete, insert, select, text, update
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 from wnm.models import Base, Machine, Node
-from sqlalchemy import create_engine, select, insert, update, delete, text
-from sqlalchemy.orm import sessionmaker, scoped_session
 
 logging.basicConfig(level=logging.INFO)
 # Info level logging for sqlalchemy is too verbose, only use when needed

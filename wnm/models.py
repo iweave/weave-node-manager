@@ -1,12 +1,24 @@
-import json_fix
-
 # Turn a class into a storable object with ORM
 from typing import Optional
-from sqlalchemy import Integer, Unicode, UnicodeText, Float
-from sqlalchemy import create_engine, select, insert, update
-from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.orm import Mapped, mapped_column
+
+import json_fix
+from sqlalchemy import (
+    Float,
+    Integer,
+    Unicode,
+    UnicodeText,
+    create_engine,
+    insert,
+    select,
+    update,
+)
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    scoped_session,
+    sessionmaker,
+)
 
 
 # create a Base class bound to sqlalchemy
