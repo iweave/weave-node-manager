@@ -50,15 +50,19 @@ class Machine(Base):
     DesiredLoadAverage: Mapped[float] = mapped_column(Float)
     # What port to begin assigning nodes
     PortStart: Mapped[int] = mapped_column(Integer)
-    HDIOReadLessThan: Mapped[float] = mapped_column(Float)
-    HDIOReadRemove: Mapped[float] = mapped_column(Float)
-    HDIOWriteLessThan: Mapped[float] = mapped_column(Float)
-    HDIOWriteRemove: Mapped[float] = mapped_column(Float)
-    NetIOReadLessThan: Mapped[float] = mapped_column(Float)
-    NetIOReadRemove: Mapped[float] = mapped_column(Float)
-    NetIOWriteLessThan: Mapped[float] = mapped_column(Float)
-    NetIOWriteRemove: Mapped[float] = mapped_column(Float)
+    HDIOReadLessThan: Mapped[int] = mapped_column(Integer)
+    HDIOReadRemove: Mapped[int] = mapped_column(Integer)
+    HDIOWriteLessThan: Mapped[int] = mapped_column(Integer)
+    HDIOWriteRemove: Mapped[int] = mapped_column(Integer)
+    NetIOReadLessThan: Mapped[int] = mapped_column(Integer)
+    NetIOReadRemove: Mapped[int] = mapped_column(Integer)
+    NetIOWriteLessThan: Mapped[int] = mapped_column(Integer)
+    NetIOWriteRemove: Mapped[int] = mapped_column(Integer)
     LastStoppedAt: Mapped[int] = mapped_column(Integer)
+    Host: Mapped[str] = mapped_column(UnicodeText)
+    CrisisBytes: Mapped[int] = mapped_column(Integer)
+    MetricsPortStart: Mapped[int] = mapped_column(Integer)
+    Environment: Mapped[Optional[str]] = mapped_column(UnicodeText)
 
     def __init__(
         self,
@@ -88,6 +92,10 @@ class Machine(Base):
         NetIOWriteLessThan,
         NetIOWriteRemove,
         LastStoppedAt,
+        Host,
+        CrisisBytes,
+        MetricsPortStart,
+        Environment,
     ):
 
         self.CpuCount = CpuCount
@@ -116,6 +124,10 @@ class Machine(Base):
         self.NetIOWriteLessThan = NetIOWriteLessThan
         self.NetIOWriteRemove = NetIOWriteRemove
         self.LastStoppedAt = LastStoppedAt
+        self.Host = Host
+        self.CrisisBytes = CrisisBytes
+        self.MetricsPortStart = MetricsPortStart
+        self.Environment = Environment
 
     def __repr__(self):
         return (
@@ -129,7 +141,8 @@ class Machine(Base):
             + f",{self.HDIOWriteLessThan},{self.HDIOWriteRemove}"
             + f",{self.NetIOReadLessThan},{self.NetIOReadRemove}"
             + f",{self.NetIOWriteLessThan},{self.NetIOWriteRemove}"
-            + f",{self.LastStoppedAt})"
+            + f",{self.LastStoppedAt},{self.Host},{self.CrisisBytes}"
+            + f",{self.MetricsPortStart},{self.Environment})"
         )
 
     def __json__(self):
@@ -160,6 +173,10 @@ class Machine(Base):
             "NetIOWriteLessThan": self.NetIOWriteLessThan,
             "NetIOWriteRemove": self.NetIOWriteRemove,
             "LastStoppedAt": self.LastStoppedAt,
+            "Host": f"{self.Host}",
+            "CrisisBytes": self.CrisisBytes,
+            "MetricsPortStart": self.MetricsPortStart,
+            "Environment": f"{self.Environment}",
         }
 
 
@@ -203,8 +220,14 @@ class Node(Base):
     shunned: Mapped[int] = mapped_column(Integer)
     # Timestamp of node first launch
     age: Mapped[int] = mapped_column(Integer)
-    # Host ip/name for data and metrics ports
-    host: Mapped[Optional[str]] = mapped_column(UnicodeText)
+    # Host ip for data
+    host: Mapped[str] = mapped_column(UnicodeText)
+    # node launch method
+    method: Mapped[str] = mapped_column(UnicodeText)
+    # node layout
+    layout: Mapped[str] = mapped_column(UnicodeText)
+    # node environment settings
+    environment: Mapped[Optional[str]] = mapped_column(UnicodeText)
 
     def __init__(
         self,
@@ -227,6 +250,9 @@ class Node(Base):
         shunned,
         age,
         host,
+        method,
+        layout,
+        environment,
     ):
         self.id = id
         self.nodename = nodename
@@ -247,13 +273,17 @@ class Node(Base):
         self.shunned = shunned
         self.age = age
         self.host = host
+        self.method = method
+        self.layout = layout
+        self.environment = environment
 
     def __repr__(self):
         return (
             f'Node({self.id},"{self.nodename}","{self.service}","{self.user},"{self.binary}"'
             + f',"{self.version}","{self.root_dir}",{self.port},{self.metrics_port}'
             + f',"{self.network}","{self.wallet}","{self.peer_id}","{self.status}",{self.timestamp}'
-            + f',{self.records},{self.uptime},{self.shunned},{self.age},"{self.host}")'
+            + f',{self.records},{self.uptime},{self.shunned},{self.age},"{self.host}"'
+            + f',{self.method},{self.layout},"{self.environment}")'
         )
 
     def __json__(self):
@@ -277,4 +307,7 @@ class Node(Base):
             "shunned": self.shunned,
             "age": self.age,
             "host": f"{self.host}",
+            "method": f"{self.method}",
+            "layout": f"{self.layout}",
+            "environment": f"{self.environment}",
         }
