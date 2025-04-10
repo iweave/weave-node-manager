@@ -1,22 +1,26 @@
-import os, sys, json, logging, re
+import json
+import logging
+import os
+import re
 import subprocess
-from dotenv import load_dotenv
+import sys
 
 import configargparse
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, delete, insert, select, text, update
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from wnm.common import (
-    DONATE,
-    STOPPED,
-    RUNNING,
-    UPGRADING,
-    DISABLED,
-    RESTARTING,
-    MIGRATING,
-    REMOVING,
     DEAD,
+    DISABLED,
+    DONATE,
+    MIGRATING,
     QUEEN,
+    REMOVING,
+    RESTARTING,
+    RUNNING,
+    STOPPED,
+    UPGRADING,
 )
 from wnm.models import Base, Machine, Node
 

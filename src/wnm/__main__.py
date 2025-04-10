@@ -5,36 +5,34 @@ import sys
 import time
 
 from packaging.version import Version
-
 from sqlalchemy import create_engine, delete, insert, select, text, update
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from wnm.common import (
-    DONATE,
-    STOPPED,
-    RUNNING,
-    UPGRADING,
-    DISABLED,
-    RESTARTING,
-    MIGRATING,
-    REMOVING,
     DEAD,
+    DISABLED,
+    DONATE,
+    MIGRATING,
     QUEEN,
+    REMOVING,
+    RESTARTING,
+    RUNNING,
+    STOPPED,
+    UPGRADING,
 )
-from wnm.config import S, machine_config, options, config_updates, apply_config_updates
+from wnm.config import S, apply_config_updates, config_updates, machine_config, options
 from wnm.models import Base, Machine, Node
-
 from wnm.utils import (
-    upgrade_node,
-    update_counters,
-    remove_node,
-    get_antnode_version,
-    stop_systemd_node,
-    start_systemd_node,
     create_node,
-    update_nodes,
+    get_antnode_version,
     get_machine_metrics,
+    remove_node,
+    start_systemd_node,
+    stop_systemd_node,
     survey_machine,
+    update_counters,
+    update_nodes,
+    upgrade_node,
 )
 
 logging.basicConfig(level=logging.INFO)

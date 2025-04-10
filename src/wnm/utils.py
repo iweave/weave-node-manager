@@ -1,21 +1,30 @@
-import os, sys, re, psutil, shutil
-import logging, requests, subprocess, time
+import logging
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+from collections import Counter
+
+import psutil
+import requests
 from sqlalchemy import create_engine, delete, insert, select, text, update
 from sqlalchemy.orm import scoped_session, sessionmaker
-from wnm.models import Base, Machine, Node
+
 from wnm.common import (
-    DONATE,
-    STOPPED,
-    RUNNING,
-    UPGRADING,
-    DISABLED,
-    RESTARTING,
-    MIGRATING,
-    REMOVING,
     DEAD,
+    DISABLED,
+    DONATE,
+    MIGRATING,
     QUEEN,
+    REMOVING,
+    RESTARTING,
+    RUNNING,
+    STOPPED,
+    UPGRADING,
 )
-from collections import Counter
+from wnm.models import Base, Machine, Node
 
 
 # Read config from systemd service file
