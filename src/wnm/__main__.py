@@ -235,7 +235,7 @@ def choose_action(machine_config, metrics, dry_run):
         if (
             features["RemHD"]
             or metrics["TotalNodes"] > machine_config["NodeCap"]
-            or metrics["NodesToUpgrade"] > 0
+            or (metrics["NodesToUpgrade"] > 0 and metrics["RemovingNodes"] == 0)
         ):
             # Start removing with stopped nodes
             if metrics["StoppedNodes"] > 0:
