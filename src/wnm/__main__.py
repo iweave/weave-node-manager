@@ -108,7 +108,7 @@ def choose_action(machine_config, metrics, dry_run):
     )
     # Check records for expired status
     if not dry_run:
-        metrics = update_counters(metrics, machine_config)
+        metrics = update_counters(S, metrics, machine_config)
     # If we have other thing going on, don't add more nodes
     features["AddNewNode"] = (
         sum(
@@ -358,7 +358,7 @@ def choose_action(machine_config, metrics, dry_run):
     if dry_run:
         logging.warning("DRYRUN: update nodes")
     else:
-        update_nodes()
+        update_nodes(S)
     return {"status": "idle"}
 
 
