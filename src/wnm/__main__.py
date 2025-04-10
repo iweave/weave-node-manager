@@ -419,7 +419,7 @@ def main():
             Workers = survey_machine(machine_config) or []
             if Workers:
                 if options.dry_run:
-                    logging.warning("DRYRUN: Not saving detected nodes")
+                    logging.warning(f"DRYRUN: Not saving {len(Workers)} detected nodes")
                 else:
                     with S() as session:
                         session.execute(insert(Node), Workers)
@@ -436,6 +436,10 @@ def main():
                         counter=metrics["TotalNodes"]
                     )
                 )
+            else:
+                logging.warning("Requested migration but no nodes found")
+        else:
+            logging.info("No nodes found")
     else:
         logging.info(
             "Found {counter} nodes configured".format(counter=metrics["TotalNodes"])
