@@ -232,12 +232,13 @@ def choose_action(machine_config, metrics, dry_run):
         return {"status": UPGRADING}
     # First if we're removing, that takes top priority
     if features["Remove"]:
-        # If we still have unexpired removal records, wait
-        if metrics["RemovingNodes"]:
-            logging.info("Still waiting for RemoveDelay")
-            return {"status": REMOVING}
-        # If we're under HD pressure or trimming node cap, remove nodes
-        if features["RemHD"] or metrics["TotalNodes"] > machine_config["NodeCap"]:
+        # If we're under HD pressure, trimming node cap or upgrades are taking 
+        # more resources, remove nodes
+        if (
+            features["RemHD"] or 
+            metrics["TotalNodes"] > machine_config["NodeCap"] or 
+            metrics["NodesToUpgrade"] > 0
+        ):
             # Start removing with stopped nodes
             if metrics["StoppedNodes"] > 0:
                 # What is the youngest stopped node
@@ -271,6 +272,10 @@ def choose_action(machine_config, metrics, dry_run):
             return {"status": "nothing-to-remove"}
         # Otherwise, let's try just stopping a node to bring IO/Mem/Cpu down
         else:
+            # If we still have unexpired removal records, wait
+            if metrics["RemovingNodes"]:
+                logging.info("Still waiting for RemoveDelay")
+                return {"status": 'waiting-to-remove'}
             # If we just stopped a node, wait
             if int(machine_config["LastStoppedAt"] or 0) > (
                 int(time.time()) - (machine_config["DelayRemove"] * 60)
