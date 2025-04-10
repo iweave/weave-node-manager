@@ -3,8 +3,20 @@ import logging, requests, subprocess, time
 from sqlalchemy import create_engine, delete, insert, select, text, update
 from sqlalchemy.orm import scoped_session, sessionmaker
 from wnm.models import Base, Machine, Node
-from wnm.common import DONATE, STOPPED, RUNNING, UPGRADING, DISABLED,RESTARTING,MIGRATING,REMOVING,DEAD,QUEEN
+from wnm.common import (
+    DONATE,
+    STOPPED,
+    RUNNING,
+    UPGRADING,
+    DISABLED,
+    RESTARTING,
+    MIGRATING,
+    REMOVING,
+    DEAD,
+    QUEEN,
+)
 from collections import Counter
+
 
 # Read config from systemd service file
 def read_systemd_service(antnode, machine_config):
@@ -25,7 +37,7 @@ def read_systemd_service(antnode, machine_config):
         # See if IP listen address is defined
         if ip := re.findall(r"--ip ([^ ]+)", data)[0]:
             # If we have the special wildcard listen address, use default
-            if ip == '0.0.0.0':
+            if ip == "0.0.0.0":
                 details["host"] = machine_config.Host
             else:
                 details["host"] = ip
@@ -133,7 +145,7 @@ def get_node_age(root_dir):
 
 
 # Survey nodes by reading metadata from metrics ports or binary --version
-def survey_systemd_nodes(antnodes,machine_config):
+def survey_systemd_nodes(antnodes, machine_config):
     # Build a list of node dictionaries to return
     details = []
     # Iterate on nodes
@@ -203,7 +215,7 @@ def survey_machine(machine_config):
         #   break
     # Iterate over defined nodes and get details
     # Ingests a list of service files and outputs a list of dictionaries
-    return survey_systemd_nodes(antnodes,machine_config)
+    return survey_systemd_nodes(antnodes, machine_config)
 
 
 # Read system status
@@ -221,7 +233,9 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
             stderr=subprocess.STDOUT,
         ).stdout.decode("utf-8")
         if re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", p):
-            metrics["SystemStart"] = int(time.mktime(time.strptime(p.strip(), '%Y-%m-%d %H:%M:%S')))
+            metrics["SystemStart"] = int(
+                time.mktime(time.strptime(p.strip(), "%Y-%m-%d %H:%M:%S"))
+            )
     except subprocess.CalledProcessError as err:
         logging.error("GMM ERROR:", err)
         metrics["SystemStart"] = 0
@@ -246,7 +260,9 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
         logging.warning("Unable to locate current antnode binary, exiting")
         sys.exit(1)
     metrics["AntNodeVersion"] = get_antnode_version(metrics["antnode"])
-    metrics["QueenNodeVersion"] = db_nodes[0][1] if metrics["TotalNodes"] > 0 else metrics["AntNodeVersion"]
+    metrics["QueenNodeVersion"] = (
+        db_nodes[0][1] if metrics["TotalNodes"] > 0 else metrics["AntNodeVersion"]
+    )
     metrics["NodesLatestV"] = (
         sum(1 for node in db_nodes if node[1] == metrics["AntNodeVersion"]) or 0
     )
@@ -255,7 +271,6 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
         metrics["TotalNodes"] - metrics["NodesLatestV"] - metrics["NodesNoVersion"]
     )
     metrics["NodesByVersion"] = Counter(ver[1] for ver in db_nodes)
-   
 
     # Windows has to build load average over 5 seconds. The first 5 seconds returns 0's
     # I don't plan on supporting windows, but if this get's modular, I don't want this
@@ -618,7 +633,7 @@ def create_node(S, config, metrics):
         env_string = f'Environment="{0}"'.format(card["environment"])
     else:
         env_string = ""
-    
+
     log_dir = f"/var/log/antnode/antnode{card['nodename']}"
     # Create the node directory and log directory
     try:
