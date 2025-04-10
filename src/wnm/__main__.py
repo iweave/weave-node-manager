@@ -160,6 +160,27 @@ def choose_action(machine_config, metrics, dry_run):
     logging.info(json.dumps(features, indent=2))
     ##### Decisions
 
+    # Ugh, rebooting takes priority, resurvey the nodes and update the db
+    if int(metrics["SystemStart"]) > int(machine_config["LastStoppedAt"]):
+        if machine_config["LastStoppedAt"] == 0:
+            if dry_run:
+                logging.warning("DRYRUN: LastStoppedAt reset, survey nodes")
+            else:
+                update_nodes(S)
+        else:
+            if dry_run:
+                logging.warning("DRYRUN: System rebooted, survey nodes")
+            else:
+                update_nodes(S)
+        if not dry_run:
+            # Update the last stopped time
+            with S() as session:
+                session.query(Machine).filter(Machine.id == 1).update(
+                    {"LastStoppedAt": int(metrics["SystemStart"])}
+                )
+                session.commit()
+        return {"status": "system-rebooted"}
+
     # Actually, removing DEAD nodes take priority
     if metrics["DeadNodes"] > 1:
         if dry_run:

@@ -213,6 +213,19 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
     with S() as session:
         db_nodes = session.execute(select(Node.status, Node.version)).all()
 
+    # Get system start time before we probe metrics
+    try:
+        p = subprocess.run(
+            ["uptime", "--since"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        ).stdout.decode("utf-8")
+        if re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", p):
+            metrics["SystemStart"] = int(time.mktime(time.strptime(p.strip(), '%Y-%m-%d %H:%M:%S')))
+    except subprocess.CalledProcessError as err:
+        logging.error("GMM ERROR:", err)
+        metrics["SystemStart"] = 0
+
     # Get some initial stats for comparing after a few seconds
     # We start these counters AFTER reading the database
     start_time = time.time()
