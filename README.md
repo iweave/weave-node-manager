@@ -8,7 +8,9 @@ Weave Node Manager (wnm) is a Python application designed to manage nodes for de
 - Manage systemd services and ufw firewall for linux nodes.
 - Support for configuration via YAML, JSON, or command-line parameters.
 
-<span style="color:red">## Warning - In Progress</span>
+<span style="color:red">
+## Warning - In Progress
+</span>
 
 This code is Alpha. It can currently only take over an [anm](https://github.com/safenetforum-community/NTracking/tree/main/anm) initiated set of nodes (at least one node). This project is essentially starting as a Python port of `anm`. It will eventually also have the option of using `antctl` instead of `systemd` to control nodes.
 
