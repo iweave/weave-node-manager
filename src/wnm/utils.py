@@ -542,7 +542,7 @@ def upgrade_node(S, node, metrics):
 
 
 # Remove a node
-def remove_node(S, id):
+def remove_node(S, id, no_delay=False):
     logging.info("Removing node " + str(id))
 
     with S() as session:
@@ -550,8 +550,10 @@ def remove_node(S, id):
     # Grab Node from Row
     node = node[0]
     if stop_systemd_node(S, node):
-        # Mark this node as REMOVING
-        set_node_status(S, id, REMOVING)
+        # Override remove delay when removing a stopped node
+        if not no_delay:
+            # Mark this node as REMOVING
+            set_node_status(S, id, REMOVING)
 
         nodename = f"antnode{node.nodename}"
         # Remove node data and log

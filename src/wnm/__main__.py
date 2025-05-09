@@ -194,7 +194,7 @@ def choose_action(machine_config, metrics, dry_run):
             for check in broken:
                 # Remove broken nodes
                 logging.info("Removing dead node " + str(check[1]))
-                remove_node(check[1])
+                remove_node(S,check[1],no_delay=True)
         return {"status": "removed-dead-nodes"}
     # If we have nodes with no version number, update from binary
     if metrics["NodesNoVersion"] > 1:
@@ -251,7 +251,7 @@ def choose_action(machine_config, metrics, dry_run):
                         logging.warning("DRYRUN: Remove youngest stopped node")
                     else:
                         # Remove the youngest node
-                        remove_node(S, youngest[0])
+                        remove_node(S, youngest[0], no_delay=True)
                     return {"status": REMOVING}
             # No low hanging fruit. let's start with the youngest running node
             with S() as session:
