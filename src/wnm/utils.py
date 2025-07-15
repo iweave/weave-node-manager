@@ -328,7 +328,7 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
     # For running nodes with Porpoise(tm).
     metrics["NodeHDCrisis"] = int(
         (
-            ((metrics["TotalNodes"]) * crisis_bytes)
+            ((metrics["TotalNodes"]) * int(crisis_bytes))
             / (metrics["TotalHDBytes"] * (remove_limit / 100))
         )
         * 100
@@ -521,6 +521,10 @@ def upgrade_node(S, node, metrics):
     except subprocess.CalledProcessError as err:
         logging.error("UN1 ERROR:", err)
     try:
+        migrate_node(S, node, metrics)
+    except subprocess.CalledProcessError as err:
+        logging.error("UN3 ERROR:", err)
+    try:
         subprocess.run(["sudo", "systemctl", "restart", node.service])
     except subprocess.CalledProcessError as err:
         logging.error("UN2 ERROR:", err)
@@ -711,5 +715,46 @@ Restart=always
     card = card[0]
     # Start the new node
     return start_systemd_node(S, card)
+    # print(json.dumps(card,indent=2))
+    return True
+
+    # Migrate a new node to new systemd service file format
+def migrate_node(S, config, metrics):
+    logging.info("Updating node to new service file format")
+    # Get the node
+    with S() as session:
+        card = session.execute(select(Node).where(Node.id == config.id)).first()
+    card = card[0]
+    if card["environment"]:
+        env_string = f'Environment="{0}"'.format(card["environment"])
+    else:
+        env_string = ""
+
+    log_dir = f"/var/log/antnode/antnode{card['nodename']}"
+    # build the systemd service unit
+    service = f"""[Unit]
+Description=antnode{card['nodename']}
+[Service]
+{env_string}
+User={card['user']}
+ExecStart={card['binary']} --bootstrap-cache-dir /var/antctl/bootstrap-cache --no-upnp --root-dir {card['root_dir']} --port {card['port']} --enable-metrics-server --metrics-server-port {card['metrics_port']} --log-output-dest {log_dir} --max-log-files 1 --max-archived-log-files 1 --rewards-address {card['wallet']} {card['network']}
+Restart=always
+#RestartSec=300
+"""
+    # Write the systemd service unit with sudo tee since we're running as not root
+    try:
+        subprocess.run(
+            ["sudo", "tee", f'/etc/systemd/system/{card["service"]}'],
+            input=service,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+    except subprocess.CalledProcessError as err:
+        logging.error("CN4 ERROR:", err)
+    # Reload systemd service files to get our new one
+    try:
+        subprocess.run(["sudo", "systemctl", "daemon-reload"], stdout=subprocess.PIPE)
+    except subprocess.CalledProcessError as err:
+        logging.error("CN5 ERROR:", err)
     # print(json.dumps(card,indent=2))
     return True

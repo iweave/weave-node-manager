@@ -63,6 +63,7 @@ class Machine(Base):
     CrisisBytes: Mapped[int] = mapped_column(Integer)
     MetricsPortStart: Mapped[int] = mapped_column(Integer)
     Environment: Mapped[Optional[str]] = mapped_column(UnicodeText)
+    StartArgs: Mapped[Optional[str]] = mapped_column(UnicodeText)
 
     def __init__(
         self,
@@ -96,6 +97,7 @@ class Machine(Base):
         CrisisBytes,
         MetricsPortStart,
         Environment,
+        StartArgs,
     ):
 
         self.CpuCount = CpuCount
@@ -128,6 +130,7 @@ class Machine(Base):
         self.CrisisBytes = CrisisBytes
         self.MetricsPortStart = MetricsPortStart
         self.Environment = Environment
+        self.StartArgs = StartArgs
 
     def __repr__(self):
         return (
@@ -142,7 +145,7 @@ class Machine(Base):
             + f",{self.NetIOReadLessThan},{self.NetIOReadRemove}"
             + f",{self.NetIOWriteLessThan},{self.NetIOWriteRemove}"
             + f",{self.LastStoppedAt},{self.Host},{self.CrisisBytes}"
-            + f",{self.MetricsPortStart},{self.Environment})"
+            + f",{self.MetricsPortStart},{self.Environment},{self.StartArgs})"
         )
 
     def __json__(self):
@@ -177,6 +180,7 @@ class Machine(Base):
             "CrisisBytes": self.CrisisBytes,
             "MetricsPortStart": self.MetricsPortStart,
             "Environment": f"{self.Environment}",
+            "StartArgs": f"{self.StartArgs}",
         }
 
 

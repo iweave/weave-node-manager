@@ -537,7 +537,7 @@ def main():
         # data = Counter(ver for ver in versions)
 
     machine_metrics = get_machine_metrics(
-        anm_config["NodeStorage"], anm_config["HDRemove"]
+        anm_config["NodeStorage"], anm_config["HDRemove"], anm_config["CrisisBytes"]
     )
     print(json.dumps(anm_config, indent=2))
     print(json.dumps(machine_metrics, indent=2))

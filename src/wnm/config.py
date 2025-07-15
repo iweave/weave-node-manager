@@ -132,6 +132,9 @@ def load_config():
     c.add(
         "--Environment", env_var="Environment", help="Environment variables for antnode"
     )
+    c.add(
+        "--StartArgs", env_var="StartArgs", help="Arguments to pass to antnode",
+    )
 
     options = c.parse_known_args()[0] or []
     # Return the first result from parse_known_args, ignore unknown options
@@ -240,6 +243,8 @@ def merge_config_changes(options, machine_config):
         cfg["MetricsPortStart"] = int(options.MetricsPortStart)
     if options.Environment and options.Environment != machine_config.Environment:
         cfg["Environment"] = options.Environment
+    if options.StartArgs and options.StartArgs != machine_config.StartArgs:
+        cfg["StartArgs"] = options.StartArgs
 
     return cfg
 
@@ -327,6 +332,7 @@ def load_anm_config(options):
     anm_config["Host"] = os.getenv("Host") or options.Host or "127.0.0.1"
     anm_config["CrisisBytes"] = options.Host or 2 * 10**9
     anm_config["Environment"] = options.Environment or ""
+    anm_config["StartArgs"] = options.StartArgs or ""
 
     return anm_config
 
@@ -429,6 +435,7 @@ def define_machine(options):
             int(options.MetricsPortStart) if options.MetricsPortStart else 13
         ),
         "Environment": options.Environment if options.Environment else "",
+        "StartArgs": options.StartArgs if options.StartArgs else "",
     }
     with S() as session:
         session.execute(insert(Machine), [machine])
