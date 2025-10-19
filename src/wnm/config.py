@@ -12,6 +12,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 
 from wnm.common import (
     DEAD,
+    DEFAULT_CRISIS_BYTES,
     DISABLED,
     DONATE,
     MIGRATING,
@@ -288,12 +289,13 @@ def load_anm_config(options):
         anm_config["RewardsAddress"] = re.findall(
             r"--rewards-address ([\dA-Fa-fXx]+)", os.getenv("RewardsAddress")
         )[0]
-    except:
+    except (IndexError, TypeError) as e:
         try:
             anm_config["RewardsAddress"] = re.findall(
                 r"([\dA-Fa-fXx]+)", os.getenv("RewardsAddress")
             )[0]
-        except:
+        except (IndexError, TypeError) as e:
+            logging.debug(f"Unable to parse RewardsAddress from env: {e}")
             anm_config["RewardsAddress"] = options.RewardsAddress
             if not anm_config["RewardsAddress"]:
                 logging.warning("Unable to detect RewardsAddress")
@@ -312,7 +314,8 @@ def load_anm_config(options):
         with open("/usr/bin/anms.sh", "r") as file:
             data = file.read()
         anm_config["PortStart"] = int(re.findall(r"ntpr\=(\d+)", data)[0])
-    except:
+    except (FileNotFoundError, IndexError, ValueError) as e:
+        logging.debug(f"Unable to read PortStart from anms.sh: {e}")
         anm_config["PortStart"] = options.PortStart or 55
 
     anm_config["MetricsPortStart"] = (
@@ -330,7 +333,7 @@ def load_anm_config(options):
     # Timer for last stopped nodes
     anm_config["LastStoppedAt"] = 0
     anm_config["Host"] = os.getenv("Host") or options.Host or "127.0.0.1"
-    anm_config["CrisisBytes"] = options.Host or 2 * 10**9
+    anm_config["CrisisBytes"] = options.Host or DEFAULT_CRISIS_BYTES
     anm_config["Environment"] = options.Environment or ""
     anm_config["StartArgs"] = options.StartArgs or ""
 
@@ -430,7 +433,7 @@ def define_machine(options):
         ),
         "LastStoppedAt": 0,
         "Host": options.Host or "127.0.0.1",
-        "CrisisBytes": int(options.CrisisBytes) if options.CrisisBytes else 2 * 10**9,
+        "CrisisBytes": int(options.CrisisBytes) if options.CrisisBytes else DEFAULT_CRISIS_BYTES,
         "MetricsPortStart": (
             int(options.MetricsPortStart) if options.MetricsPortStart else 13
         ),

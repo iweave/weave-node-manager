@@ -16,7 +16,10 @@ from wnm.common import (
     DEAD,
     DISABLED,
     DONATE,
+    METRICS_PORT_BASE,
     MIGRATING,
+    MIN_NODES_THRESHOLD,
+    PORT_MULTIPLIER,
     QUEEN,
     REMOVING,
     RESTARTING,
@@ -55,8 +58,8 @@ def read_systemd_service(antnode, machine_config):
         else:
             details["environment"] = ""
 
-    except:
-        pass
+    except Exception as e:
+        logging.debug(f"Error reading service file {service_file}: {e}")
 
     return details
 
@@ -80,11 +83,12 @@ def read_node_metadata(host, port):
     card = {}
     try:
         card["version"] = re.findall(r'{antnode_version="([\d\.]+)"}', data)[0]
-    except:
-        logging.info("No version found")
+    except (IndexError, KeyError) as e:
+        logging.info(f"No version found: {e}")
     try:
         card["peer_id"] = re.findall(r'{peer_id="([\w\d]+)"}', data)[0]
-    except:
+    except (IndexError, KeyError) as e:
+        logging.debug(f"No peer_id found: {e}")
         card["peer_id"] = ""
     card["status"] = RUNNING if "version" in card else STOPPED
     return card
@@ -149,7 +153,8 @@ def get_antnode_version(binary):
 def get_node_age(root_dir):
     try:
         return int(os.stat("{0}/secret-key".format(root_dir)).st_mtime)
-    except:
+    except (FileNotFoundError, OSError) as e:
+        logging.debug(f"Unable to get node age for {root_dir}: {e}")
         return 0
 
 
@@ -220,8 +225,6 @@ def survey_machine(machine_config):
         # Find antnodes
         if re.match(r"antnode[\d]+\.service", file):
             antnodes.append(file)
-        # if len(antnodes)>=5:
-        #   break
     # Iterate over defined nodes and get details
     # Ingests a list of service files and outputs a list of dictionaries
     return survey_systemd_nodes(antnodes, machine_config)
@@ -371,7 +374,8 @@ def set_node_status(S, id, status):
                 {"status": status, "timestamp": int(time.time())}
             )
             session.commit()
-    except:
+    except Exception as e:
+        logging.error(f"Failed to set node status for {id}: {e}")
         return False
     else:
         return True
@@ -539,7 +543,8 @@ def upgrade_node(S, node, metrics):
                 }
             )
             session.commit()
-    except:
+    except Exception as e:
+        logging.error(f"Failed to upgrade node {id}: {e}")
         return False
     else:
         return True
@@ -631,8 +636,8 @@ def create_node(S, config, metrics):
     card["version"] = metrics["AntNodeVersion"]
     card["root_dir"] = f"{config['NodeStorage']}/antnode{card['nodename']}"
     card["binary"] = f"{card['root_dir']}/antnode"
-    card["port"] = config["PortStart"] * 1000 + card["id"]
-    card["metrics_port"] = 13 * 1000 + card["id"]
+    card["port"] = config["PortStart"] * PORT_MULTIPLIER + card["id"]
+    card["metrics_port"] = METRICS_PORT_BASE + card["id"]
     card["network"] = "evm-arbitrum-one"
     card["wallet"] = config["RewardsAddress"]
     card["peer_id"] = ""

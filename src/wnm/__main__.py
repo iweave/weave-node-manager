@@ -397,8 +397,8 @@ def main():
     try:
         with open("/var/antctl/wnm_active", "w") as file:
             file.write(str(int(time.time())))
-    except:
-        logging.error("Unable to create lock file, exiting")
+    except (PermissionError, OSError) as e:
+        logging.error(f"Unable to create lock file: {e}")
         sys.exit(1)
 
     # Config should have loaded the machine_config
