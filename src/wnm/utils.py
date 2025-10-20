@@ -724,6 +724,8 @@ Restart=always
     return True
 
     # Migrate a new node to new systemd service file format
+
+
 def migrate_node(S, config, metrics):
     logging.info("Updating node to new service file format")
     # Get the node

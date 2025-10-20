@@ -194,7 +194,7 @@ def choose_action(machine_config, metrics, dry_run):
             for check in broken:
                 # Remove broken nodes
                 logging.info("Removing dead node " + str(check[1]))
-                remove_node(S,check[1],no_delay=True)
+                remove_node(S, check[1], no_delay=True)
         return {"status": "removed-dead-nodes"}
     # If we have nodes with no version number, update from binary
     if metrics["NodesNoVersion"] > 1:

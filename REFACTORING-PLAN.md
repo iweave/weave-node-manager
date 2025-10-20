@@ -48,12 +48,15 @@
 
 **Goal:** Fix critical issues, establish testing, enable daily development
 
-### 1.1 Critical Safety Fixes (Day 1)
-- [ ] Replace all bare `except:` with `except Exception as e:`
+**STATUS: ✅ COMPLETED (2025-10-19)**
+
+### 1.1 Critical Safety Fixes ✅ COMPLETED
+- [x] Replace all bare `except:` with `except Exception as e:`
   - Files: `utils.py:58, 83, 542`, `config.py:374`
   - Log exceptions properly
+  - **Completed:** 2025-10-18, commit 549768a
 
-- [ ] Extract magic numbers to `common.py`
+- [x] Extract magic numbers to `common.py`
   ```python
   # common.py additions
   MIN_NODES_THRESHOLD = 0  # Why checking > 1 instead of > 0?
@@ -61,34 +64,53 @@
   METRICS_PORT_BASE = 13000
   DEFAULT_CRISIS_BYTES = 2 * 10**9
   ```
+  - **Completed:** 2025-10-18, commit 549768a
 
-- [ ] Remove commented code
+- [x] Remove commented code
   - `utils.py:223-224, 690`
+  - **Completed:** 2025-10-18, commit 549768a
 
-### 1.2 Testing Infrastructure (Day 2-3)
-- [ ] Add pytest + dependencies to `requirements-dev.txt`
-- [ ] Create `tests/` directory structure:
+### 1.2 Testing Infrastructure ✅ COMPLETED
+- [x] Add pytest + dependencies to `requirements-dev.txt`
+  - pytest 8.0+, pytest-cov, pytest-asyncio, pytest-mock, pytest-docker
+  - **Completed:** 2025-10-19, commit 4bd60d1
+
+- [x] Create `tests/` directory structure:
   ```
   tests/
   ├── __init__.py
-  ├── conftest.py           # Fixtures, test DB setup
-  ├── test_models.py        # ORM tests
-  ├── test_decision_engine.py
-  ├── test_process_managers.py
+  ├── conftest.py           # Fixtures, test DB setup ✅
+  ├── test_models.py        # ORM tests (14 tests) ✅
+  ├── test_decision_engine.py # Decision logic (19 tests) ✅
+  ├── test_process_managers.py # Stubs (29 tests for Phase 3)
   ├── integration/
-  │   └── test_docker_nodes.py
+  │   └── __init__.py
   └── docker/
-      └── Dockerfile.test   # Test environment
+      ├── Dockerfile.test   # Debian + systemd ✅
+      └── docker-compose.test.yml ✅
   ```
+  - **Completed:** 2025-10-19, commit 4bd60d1
 
-- [ ] Add Docker test environment
-  - Mock systemd, docker commands
-  - Test DB fixtures
+- [x] Add Docker test environment
+  - Debian Bookworm with Python 3.11, systemd, ufw
+  - User 'ant' with sudo privileges
+  - Two services: wnm-test (CI) and wnm-dev (interactive)
+  - Helper scripts: scripts/test.sh, scripts/dev.sh
+  - Documentation: DOCKER-DEV.md
+  - **Test Results:** 33 passed, 29 skipped, 12% coverage
+  - **Completed:** 2025-10-19, commit 4bd60d1
 
-### 1.3 Code Formatting (Day 3)
-- [ ] Run `black src/` and `isort src/`
-- [ ] Add pre-commit hooks (optional but recommended)
-- [ ] Verify pyproject.toml settings
+### 1.3 Code Formatting ✅ COMPLETED
+- [x] Run `black src/` and `isort src/`
+  - Reformatted 3 files: __main__.py, config.py, utils.py
+  - **Completed:** 2025-10-19
+
+- [x] Verify pyproject.toml settings
+  - black: line-length = 88 ✅
+  - isort: profile = "black" ✅
+  - **Completed:** 2025-10-19
+
+- [ ] Add pre-commit hooks (optional - deferred to later)
 
 ---
 
@@ -583,20 +605,30 @@ def test_create_docker_node():
 
 ---
 
-## Immediate Next Steps (This Week)
+## Immediate Next Steps
 
-1. **Day 1:** Fix bare `except:`, extract magic numbers, run black/isort
-2. **Day 2:** Set up pytest, create test structure
-3. **Day 3:** Write first tests (models, basic decision logic)
-4. **Day 4-5:** Start database migration (snake_case schema)
-5. **Weekend:** Review progress, plan Week 2
+**Phase 1 ✅ COMPLETE** - Now ready for Phase 2 (Database Migration)
+
+### Next: Phase 2 - Database Migration (snake_case schema)
+1. Create new snake_case schema design
+2. Create migration script (or just document breaking change)
+3. Update all code to use snake_case
+4. Update tests for new schema
+5. Verify all tests pass
 
 ---
 
 ## Success Metrics
 
-- [ ] All bare `except:` fixed
-- [ ] 50%+ code coverage with pytest
+**Phase 1 Metrics:**
+- [x] All bare `except:` fixed ✅
+- [x] Testing infrastructure established ✅
+- [x] 12% code coverage with pytest (100% models.py) ✅
+- [x] Docker development environment working ✅
+- [x] Code formatting with black/isort ✅
+
+**Overall Project Metrics (In Progress):**
+- [ ] 50%+ code coverage with pytest (currently 12%)
 - [ ] Snake_case migration complete
 - [ ] At least 2 process managers working (systemd, docker)
 - [ ] Multi-action support with thresholds

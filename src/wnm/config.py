@@ -134,7 +134,9 @@ def load_config():
         "--Environment", env_var="Environment", help="Environment variables for antnode"
     )
     c.add(
-        "--StartArgs", env_var="StartArgs", help="Arguments to pass to antnode",
+        "--StartArgs",
+        env_var="StartArgs",
+        help="Arguments to pass to antnode",
     )
 
     options = c.parse_known_args()[0] or []
@@ -433,7 +435,9 @@ def define_machine(options):
         ),
         "LastStoppedAt": 0,
         "Host": options.Host or "127.0.0.1",
-        "CrisisBytes": int(options.CrisisBytes) if options.CrisisBytes else DEFAULT_CRISIS_BYTES,
+        "CrisisBytes": (
+            int(options.CrisisBytes) if options.CrisisBytes else DEFAULT_CRISIS_BYTES
+        ),
         "MetricsPortStart": (
             int(options.MetricsPortStart) if options.MetricsPortStart else 13
         ),
