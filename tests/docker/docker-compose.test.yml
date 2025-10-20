@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Test runner - runs pytest and exits
+  wnm-test:
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile.test
+    volumes:
+      - ../../src:/app/src:ro
+      - ../../tests:/app/tests:ro
+      - ../../pyproject.toml:/app/pyproject.toml:ro
+    environment:
+      - PYTHONPATH=/app/src
+      - WNM_TEST_MODE=1
+    command: pytest -v --cov=wnm --cov-report=term-missing
+
+  # Development environment - interactive shell
+  wnm-dev:
+    build:
+      context: ../..
+      dockerfile: tests/docker/Dockerfile.test
+    volumes:
+      - ../../src:/app/src
+      - ../../tests:/app/tests
+      - ../../pyproject.toml:/app/pyproject.toml
+      - ../../CLAUDE.md:/app/CLAUDE.md
+      - ../../REFACTORING-PLAN.md:/app/REFACTORING-PLAN.md
+      # Persistent storage for development
+      - wnm-dev-db:/var/antctl
+    environment:
+      - PYTHONPATH=/app/src
+      - WNM_DEV_MODE=1
+      - PYTHONUNBUFFERED=1
+    stdin_open: true
+    tty: true
+    privileged: true  # Required for systemd
+    command: /bin/bash
+
+  # Future: Integration test environment with Docker-in-Docker
+  # wnm-integration:
+  #   build:
+  #     context: ../..
+  #     dockerfile: tests/docker/Dockerfile.test
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   privileged: true
+
+volumes:
+  wnm-dev-db:
