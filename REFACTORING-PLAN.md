@@ -118,7 +118,9 @@
 
 **Goal:** Snake_case, add Container support, no backward compatibility needed
 
-### 2.1 New Schema Design
+**STATUS: ✅ COMPLETED (2025-10-19)**
+
+### 2.1 New Schema Design ✅ COMPLETED
 ```python
 # models.py (new version)
 
@@ -172,17 +174,22 @@ class Node(Base):
     # ...
 ```
 
-### 2.2 Migration Script
-- [ ] Create `scripts/migrate_v0_to_v1.py`
+### 2.2 Migration Script ✅ COMPLETED
+- [x] Create `scripts/migrate_v0_to_v1.py`
   - Reads old `colony.db`
   - Creates new schema
   - Migrates data (UpperCamelCase → snake_case)
-  - Optional: since no users, just document schema change
+  - Converts delay timers from minutes to seconds
+  - **Completed:** 2025-10-19, commit 3484412
 
-### 2.3 Update All Code
-- [ ] Update `config.py` - snake_case everywhere
-- [ ] Update `utils.py` - snake_case
-- [ ] Update `__main__.py` - snake_case
+### 2.3 Update All Code ✅ COMPLETED
+- [x] Update `config.py` - snake_case everywhere, timer defaults to seconds
+- [x] Update `utils.py` - snake_case, removed * 60 conversions
+- [x] Update `__main__.py` - snake_case, removed * 60 conversions
+- [x] Update `common.py` - already snake_case (no changes needed)
+- [x] Update all tests - snake_case throughout
+- [x] Update `CLAUDE.md` - added Docker testing requirements
+- **Completed:** 2025-10-19, commit 3484412
 
 ---
 
@@ -607,14 +614,16 @@ def test_create_docker_node():
 
 ## Immediate Next Steps
 
-**Phase 1 ✅ COMPLETE** - Now ready for Phase 2 (Database Migration)
+**Phase 1 ✅ COMPLETE** - Foundation established
+**Phase 2 ✅ COMPLETE** - Schema migrated to snake_case
 
-### Next: Phase 2 - Database Migration (snake_case schema)
-1. Create new snake_case schema design
-2. Create migration script (or just document breaking change)
-3. Update all code to use snake_case
-4. Update tests for new schema
-5. Verify all tests pass
+### Next: Phase 3 - Process Manager Abstraction
+1. Create abstract base class for process managers
+2. Extract SystemdManager from existing utils.py code
+3. Implement DockerManager (high priority)
+4. Implement SetsidManager (medium priority)
+5. Create factory pattern for manager selection
+6. Update tests with mocked manager implementations
 
 ---
 
@@ -627,9 +636,18 @@ def test_create_docker_node():
 - [x] Docker development environment working ✅
 - [x] Code formatting with black/isort ✅
 
+**Phase 2 Metrics:**
+- [x] Snake_case migration complete (all files) ✅
+- [x] Timer resolution: minutes → seconds ✅
+- [x] Container table added ✅
+- [x] New Machine/Node fields added ✅
+- [x] Migration script created ✅
+- [x] All 33 tests passing ✅
+- [x] 15% code coverage (95% on models.py) ✅
+
 **Overall Project Metrics (In Progress):**
-- [ ] 50%+ code coverage with pytest (currently 12%)
-- [ ] Snake_case migration complete
+- [ ] 50%+ code coverage with pytest (currently 15%)
+- [x] Snake_case migration complete ✅
 - [ ] At least 2 process managers working (systemd, docker)
 - [ ] Multi-action support with thresholds
 - [ ] Non-sudo operation supported
