@@ -19,13 +19,15 @@ from wnm.process_managers.base import NodeProcess, ProcessManager
 class SystemdManager(ProcessManager):
     """Manage nodes as systemd services"""
 
-    def __init__(self, session_factory=None):
+    def __init__(self, session_factory=None, firewall_type: str = None):
         """
         Initialize SystemdManager.
 
         Args:
             session_factory: SQLAlchemy session factory (optional, for status updates)
+            firewall_type: Type of firewall to use (defaults to auto-detect)
         """
+        super().__init__(firewall_type)
         self.S = session_factory
 
     def create_node(self, node: Node, binary_path: str) -> bool:
@@ -307,54 +309,6 @@ Restart=always
             logging.error(f"Failed to reload systemd: {err}")
 
         return True
-
-    def enable_firewall_port(self, port: int, protocol: str = "udp") -> bool:
-        """
-        Open firewall port using ufw.
-
-        Args:
-            port: Port number to open
-            protocol: Protocol type (udp/tcp)
-
-        Returns:
-            True if port was opened successfully
-        """
-        logging.info(f"Opening firewall port {port}/{protocol}")
-
-        try:
-            subprocess.run(
-                ["sudo", "ufw", "allow", f"{port}/{protocol}"],
-                stdout=subprocess.PIPE,
-                check=True,
-            )
-            return True
-        except subprocess.CalledProcessError as err:
-            logging.error(f"Failed to open firewall port: {err}")
-            return False
-
-    def disable_firewall_port(self, port: int, protocol: str = "udp") -> bool:
-        """
-        Close firewall port using ufw.
-
-        Args:
-            port: Port number to close
-            protocol: Protocol type (udp/tcp)
-
-        Returns:
-            True if port was closed successfully
-        """
-        logging.info(f"Closing firewall port {port}/{protocol}")
-
-        try:
-            subprocess.run(
-                ["sudo", "ufw", "delete", "allow", f"{port}/{protocol}"],
-                stdout=subprocess.PIPE,
-                check=True,
-            )
-            return True
-        except subprocess.CalledProcessError as err:
-            logging.error(f"Failed to close firewall port: {err}")
-            return False
 
     def _set_node_status(self, node_id: int, status: str):
         """Helper to update node status in database"""

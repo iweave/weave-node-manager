@@ -20,14 +20,16 @@ from wnm.process_managers.base import NodeProcess, ProcessManager
 class DockerManager(ProcessManager):
     """Manage nodes in Docker containers"""
 
-    def __init__(self, session_factory=None, image="autonomi/node:latest"):
+    def __init__(self, session_factory=None, image="autonomi/node:latest", firewall_type: str = "null"):
         """
         Initialize DockerManager.
 
         Args:
             session_factory: SQLAlchemy session factory (optional, for status updates)
             image: Docker image to use for nodes
+            firewall_type: Type of firewall (defaults to "null" for Docker)
         """
+        super().__init__(firewall_type)
         self.S = session_factory
         self.image = image
 
@@ -339,36 +341,6 @@ class DockerManager(ProcessManager):
         except (OSError, Exception) as err:
             logging.error(f"Failed to remove node directory: {err}")
 
-        return True
-
-    def enable_firewall_port(self, port: int, protocol: str = "udp") -> bool:
-        """
-        Open firewall port for Docker (usually not needed with Docker networking).
-
-        Args:
-            port: Port number to open
-            protocol: Protocol type (udp/tcp)
-
-        Returns:
-            True (Docker handles port mapping)
-        """
-        # Docker handles port mapping via -p flag, no firewall changes needed
-        logging.debug(f"Firewall port {port}/{protocol} handled by Docker")
-        return True
-
-    def disable_firewall_port(self, port: int, protocol: str = "udp") -> bool:
-        """
-        Close firewall port (no-op for Docker).
-
-        Args:
-            port: Port number to close
-            protocol: Protocol type (udp/tcp)
-
-        Returns:
-            True (Docker handles port mapping)
-        """
-        # Docker removes port mapping when container is removed
-        logging.debug(f"Firewall port {port}/{protocol} handled by Docker")
         return True
 
     def _set_node_status(self, node_id: int, status: str):

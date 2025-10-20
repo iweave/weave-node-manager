@@ -23,13 +23,15 @@ from wnm.process_managers.base import NodeProcess, ProcessManager
 class SetsidManager(ProcessManager):
     """Manage nodes as background processes via setsid"""
 
-    def __init__(self, session_factory=None):
+    def __init__(self, session_factory=None, firewall_type: str = None):
         """
         Initialize SetsidManager.
 
         Args:
             session_factory: SQLAlchemy session factory (optional, for status updates)
+            firewall_type: Type of firewall to use (defaults to auto-detect)
         """
+        super().__init__(firewall_type)
         self.S = session_factory
 
     def _get_pid_file(self, node: Node) -> Path:
@@ -311,64 +313,6 @@ class SetsidManager(ProcessManager):
         except (OSError, shutil.Error) as err:
             logging.error(f"Failed to remove node directory: {err}")
             return False
-
-        return True
-
-    def enable_firewall_port(self, port: int, protocol: str = "udp") -> bool:
-        """
-        Open firewall port (best effort, may require sudo).
-
-        Args:
-            port: Port number to open
-            protocol: Protocol type (udp/tcp)
-
-        Returns:
-            True if port was opened successfully
-        """
-        logging.info(f"Opening firewall port {port}/{protocol} (best effort)")
-
-        try:
-            # Try ufw if available
-            if shutil.which("ufw"):
-                subprocess.run(
-                    ["sudo", "ufw", "allow", f"{port}/{protocol}"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    check=True,
-                    timeout=5,
-                )
-                return True
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
-            logging.debug(f"Could not open firewall port: {err}")
-
-        # Firewall management optional for setsid
-        return True
-
-    def disable_firewall_port(self, port: int, protocol: str = "udp") -> bool:
-        """
-        Close firewall port (best effort, may require sudo).
-
-        Args:
-            port: Port number to close
-            protocol: Protocol type (udp/tcp)
-
-        Returns:
-            True if port was closed successfully
-        """
-        logging.info(f"Closing firewall port {port}/{protocol} (best effort)")
-
-        try:
-            if shutil.which("ufw"):
-                subprocess.run(
-                    ["sudo", "ufw", "delete", "allow", f"{port}/{protocol}"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    check=True,
-                    timeout=5,
-                )
-                return True
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as err:
-            logging.debug(f"Could not close firewall port: {err}")
 
         return True
 

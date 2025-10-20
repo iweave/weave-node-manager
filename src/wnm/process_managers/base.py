@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional
 
+from wnm.firewall.factory import get_firewall_manager
 from wnm.models import Node
 
 
@@ -33,6 +34,16 @@ class ProcessManager(ABC):
     - AntctlManager: Wrapper around antctl CLI
     - LaunchctlManager: macOS launchd services
     """
+
+    def __init__(self, firewall_type: str = None):
+        """
+        Initialize process manager with optional firewall manager.
+
+        Args:
+            firewall_type: Type of firewall to use ("ufw", "null", etc.)
+                          If None, auto-detects best available option
+        """
+        self.firewall = get_firewall_manager(firewall_type)
 
     @abstractmethod
     def create_node(self, node: Node, binary_path: str) -> bool:
@@ -118,24 +129,31 @@ class ProcessManager(ABC):
         """
         pass
 
-    @abstractmethod
-    def enable_firewall_port(self, port: int, protocol: str = "udp") -> bool:
+    def enable_firewall_port(
+        self, port: int, protocol: str = "udp", comment: str = None
+    ) -> bool:
         """
         Open firewall port for node communication.
+
+        Uses the configured firewall manager to open the port.
+        Subclasses can override for custom firewall behavior.
 
         Args:
             port: Port number to open
             protocol: Protocol type (udp/tcp)
+            comment: Optional comment for the firewall rule
 
         Returns:
             True if port was opened successfully
         """
-        pass
+        return self.firewall.enable_port(port, protocol, comment)
 
-    @abstractmethod
     def disable_firewall_port(self, port: int, protocol: str = "udp") -> bool:
         """
         Close firewall port when node is removed.
+
+        Uses the configured firewall manager to close the port.
+        Subclasses can override for custom firewall behavior.
 
         Args:
             port: Port number to close
@@ -144,4 +162,4 @@ class ProcessManager(ABC):
         Returns:
             True if port was closed successfully
         """
-        pass
+        return self.firewall.disable_port(port, protocol)

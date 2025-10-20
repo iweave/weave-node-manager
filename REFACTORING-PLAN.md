@@ -319,30 +319,67 @@ def get_process_manager(manager_type: str) -> ProcessManager:
 
 ## Phase 4: Firewall Abstraction (Week 4) - "Optional Firewalls"
 
-### 4.1 Firewall Manager Interface
+**Goal:** Extract firewall operations into pluggable abstraction
+
+**STATUS: ✅ COMPLETED (2025-10-20)**
+
+### 4.1 Firewall Manager Interface ✅ COMPLETED
 ```python
 # src/wnm/firewall/base.py
 
 class FirewallManager(ABC):
     @abstractmethod
-    def enable_port(self, port: int, protocol: str = "udp") -> bool:
+    def enable_port(self, port: int, protocol: str = "udp", comment: str = None) -> bool:
         pass
 
     @abstractmethod
     def disable_port(self, port: int, protocol: str = "udp") -> bool:
         pass
 
+    @abstractmethod
+    def is_enabled(self) -> bool:
+        pass
+
+    @abstractmethod
+    def is_available(self) -> bool:
+        pass
+
 # Implementations
-class UFWManager(FirewallManager): ...
-class FirewalldManager(FirewallManager): ...
-class NullFirewall(FirewallManager):  # No-op for disabled firewall
-    def enable_port(self, port, protocol): return True
-    def disable_port(self, port, protocol): return True
+class UFWManager(FirewallManager): ...     # Ubuntu/Debian firewall
+class NullFirewall(FirewallManager): ...   # No-op for disabled firewall
+# TODO: FirewalldManager (RHEL/Fedora) - deferred
+# TODO: IptablesManager (Linux fallback) - deferred
 ```
 
-### 4.2 Make Firewall Optional
-- [ ] Config option: `firewall_enabled=true`, `firewall_type="ufw"`
-- [ ] Default to `NullFirewall` if disabled
+- [x] Created abstract FirewallManager base class
+- [x] Implemented UFWManager for Ubuntu/Debian systems
+- [x] Implemented NullFirewall for no-op operations
+- [x] Added factory pattern with auto-detection
+- **Completed:** 2025-10-20
+- **File:** `src/wnm/firewall/`
+
+### 4.2 Make Firewall Optional ✅ COMPLETED
+- [x] Environment variable: `WNM_FIREWALL_DISABLED=1` to disable firewall
+- [x] Factory auto-detects available firewall or defaults to NullFirewall
+- [x] Process managers accept `firewall_type` parameter
+- [x] DockerManager defaults to NullFirewall (Docker handles ports)
+- **Completed:** 2025-10-20
+
+### 4.3 Process Manager Integration ✅ COMPLETED
+- [x] Added firewall parameter to ProcessManager base class `__init__`
+- [x] Made `enable_firewall_port()` and `disable_firewall_port()` non-abstract
+- [x] Removed duplicate firewall code from SystemdManager
+- [x] Removed duplicate firewall code from DockerManager
+- [x] Removed duplicate firewall code from SetsidManager
+- [x] All process managers now use shared firewall abstraction
+- **Completed:** 2025-10-20
+
+### 4.4 Testing ✅ COMPLETED
+- [x] Created comprehensive test suite in `tests/test_firewall.py`
+- [x] 33 new tests covering all firewall implementations
+- [x] Tests for NullFirewall, UFWManager, factory, and integration
+- [x] All 90 tests passing (8 skipped for unimplemented features)
+- **Completed:** 2025-10-20
 
 ---
 
@@ -632,14 +669,7 @@ def test_create_docker_node():
 **Phase 1 ✅ COMPLETE** - Foundation established
 **Phase 2 ✅ COMPLETE** - Schema migrated to snake_case
 **Phase 3 ✅ COMPLETE** - Process manager abstraction implemented
-
-### Next: Phase 4 - Firewall Abstraction (Optional)
-1. Extract firewall operations into separate abstraction
-2. Implement UFW manager
-3. Implement null/no-op firewall manager
-4. Make firewall optional in configuration
-
-OR skip to:
+**Phase 4 ✅ COMPLETE** - Firewall abstraction implemented
 
 ### Next: Phase 5 - Decision Engine Refactor
 1. Extract decision logic from `choose_action()` into separate module
@@ -678,10 +708,21 @@ OR skip to:
 - [x] Code coverage: 28% (up from 15%) ✅
 - [x] 57 total tests passing ✅
 
+**Phase 4 Metrics:**
+- [x] FirewallManager abstract base class created ✅
+- [x] UFWManager implemented and tested ✅
+- [x] NullFirewall implemented for no-op operations ✅
+- [x] Factory pattern with auto-detection ✅
+- [x] Environment variable support (WNM_FIREWALL_DISABLED) ✅
+- [x] Process manager integration complete ✅
+- [x] 33 new tests, all passing ✅
+- [x] 90 total tests passing (8 skipped) ✅
+
 **Overall Project Metrics (In Progress):**
-- [ ] 50%+ code coverage with pytest (currently 28%)
+- [ ] 50%+ code coverage with pytest (currently ~30%)
 - [x] Snake_case migration complete ✅
 - [x] At least 2 process managers working (systemd, docker, setsid) ✅
+- [x] Firewall abstraction with UFW and null implementations ✅
 - [ ] Multi-action support with thresholds
 - [x] Non-sudo operation supported (setsid) ✅
 - [x] Docker nodes create/start/stop/monitor ✅
