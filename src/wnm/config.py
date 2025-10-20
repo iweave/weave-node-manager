@@ -55,87 +55,87 @@ def load_config():
     c.add("--migrate_anm", help="Migrate a cluster from anm", action="store_true")
     c.add("--teardown", help="Remove a cluster", action="store_true")
     c.add("--confirm", help="Confirm teardown without ui", action="store_true")
-    c.add("--NodeCap", env_var="NodeCap", help="Node Capacity")
-    c.add("--CpuLessThan", env_var="CpuLessThan", help="CPU Add Threshold")
-    c.add("--CpuRemove", env_var="CpuRemove", help="CPU Remove Threshold")
-    c.add("--MemLessThan", env_var="MemLessThan", help="Memory Add Threshold")
-    c.add("--MemRemove", env_var="MemRemove", help="Memory Remove Threshold")
-    c.add("--HDLessThan", env_var="HDLessThan", help="Hard Drive Add Threshold")
-    c.add("--HDRemove", env_var="HDRemove", help="Hard Drive Remove Threshold")
-    c.add("--DelayStart", env_var="DelayStart", help="Delay Start Timer")
-    c.add("--DelayRestart", env_var="DelayRestart", help="Delay Restart Timer")
-    c.add("--DelayUpgrade", env_var="DelayUpgrade", help="Delay Upgrade Timer")
-    c.add("--DelayRemove", env_var="DelayRemove", help="Delay Remove Timer")
-    c.add("--NodeStorage", env_var="NodeStorage", help="Node Storage Path")
-    c.add("--RewardsAddress", env_var="RewardsAddress", help="Rewards Address")
-    c.add("--DonateAddress", env_var="DonateAddress", help="Donate Address")
+    c.add("--node_cap", env_var="NODE_CAP", help="Node Capacity")
+    c.add("--cpu_less_than", env_var="CPU_LESS_THAN", help="CPU Add Threshold")
+    c.add("--cpu_remove", env_var="CPU_REMOVE", help="CPU Remove Threshold")
+    c.add("--mem_less_than", env_var="MEM_LESS_THAN", help="Memory Add Threshold")
+    c.add("--mem_remove", env_var="MEM_REMOVE", help="Memory Remove Threshold")
+    c.add("--hd_less_than", env_var="HD_LESS_THAN", help="Hard Drive Add Threshold")
+    c.add("--hd_remove", env_var="HD_REMOVE", help="Hard Drive Remove Threshold")
+    c.add("--delay_start", env_var="DELAY_START", help="Delay Start Timer")
+    c.add("--delay_restart", env_var="DELAY_RESTART", help="Delay Restart Timer")
+    c.add("--delay_upgrade", env_var="DELAY_UPGRADE", help="Delay Upgrade Timer")
+    c.add("--delay_remove", env_var="DELAY_REMOVE", help="Delay Remove Timer")
+    c.add("--node_storage", env_var="NODE_STORAGE", help="Node Storage Path")
+    c.add("--rewards_address", env_var="REWARDS_ADDRESS", help="Rewards Address")
+    c.add("--donate_address", env_var="DONATE_ADDRESS", help="Donate Address")
     c.add(
-        "--MaxLoadAverageAllowed",
-        env_var="MaxLoadAverageAllowed",
+        "--max_load_average_allowed",
+        env_var="MAX_LOAD_AVERAGE_ALLOWED",
         help="Max Load Average Allowed Remove Threshold",
     )
     c.add(
-        "--DesiredLoadAverage",
-        env_var="DesiredLoadAverage",
+        "--desired_load_average",
+        env_var="DESIRED_LOAD_AVERAGE",
         help="Desired Load Average Add Threshold",
     )
     c.add(
-        "--PortStart", env_var="PortStart", help="Range to begin Node port assignment"
+        "--port_start", env_var="PORT_START", help="Range to begin Node port assignment"
     )  # Only allowed during init
     c.add(
-        "--MetricsPortStart",
-        env_var="MetricsPortStart",
+        "--metrics_port_start",
+        env_var="METRICS_PORT_START",
         help="Range to begin Metrics port assignment",
     )  # Only allowed during init
     c.add(
-        "--HDIOReadLessThan",
-        env_var="MDIOReadLessThan",
+        "--hdio_read_less_than",
+        env_var="HDIO_READ_LESS_THAN",
         help="Hard Drive IO Read Add Threshold",
     )
     c.add(
-        "--HDIOReadRemove",
-        env_var="HDIOReadRemove",
+        "--hdio_read_remove",
+        env_var="HDIO_READ_REMOVE",
         help="Hard Drive IO Read Remove Threshold",
     )
     c.add(
-        "--HDIOWriteLessThan",
-        env_var="HDIOWriteLessThan",
+        "--hdio_write_less_than",
+        env_var="HDIO_WRITE_LESS_THAN",
         help="Hard Drive IO Write Add Threshold",
     )
     c.add(
-        "--HDIOWriteRemove",
-        env_var="HDIOWriteRemove",
+        "--hdio_write_remove",
+        env_var="HDIO_WRITE_REMOVE",
         help="Hard Drive IO Write Remove Threshold",
     )
     c.add(
-        "--NetIOReadLessThan",
-        env_var="NetIOReadLessThan",
+        "--netio_read_less_than",
+        env_var="NETIO_READ_LESS_THAN",
         help="Network IO Read Add Threshold",
     )
     c.add(
-        "--NetIOReadRemove",
-        env_var="NetIOReadRemove",
+        "--netio_read_remove",
+        env_var="NETIO_READ_REMOVE",
         help="Network IO Read Remove Threshold",
     )
     c.add(
-        "--NetIOWriteLessThan",
-        env_var="NetIOWriteLessThan",
+        "--netio_write_less_than",
+        env_var="NETIO_WRITE_LESS_THAN",
         help="Network IO Write Add Threshold",
     )
     c.add(
-        "--NetIOWriteRemove",
-        env_var="NetIOWriteRemove",
+        "--netio_write_remove",
+        env_var="NETIO_WRITE_REMOVE",
         help="Network IO Write Remove Threshold",
     )
-    c.add("--CrisisBytes", env_var="CrisisBytes", help="Crisis Bytes Threshold")
-    c.add("--LastStoppedAt", env_var="LastStoppedAt", help="Last Stopped Timestamp")
-    c.add("--Host", env_var="Host", help="Hostname")
+    c.add("--crisis_bytes", env_var="CRISIS_BYTES", help="Crisis Bytes Threshold")
+    c.add("--last_stopped_at", env_var="LAST_STOPPED_AT", help="Last Stopped Timestamp")
+    c.add("--host", env_var="HOST", help="Hostname")
     c.add(
-        "--Environment", env_var="Environment", help="Environment variables for antnode"
+        "--environment", env_var="ENVIRONMENT", help="Environment variables for antnode"
     )
     c.add(
-        "--StartArgs",
-        env_var="StartArgs",
+        "--start_args",
+        env_var="START_ARGS",
         help="Arguments to pass to antnode",
     )
 
@@ -148,106 +148,106 @@ def load_config():
 def merge_config_changes(options, machine_config):
     # Collect updates
     cfg = {}
-    if options.NodeCap and int(options.NodeCap) != machine_config.NodeCap:
-        cfg["NodeCap"] = int(options.NodeCap)
-    if options.CpuLessThan and int(options.CpuLessThan) != machine_config.CpuLessThan:
-        cfg["CpuLessThan"] = int(options.CpuLessThan)
-    if options.CpuRemove and int(options.CpuRemove) != machine_config.CpuRemove:
-        cfg["CpuRemove"] = int(options.CpuRemove)
-    if options.MemLessThan and int(options.MemLessThan) != machine_config.MemLessThan:
-        cfg["MemLessThan"] = int(options.MemLessThan)
-    if options.MemRemove and int(options.MemRemove) != machine_config.MemRemove:
-        cfg["MemRemove"] = int(options.MemRemove)
-    if options.HDLessThan and int(options.HDLessThan) != machine_config.HDLessThan:
-        cfg["HDLessThan"] = int(options.HDLessThan)
-    if options.HDRemove and int(options.HDRemove) != machine_config.HDRemove:
-        cfg["HDRemove"] = int(options.HDRemove)
-    if options.DelayStart and int(options.DelayStart) != machine_config.DelayStart:
-        cfg["DelayStart"] = int(options.DelayStart)
+    if options.node_cap and int(options.node_cap) != machine_config.node_cap:
+        cfg["node_cap"] = int(options.node_cap)
+    if options.cpu_less_than and int(options.cpu_less_than) != machine_config.cpu_less_than:
+        cfg["cpu_less_than"] = int(options.cpu_less_than)
+    if options.cpu_remove and int(options.cpu_remove) != machine_config.cpu_remove:
+        cfg["cpu_remove"] = int(options.cpu_remove)
+    if options.mem_less_than and int(options.mem_less_than) != machine_config.mem_less_than:
+        cfg["mem_less_than"] = int(options.mem_less_than)
+    if options.mem_remove and int(options.mem_remove) != machine_config.mem_remove:
+        cfg["mem_remove"] = int(options.mem_remove)
+    if options.hd_less_than and int(options.hd_less_than) != machine_config.hd_less_than:
+        cfg["hd_less_than"] = int(options.hd_less_than)
+    if options.hd_remove and int(options.hd_remove) != machine_config.hd_remove:
+        cfg["hd_remove"] = int(options.hd_remove)
+    if options.delay_start and int(options.delay_start) != machine_config.delay_start:
+        cfg["delay_start"] = int(options.delay_start)
     if (
-        options.DelayRestart
-        and int(options.DelayRestart) != machine_config.DelayRestart
+        options.delay_restart
+        and int(options.delay_restart) != machine_config.delay_restart
     ):
-        cfg["DelayRestart"] = int(options.DelayRestart)
+        cfg["delay_restart"] = int(options.delay_restart)
     if (
-        options.DelayUpgrade
-        and int(options.DelayUpgrade) != machine_config.DelayUpgrade
+        options.delay_upgrade
+        and int(options.delay_upgrade) != machine_config.delay_upgrade
     ):
-        cfg["DelayUpgrade"] = int(options.DelayUpgrade)
-    if options.DelayRemove and int(options.DelayRemove) != machine_config.DelayRemove:
-        cfg["DelayRemove"] = int(options.DelayRemove)
-    if options.NodeStorage and options.NodeStorage != machine_config.NodeStorage:
-        cfg["NodeStorage"] = options.NodeStorage
+        cfg["delay_upgrade"] = int(options.delay_upgrade)
+    if options.delay_remove and int(options.delay_remove) != machine_config.delay_remove:
+        cfg["delay_remove"] = int(options.delay_remove)
+    if options.node_storage and options.node_storage != machine_config.node_storage:
+        cfg["node_storage"] = options.node_storage
     if (
-        options.RewardsAddress
-        and options.RewardsAddress != machine_config.RewardsAddress
+        options.rewards_address
+        and options.rewards_address != machine_config.rewards_address
     ):
-        cfg["RewardsAddress"] = options.RewardsAddress
-    if options.DonateAddress and options.DonateAddress != machine_config.DonateAddress:
-        cfg["DonateAddress"] = options.DonateAddress
+        cfg["rewards_address"] = options.rewards_address
+    if options.donate_address and options.donate_address != machine_config.donate_address:
+        cfg["donate_address"] = options.donate_address
     if (
-        options.MaxLoadAverageAllowed
-        and float(options.MaxLoadAverageAllowed) != machine_config.MaxLoadAverageAllowed
+        options.max_load_average_allowed
+        and float(options.max_load_average_allowed) != machine_config.max_load_average_allowed
     ):
-        cfg["MaxLoadAverageAllowed"] = float(options.MaxLoadAverageAllowed)
+        cfg["max_load_average_allowed"] = float(options.max_load_average_allowed)
     if (
-        options.DesiredLoadAverage
-        and float(options.DesiredLoadAverage) != machine_config.DesiredLoadAverage
+        options.desired_load_average
+        and float(options.desired_load_average) != machine_config.desired_load_average
     ):
-        cfg["DesiredLoadAverage"] = float(options.DesiredLoadAverage)
-    if options.PortStart and int(options.PortStart) != machine_config.PortStart:
-        cfg["PortStart"] = int(options.PortStart)
+        cfg["desired_load_average"] = float(options.desired_load_average)
+    if options.port_start and int(options.port_start) != machine_config.port_start:
+        cfg["port_start"] = int(options.port_start)
     if (
-        options.HDIOReadLessThan
-        and int(options.HDIOReadLessThan) != machine_config.HDIOReadLessThan
+        options.hdio_read_less_than
+        and int(options.hdio_read_less_than) != machine_config.hdio_read_less_than
     ):
-        cfg["HDIOReadLessThan"] = int(options.HDIOReadLessThan)
+        cfg["hdio_read_less_than"] = int(options.hdio_read_less_than)
     if (
-        options.HDIOReadRemove
-        and int(options.HDIOReadRemove) != machine_config.HDIOReadRemove
+        options.hdio_read_remove
+        and int(options.hdio_read_remove) != machine_config.hdio_read_remove
     ):
-        cfg["HDIOReadRemove"] = int(options.HDIOReadRemove)
+        cfg["hdio_read_remove"] = int(options.hdio_read_remove)
     if (
-        options.HDIOWriteLessThan
-        and int(options.HDIOWriteLessThan) != machine_config.HDIOWriteLessThan
+        options.hdio_write_less_than
+        and int(options.hdio_write_less_than) != machine_config.hdio_write_less_than
     ):
-        cfg["HDIOWriteLessThan"] = int(options.HDIOWriteLessThan)
+        cfg["hdio_write_less_than"] = int(options.hdio_write_less_than)
     if (
-        options.HDIOWriteRemove
-        and int(options.HDIOWriteRemove) != machine_config.HDIOWriteRemove
+        options.hdio_write_remove
+        and int(options.hdio_write_remove) != machine_config.hdio_write_remove
     ):
-        cfg["HDIOWriteRemove"] = int(options.HDIOWriteRemove)
+        cfg["hdio_write_remove"] = int(options.hdio_write_remove)
     if (
-        options.NetIOReadLessThan
-        and int(options.NetIOReadLessThan) != machine_config.NetIOReadLessThan
+        options.netio_read_less_than
+        and int(options.netio_read_less_than) != machine_config.netio_read_less_than
     ):
-        cfg["NetIOReadLessThan"] = int(options.NetIOReadLessThan)
+        cfg["netio_read_less_than"] = int(options.netio_read_less_than)
     if (
-        options.NetIOReadRemove
-        and int(options.NetIOReadRemove) != machine_config.NetIOReadRemove
+        options.netio_read_remove
+        and int(options.netio_read_remove) != machine_config.netio_read_remove
     ):
-        cfg["NetIOReadRemove"] = int(options.NetIOReadRemove)
+        cfg["netio_read_remove"] = int(options.netio_read_remove)
     if (
-        options.NetIOWriteLessThan
-        and int(options.NetIOWriteLessThan) != machine_config.NetIOWriteLessThan
+        options.netio_write_less_than
+        and int(options.netio_write_less_than) != machine_config.netio_write_less_than
     ):
-        cfg["NetIOWriteLessThan"] = int(options.NetIOWriteLessThan)
+        cfg["netio_write_less_than"] = int(options.netio_write_less_than)
     if (
-        options.NetIOWriteRemove
-        and int(options.NetIOWriteRemove) != machine_config.NetIOWriteRemove
+        options.netio_write_remove
+        and int(options.netio_write_remove) != machine_config.netio_write_remove
     ):
-        cfg["NetIOWriteRemove"] = int(options.NetIOWriteRemove)
-    if options.CrisisBytes and int(options.CrisisBytes) != machine_config.CrisisBytes:
-        cfg["CrisisBytes"] = int(options.CrisisBytes)
+        cfg["netio_write_remove"] = int(options.netio_write_remove)
+    if options.crisis_bytes and int(options.crisis_bytes) != machine_config.crisis_bytes:
+        cfg["crisis_bytes"] = int(options.crisis_bytes)
     if (
-        options.MetricsPortStart
-        and int(options.MetricsPortStart) != machine_config.MetricsPortStart
+        options.metrics_port_start
+        and int(options.metrics_port_start) != machine_config.metrics_port_start
     ):
-        cfg["MetricsPortStart"] = int(options.MetricsPortStart)
-    if options.Environment and options.Environment != machine_config.Environment:
-        cfg["Environment"] = options.Environment
-    if options.StartArgs and options.StartArgs != machine_config.StartArgs:
-        cfg["StartArgs"] = options.StartArgs
+        cfg["metrics_port_start"] = int(options.metrics_port_start)
+    if options.environment and options.environment != machine_config.environment:
+        cfg["environment"] = options.environment
+    if options.start_args and options.start_args != machine_config.start_args:
+        cfg["start_args"] = options.start_args
 
     return cfg
 
@@ -257,87 +257,87 @@ def load_anm_config(options):
     anm_config = {}
 
     # Let's get the real count of CPU's available to this process
-    anm_config["CpuCount"] = len(os.sched_getaffinity(0))
+    anm_config["cpu_count"] = len(os.sched_getaffinity(0))
 
     # What can we save from /var/antctl/config
     if os.path.exists("/var/antctl/config"):
         load_dotenv("/var/antctl/config")
-    anm_config["NodeCap"] = int(os.getenv("NodeCap") or options.NodeCap or 20)
-    anm_config["CpuLessThan"] = int(
-        os.getenv("CpuLessThan") or options.CpuLessThan or 50
+    anm_config["node_cap"] = int(os.getenv("NodeCap") or options.node_cap or 20)
+    anm_config["cpu_less_than"] = int(
+        os.getenv("CpuLessThan") or options.cpu_less_than or 50
     )
-    anm_config["CpuRemove"] = int(os.getenv("CpuRemove") or options.CpuRemove or 70)
-    anm_config["MemLessThan"] = int(
-        os.getenv("MemLessThan") or options.MemLessThan or 70
+    anm_config["cpu_remove"] = int(os.getenv("CpuRemove") or options.cpu_remove or 70)
+    anm_config["mem_less_than"] = int(
+        os.getenv("MemLessThan") or options.mem_less_than or 70
     )
-    anm_config["MemRemove"] = int(os.getenv("MemRemove") or options.MemRemove or 90)
-    anm_config["HDLessThan"] = int(os.getenv("HDLessThan") or options.HDLessThan or 70)
-    anm_config["HDRemove"] = int(os.getenv("HDRemove") or options.HDRemove or 90)
-    anm_config["DelayStart"] = int(os.getenv("DelayStart") or options.DelayStart or 5)
-    anm_config["DelayUpgrade"] = int(
-        os.getenv("DelayUpgrade") or options.DelayUpgrade or 5
+    anm_config["mem_remove"] = int(os.getenv("MemRemove") or options.mem_remove or 90)
+    anm_config["hd_less_than"] = int(os.getenv("HDLessThan") or options.hd_less_than or 70)
+    anm_config["hd_remove"] = int(os.getenv("HDRemove") or options.hd_remove or 90)
+    anm_config["delay_start"] = int(os.getenv("DelayStart") or options.delay_start or 300)
+    anm_config["delay_upgrade"] = int(
+        os.getenv("DelayUpgrade") or options.delay_upgrade or 300
     )
-    anm_config["DelayRestart"] = int(
-        os.getenv("DelayRestart") or options.DelayRestart or 10
+    anm_config["delay_restart"] = int(
+        os.getenv("DelayRestart") or options.delay_restart or 600
     )
-    anm_config["DelayRemove"] = int(
-        os.getenv("DelayRemove") or options.DelayRemove or 300
+    anm_config["delay_remove"] = int(
+        os.getenv("DelayRemove") or options.delay_remove or 300
     )
-    anm_config["NodeStorage"] = (
-        os.getenv("NodeStorage") or options.NodeStorage or "/var/antctl/services"
+    anm_config["node_storage"] = (
+        os.getenv("NodeStorage") or options.node_storage or "/var/antctl/services"
     )
     # Default to the faucet donation address
     try:
-        anm_config["RewardsAddress"] = re.findall(
+        anm_config["rewards_address"] = re.findall(
             r"--rewards-address ([\dA-Fa-fXx]+)", os.getenv("RewardsAddress")
         )[0]
     except (IndexError, TypeError) as e:
         try:
-            anm_config["RewardsAddress"] = re.findall(
+            anm_config["rewards_address"] = re.findall(
                 r"([\dA-Fa-fXx]+)", os.getenv("RewardsAddress")
             )[0]
         except (IndexError, TypeError) as e:
             logging.debug(f"Unable to parse RewardsAddress from env: {e}")
-            anm_config["RewardsAddress"] = options.RewardsAddress
-            if not anm_config["RewardsAddress"]:
+            anm_config["rewards_address"] = options.rewards_address
+            if not anm_config["rewards_address"]:
                 logging.warning("Unable to detect RewardsAddress")
                 sys.exit(1)
-    anm_config["DonateAddress"] = (
-        os.getenv("DonateAddress") or options.DonateAddress or DONATE
+    anm_config["donate_address"] = (
+        os.getenv("DonateAddress") or options.donate_address or DONATE
     )
-    anm_config["MaxLoadAverageAllowed"] = float(
-        os.getenv("MaxLoadAverageAllowed") or anm_config["CpuCount"]
+    anm_config["max_load_average_allowed"] = float(
+        os.getenv("MaxLoadAverageAllowed") or anm_config["cpu_count"]
     )
-    anm_config["DesiredLoadAverage"] = float(
-        os.getenv("DesiredLoadAverage") or (anm_config["CpuCount"] * 0.6)
+    anm_config["desired_load_average"] = float(
+        os.getenv("DesiredLoadAverage") or (anm_config["cpu_count"] * 0.6)
     )
 
     try:
         with open("/usr/bin/anms.sh", "r") as file:
             data = file.read()
-        anm_config["PortStart"] = int(re.findall(r"ntpr\=(\d+)", data)[0])
+        anm_config["port_start"] = int(re.findall(r"ntpr\=(\d+)", data)[0])
     except (FileNotFoundError, IndexError, ValueError) as e:
         logging.debug(f"Unable to read PortStart from anms.sh: {e}")
-        anm_config["PortStart"] = options.PortStart or 55
+        anm_config["port_start"] = options.port_start or 55
 
-    anm_config["MetricsPortStart"] = (
-        options.MetricsPortStart or 13
+    anm_config["metrics_port_start"] = (
+        options.metrics_port_start or 13
     )  # This is hardcoded in the anm.sh script
 
-    anm_config["HDIOReadLessThan"] = int(os.getenv("HDIOReadLessThan") or 0)
-    anm_config["HDIOReadRemove"] = int(os.getenv("HDIOReadRemove") or 0)
-    anm_config["HDIOWriteLessThan"] = int(os.getenv("HDIOWriteLessThan") or 0)
-    anm_config["HDIOWriteRemove"] = int(os.getenv("HDIOWriteRemove") or 0)
-    anm_config["NetIOReadLessThan"] = int(os.getenv("NetIOReadLessThan") or 0)
-    anm_config["NetIOReadRemove"] = int(os.getenv("NetIOReadRemove") or 0)
-    anm_config["NetIOWriteLessThan"] = int(os.getenv("NetIOWriteLessThan") or 0)
-    anm_config["NetIOWriteRemove"] = int(os.getenv("NetIOWriteRemove") or 0)
+    anm_config["hdio_read_less_than"] = int(os.getenv("HDIOReadLessThan") or 0)
+    anm_config["hdio_read_remove"] = int(os.getenv("HDIOReadRemove") or 0)
+    anm_config["hdio_write_less_than"] = int(os.getenv("HDIOWriteLessThan") or 0)
+    anm_config["hdio_write_remove"] = int(os.getenv("HDIOWriteRemove") or 0)
+    anm_config["netio_read_less_than"] = int(os.getenv("NetIOReadLessThan") or 0)
+    anm_config["netio_read_remove"] = int(os.getenv("NetIOReadRemove") or 0)
+    anm_config["netio_write_less_than"] = int(os.getenv("NetIOWriteLessThan") or 0)
+    anm_config["netio_write_remove"] = int(os.getenv("NetIOWriteRemove") or 0)
     # Timer for last stopped nodes
-    anm_config["LastStoppedAt"] = 0
-    anm_config["Host"] = os.getenv("Host") or options.Host or "127.0.0.1"
-    anm_config["CrisisBytes"] = options.Host or DEFAULT_CRISIS_BYTES
-    anm_config["Environment"] = options.Environment or ""
-    anm_config["StartArgs"] = options.StartArgs or ""
+    anm_config["last_stopped_at"] = 0
+    anm_config["host"] = os.getenv("Host") or options.host or "127.0.0.1"
+    anm_config["crisis_bytes"] = options.host or DEFAULT_CRISIS_BYTES
+    anm_config["environment"] = options.environment or ""
+    anm_config["start_args"] = options.start_args or ""
 
     return anm_config
 
@@ -379,70 +379,70 @@ def teardown_machine(machine_config):
 
 
 def define_machine(options):
-    if not options.RewardsAddress:
+    if not options.rewards_address:
         logging.warning("Rewards Address is required")
         return False
     cpucount = len(os.sched_getaffinity(0))
     machine = {
         "id": 1,
-        "CpuCount": cpucount,
-        "NodeCap": int(options.NodeCap) if options.NodeCap else 20,
-        "CpuLessThan": int(options.CpuLessThan) if options.CpuLessThan else 50,
-        "CpuRemove": int(options.CpuRemove) if options.CpuRemove else 70,
-        "MemLessThan": int(options.MemLessThan) if options.MemLessThan else 70,
-        "MemRemove": int(options.MemRemove) if options.MemRemove else 90,
-        "HDLessThan": int(options.HDLessThan) if options.HDLessThan else 70,
-        "HDRemove": int(options.HDRemove) if options.HDRemove else 90,
-        "DelayStart": int(options.DelayStart) if options.DelayStart else 5,
-        "DelayUpgrade": int(options.DelayUpgrade) if options.DelayUpgrade else 5,
-        "DelayRemove": int(options.DelayRemove) if options.DelayRemove else 5,
-        "NodeStorage": options.NodeStorage or "/var/antctl/services",
-        "RewardsAddress": options.RewardsAddress,
-        "DonateAddress": options.DonateAddress
+        "cpu_count": cpucount,
+        "node_cap": int(options.node_cap) if options.node_cap else 20,
+        "cpu_less_than": int(options.cpu_less_than) if options.cpu_less_than else 50,
+        "cpu_remove": int(options.cpu_remove) if options.cpu_remove else 70,
+        "mem_less_than": int(options.mem_less_than) if options.mem_less_than else 70,
+        "mem_remove": int(options.mem_remove) if options.mem_remove else 90,
+        "hd_less_than": int(options.hd_less_than) if options.hd_less_than else 70,
+        "hd_remove": int(options.hd_remove) if options.hd_remove else 90,
+        "delay_start": int(options.delay_start) if options.delay_start else 300,
+        "delay_upgrade": int(options.delay_upgrade) if options.delay_upgrade else 300,
+        "delay_remove": int(options.delay_remove) if options.delay_remove else 300,
+        "node_storage": options.node_storage or "/var/antctl/services",
+        "rewards_address": options.rewards_address,
+        "donate_address": options.donate_address
         or "0x00455d78f850b0358E8cea5be24d415E01E107CF",
-        "MaxLoadAverageAllowed": (
-            float(options.MaxLoadAverageAllowed)
-            if options.MaxLoadAverageAllowed
+        "max_load_average_allowed": (
+            float(options.max_load_average_allowed)
+            if options.max_load_average_allowed
             else cpucount
         ),
-        "DesiredLoadAverage": (
-            float(options.DesiredLoadAverage)
-            if options.DesiredLoadAverage
+        "desired_load_average": (
+            float(options.desired_load_average)
+            if options.desired_load_average
             else cpucount * 0.6
         ),
-        "PortStart": int(options.PortStart) if options.PortStart else 55,
-        "HDIOReadLessThan": (
-            int(options.HDIOReadLessThan) if options.HDIOReadLessThan else 0
+        "port_start": int(options.port_start) if options.port_start else 55,
+        "hdio_read_less_than": (
+            int(options.hdio_read_less_than) if options.hdio_read_less_than else 0
         ),
-        "HDIOReadRemove": int(options.HDIOReadRemove) if options.HDIOReadRemove else 0,
-        "HDIOWriteLessThan": (
-            int(options.HDIOWriteLessThan) if options.HDIOWriteLessThan else 0
+        "hdio_read_remove": int(options.hdio_read_remove) if options.hdio_read_remove else 0,
+        "hdio_write_less_than": (
+            int(options.hdio_write_less_than) if options.hdio_write_less_than else 0
         ),
-        "HDIOWriteRemove": (
-            int(options.HDIOWriteRemove) if options.HDIOWriteRemove else 0
+        "hdio_write_remove": (
+            int(options.hdio_write_remove) if options.hdio_write_remove else 0
         ),
-        "NetIOReadLessThan": (
-            int(options.NetIOReadLessThan) if options.NetIOReadLessThan else 0
+        "netio_read_less_than": (
+            int(options.netio_read_less_than) if options.netio_read_less_than else 0
         ),
-        "NetIOReadRemove": (
-            int(options.NetIOReadRemove) if options.NetIOReadRemove else 0
+        "netio_read_remove": (
+            int(options.netio_read_remove) if options.netio_read_remove else 0
         ),
-        "NetIOWriteLessThan": (
-            int(options.NetIOWriteLessThan) if options.NetIOWriteLessThan else 0
+        "netio_write_less_than": (
+            int(options.netio_write_less_than) if options.netio_write_less_than else 0
         ),
-        "NetIOWriteRemove": (
-            int(options.NetIOWriteRemove) if options.NetIOWriteRemove else 0
+        "netio_write_remove": (
+            int(options.netio_write_remove) if options.netio_write_remove else 0
         ),
-        "LastStoppedAt": 0,
-        "Host": options.Host or "127.0.0.1",
-        "CrisisBytes": (
-            int(options.CrisisBytes) if options.CrisisBytes else DEFAULT_CRISIS_BYTES
+        "last_stopped_at": 0,
+        "host": options.host or "127.0.0.1",
+        "crisis_bytes": (
+            int(options.crisis_bytes) if options.crisis_bytes else DEFAULT_CRISIS_BYTES
         ),
-        "MetricsPortStart": (
-            int(options.MetricsPortStart) if options.MetricsPortStart else 13
+        "metrics_port_start": (
+            int(options.metrics_port_start) if options.metrics_port_start else 13
         ),
-        "Environment": options.Environment if options.Environment else "",
-        "StartArgs": options.StartArgs if options.StartArgs else "",
+        "environment": options.environment if options.environment else "",
+        "start_args": options.start_args if options.start_args else "",
     }
     with S() as session:
         session.execute(insert(Machine), [machine])
@@ -550,7 +550,7 @@ else:
 config_updates = merge_config_changes(options, machine_config)
 # Failfirst on invalid config change
 if (
-    "PortStart" in config_updates or "MetricsPortStart" in config_updates
+    "port_start" in config_updates or "metrics_port_start" in config_updates
 ) and not did_we_init:
     logging.warning("Can not change start port numbers on an active machine")
     sys.exit(1)

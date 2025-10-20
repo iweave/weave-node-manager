@@ -43,37 +43,41 @@ def db_session(db_engine):
 def sample_machine_config():
     """Sample machine configuration for testing"""
     return {
-        "CpuCount": 8,
-        "NodeCap": 10,
-        "CpuLessThan": 70,
-        "CpuRemove": 85,
-        "MemLessThan": 70,
-        "MemRemove": 85,
-        "HDLessThan": 80,
-        "HDRemove": 90,
-        "DelayStart": 5,
-        "DelayUpgrade": 10,
-        "DelayRemove": 15,
-        "NodeStorage": "/tmp/test_nodes",
-        "RewardsAddress": "0x1234567890123456789012345678901234567890",
-        "DonateAddress": "0x0987654321098765432109876543210987654321",
-        "MaxLoadAverageAllowed": 10.0,
-        "DesiredLoadAverage": 5.0,
-        "PortStart": 55,
-        "HDIOReadLessThan": 1000000,
-        "HDIOReadRemove": 5000000,
-        "HDIOWriteLessThan": 1000000,
-        "HDIOWriteRemove": 5000000,
-        "NetIOReadLessThan": 1000000,
-        "NetIOReadRemove": 5000000,
-        "NetIOWriteLessThan": 1000000,
-        "NetIOWriteRemove": 5000000,
-        "LastStoppedAt": 0,
-        "Host": "test-host",
-        "CrisisBytes": 2000000000,
-        "MetricsPortStart": 13000,
-        "Environment": None,
-        "StartArgs": None,
+        "cpu_count": 8,
+        "node_cap": 10,
+        "cpu_less_than": 70,
+        "cpu_remove": 85,
+        "mem_less_than": 70,
+        "mem_remove": 85,
+        "hd_less_than": 80,
+        "hd_remove": 90,
+        "delay_start": 300,  # 5 minutes in seconds
+        "delay_upgrade": 600,  # 10 minutes in seconds
+        "delay_remove": 900,  # 15 minutes in seconds
+        "node_storage": "/tmp/test_nodes",
+        "rewards_address": "0x1234567890123456789012345678901234567890",
+        "donate_address": "0x0987654321098765432109876543210987654321",
+        "max_load_average_allowed": 10.0,
+        "desired_load_average": 5.0,
+        "port_start": 55,
+        "hdio_read_less_than": 1000000,
+        "hdio_read_remove": 5000000,
+        "hdio_write_less_than": 1000000,
+        "hdio_write_remove": 5000000,
+        "netio_read_less_than": 1000000,
+        "netio_read_remove": 5000000,
+        "netio_write_less_than": 1000000,
+        "netio_write_remove": 5000000,
+        "last_stopped_at": 0,
+        "host": "test-host",
+        "crisis_bytes": 2000000000,
+        "metrics_port_start": 13000,
+        "environment": None,
+        "start_args": None,
+        "max_concurrent_upgrades": 1,
+        "max_concurrent_starts": 2,
+        "max_concurrent_removals": 1,
+        "node_removal_strategy": "youngest",
     }
 
 
@@ -91,7 +95,7 @@ def sample_node_config():
     """Sample node configuration for testing"""
     return {
         "id": 1,
-        "nodename": "test001",
+        "node_name": "test001",
         "service": "antnode-test001",
         "user": "testuser",
         "binary": "/usr/local/bin/antnode",
@@ -112,6 +116,9 @@ def sample_node_config():
         "method": "systemd",
         "layout": "single",
         "environment": None,
+        "machine_id": 1,
+        "container_id": None,
+        "manager_type": "systemd",
     }
 
 
@@ -131,7 +138,7 @@ def multiple_nodes(db_session, sample_node_config):
     for i in range(1, 6):
         config = sample_node_config.copy()
         config["id"] = i
-        config["nodename"] = f"test{i:03d}"
+        config["node_name"] = f"test{i:03d}"
         config["service"] = f"antnode-test{i:03d}"
         config["root_dir"] = f"/tmp/test_nodes/test{i:03d}"
         config["port"] = 55000 + i

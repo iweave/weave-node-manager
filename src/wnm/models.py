@@ -4,6 +4,7 @@ from typing import Optional
 import json_fix
 from sqlalchemy import (
     Float,
+    ForeignKey,
     Integer,
     Unicode,
     UnicodeText,
@@ -16,6 +17,7 @@ from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     mapped_column,
+    relationship,
     scoped_session,
     sessionmaker,
 )
@@ -28,170 +30,291 @@ class Base(DeclarativeBase):
 
 # Extend the Base class to create our Host info
 class Machine(Base):
+    """One row per wnm instance (single physical machine)"""
+
     __tablename__ = "machine"
     # No schema in sqlite3
     # __table_args__ = {"schema": "colony"}
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    CpuCount: Mapped[int] = mapped_column(Integer)
-    NodeCap: Mapped[int] = mapped_column(Integer)
-    CpuLessThan: Mapped[int] = mapped_column(Integer)
-    CpuRemove: Mapped[int] = mapped_column(Integer)
-    MemLessThan: Mapped[int] = mapped_column(Integer)
-    MemRemove: Mapped[int] = mapped_column(Integer)
-    HDLessThan: Mapped[int] = mapped_column(Integer)
-    HDRemove: Mapped[int] = mapped_column(Integer)
-    DelayStart: Mapped[int] = mapped_column(Integer)
-    DelayUpgrade: Mapped[int] = mapped_column(Integer)
-    DelayRemove: Mapped[int] = mapped_column(Integer)
-    NodeStorage: Mapped[str] = mapped_column(UnicodeText)
-    RewardsAddress: Mapped[str] = mapped_column(UnicodeText)
-    DonateAddress: Mapped[str] = mapped_column(UnicodeText)
-    MaxLoadAverageAllowed: Mapped[float] = mapped_column(Float)
-    DesiredLoadAverage: Mapped[float] = mapped_column(Float)
-    # What port to begin assigning nodes
-    PortStart: Mapped[int] = mapped_column(Integer)
-    HDIOReadLessThan: Mapped[int] = mapped_column(Integer)
-    HDIOReadRemove: Mapped[int] = mapped_column(Integer)
-    HDIOWriteLessThan: Mapped[int] = mapped_column(Integer)
-    HDIOWriteRemove: Mapped[int] = mapped_column(Integer)
-    NetIOReadLessThan: Mapped[int] = mapped_column(Integer)
-    NetIOReadRemove: Mapped[int] = mapped_column(Integer)
-    NetIOWriteLessThan: Mapped[int] = mapped_column(Integer)
-    NetIOWriteRemove: Mapped[int] = mapped_column(Integer)
-    LastStoppedAt: Mapped[int] = mapped_column(Integer)
-    Host: Mapped[str] = mapped_column(UnicodeText)
-    CrisisBytes: Mapped[int] = mapped_column(Integer)
-    MetricsPortStart: Mapped[int] = mapped_column(Integer)
-    Environment: Mapped[Optional[str]] = mapped_column(UnicodeText)
-    StartArgs: Mapped[Optional[str]] = mapped_column(UnicodeText)
+
+    # System configuration
+    cpu_count: Mapped[int] = mapped_column(Integer)
+    node_cap: Mapped[int] = mapped_column(Integer)
+
+    # Resource thresholds for adding nodes
+    cpu_less_than: Mapped[int] = mapped_column(Integer)
+    mem_less_than: Mapped[int] = mapped_column(Integer)
+    hd_less_than: Mapped[int] = mapped_column(Integer)
+    hdio_read_less_than: Mapped[int] = mapped_column(Integer)
+    hdio_write_less_than: Mapped[int] = mapped_column(Integer)
+    netio_read_less_than: Mapped[int] = mapped_column(Integer)
+    netio_write_less_than: Mapped[int] = mapped_column(Integer)
+
+    # Resource thresholds for removing nodes
+    cpu_remove: Mapped[int] = mapped_column(Integer)
+    mem_remove: Mapped[int] = mapped_column(Integer)
+    hd_remove: Mapped[int] = mapped_column(Integer)
+    hdio_read_remove: Mapped[int] = mapped_column(Integer)
+    hdio_write_remove: Mapped[int] = mapped_column(Integer)
+    netio_read_remove: Mapped[int] = mapped_column(Integer)
+    netio_write_remove: Mapped[int] = mapped_column(Integer)
+
+    # Load average thresholds
+    max_load_average_allowed: Mapped[float] = mapped_column(Float)
+    desired_load_average: Mapped[float] = mapped_column(Float)
+
+    # Delay timers (in seconds, changed from minutes)
+    delay_start: Mapped[int] = mapped_column(Integer)
+    delay_upgrade: Mapped[int] = mapped_column(Integer)
+    delay_remove: Mapped[int] = mapped_column(Integer)
+
+    # Node configuration
+    node_storage: Mapped[str] = mapped_column(UnicodeText)
+    rewards_address: Mapped[str] = mapped_column(UnicodeText)
+    donate_address: Mapped[str] = mapped_column(UnicodeText)
+
+    # Port configuration
+    port_start: Mapped[int] = mapped_column(Integer)
+    metrics_port_start: Mapped[int] = mapped_column(Integer)
+
+    # System state
+    last_stopped_at: Mapped[int] = mapped_column(Integer)
+    host: Mapped[str] = mapped_column(UnicodeText)
+    crisis_bytes: Mapped[int] = mapped_column(Integer)
+
+    # Runtime configuration
+    environment: Mapped[Optional[str]] = mapped_column(UnicodeText)
+    start_args: Mapped[Optional[str]] = mapped_column(UnicodeText)
+
+    # NEW: Concurrency limits (Phase 5)
+    max_concurrent_upgrades: Mapped[int] = mapped_column(Integer, default=1)
+    max_concurrent_starts: Mapped[int] = mapped_column(Integer, default=2)
+    max_concurrent_removals: Mapped[int] = mapped_column(Integer, default=1)
+
+    # NEW: Node selection strategy (Phase 6)
+    node_removal_strategy: Mapped[str] = mapped_column(
+        UnicodeText, default="youngest"
+    )
+
+    # Relationships
+    containers: Mapped[list["Container"]] = relationship(
+        back_populates="machine", cascade="all, delete-orphan"
+    )
+    nodes: Mapped[list["Node"]] = relationship(
+        back_populates="machine", cascade="all, delete-orphan"
+    )
 
     def __init__(
         self,
-        CpuCount,
-        NodeCap,
-        CpuLessThan,
-        CpuRemove,
-        MemLessThan,
-        MemRemove,
-        HDLessThan,
-        HDRemove,
-        DelayStart,
-        DelayUpgrade,
-        DelayRemove,
-        NodeStorage,
-        RewardsAddress,
-        DonateAddress,
-        MaxLoadAverageAllowed,
-        DesiredLoadAverage,
-        PortStart,
-        HDIOReadLessThan,
-        HDIOReadRemove,
-        HDIOWriteLessThan,
-        HDIOWriteRemove,
-        NetIOReadLessThan,
-        NetIOReadRemove,
-        NetIOWriteLessThan,
-        NetIOWriteRemove,
-        LastStoppedAt,
-        Host,
-        CrisisBytes,
-        MetricsPortStart,
-        Environment,
-        StartArgs,
+        cpu_count,
+        node_cap,
+        cpu_less_than,
+        cpu_remove,
+        mem_less_than,
+        mem_remove,
+        hd_less_than,
+        hd_remove,
+        delay_start,
+        delay_upgrade,
+        delay_remove,
+        node_storage,
+        rewards_address,
+        donate_address,
+        max_load_average_allowed,
+        desired_load_average,
+        port_start,
+        hdio_read_less_than,
+        hdio_read_remove,
+        hdio_write_less_than,
+        hdio_write_remove,
+        netio_read_less_than,
+        netio_read_remove,
+        netio_write_less_than,
+        netio_write_remove,
+        last_stopped_at,
+        host,
+        crisis_bytes,
+        metrics_port_start,
+        environment,
+        start_args,
+        max_concurrent_upgrades=1,
+        max_concurrent_starts=2,
+        max_concurrent_removals=1,
+        node_removal_strategy="youngest",
     ):
-
-        self.CpuCount = CpuCount
-        self.NodeCap = NodeCap
-        self.CpuLessThan = CpuLessThan
-        self.CpuRemove = CpuRemove
-        self.MemLessThan = MemLessThan
-        self.MemRemove = MemRemove
-        self.HDLessThan = HDLessThan
-        self.HDRemove = HDRemove
-        self.DelayStart = DelayStart
-        self.DelayUpgrade = DelayUpgrade
-        self.DelayRemove = DelayRemove
-        self.NodeStorage = NodeStorage
-        self.RewardsAddress = RewardsAddress
-        self.DonateAddress = DonateAddress
-        self.MaxLoadAverageAllowed = MaxLoadAverageAllowed
-        self.DesiredLoadAverage = DesiredLoadAverage
-        self.PortStart = PortStart
-        self.HDIOReadLessThan = HDIOReadLessThan
-        self.HDIOReadRemove = HDIOReadRemove
-        self.HDIOWriteLessThan = HDIOWriteLessThan
-        self.HDIOWriteRemove = HDIOWriteRemove
-        self.NetIOReadLessThan = NetIOReadLessThan
-        self.NetIOReadRemove = NetIOReadRemove
-        self.NetIOWriteLessThan = NetIOWriteLessThan
-        self.NetIOWriteRemove = NetIOWriteRemove
-        self.LastStoppedAt = LastStoppedAt
-        self.Host = Host
-        self.CrisisBytes = CrisisBytes
-        self.MetricsPortStart = MetricsPortStart
-        self.Environment = Environment
-        self.StartArgs = StartArgs
+        self.cpu_count = cpu_count
+        self.node_cap = node_cap
+        self.cpu_less_than = cpu_less_than
+        self.cpu_remove = cpu_remove
+        self.mem_less_than = mem_less_than
+        self.mem_remove = mem_remove
+        self.hd_less_than = hd_less_than
+        self.hd_remove = hd_remove
+        self.delay_start = delay_start
+        self.delay_upgrade = delay_upgrade
+        self.delay_remove = delay_remove
+        self.node_storage = node_storage
+        self.rewards_address = rewards_address
+        self.donate_address = donate_address
+        self.max_load_average_allowed = max_load_average_allowed
+        self.desired_load_average = desired_load_average
+        self.port_start = port_start
+        self.hdio_read_less_than = hdio_read_less_than
+        self.hdio_read_remove = hdio_read_remove
+        self.hdio_write_less_than = hdio_write_less_than
+        self.hdio_write_remove = hdio_write_remove
+        self.netio_read_less_than = netio_read_less_than
+        self.netio_read_remove = netio_read_remove
+        self.netio_write_less_than = netio_write_less_than
+        self.netio_write_remove = netio_write_remove
+        self.last_stopped_at = last_stopped_at
+        self.host = host
+        self.crisis_bytes = crisis_bytes
+        self.metrics_port_start = metrics_port_start
+        self.environment = environment
+        self.start_args = start_args
+        self.max_concurrent_upgrades = max_concurrent_upgrades
+        self.max_concurrent_starts = max_concurrent_starts
+        self.max_concurrent_removals = max_concurrent_removals
+        self.node_removal_strategy = node_removal_strategy
 
     def __repr__(self):
         return (
-            f"Machine({self.CpuCount},{self.NodeCap},{self.CpuLessThan},{self.CpuRemove}"
-            + f",{self.MemLessThan},{self.MemRemove},{self.HDLessThan}"
-            + f",{self.HDRemove},{self.DelayStart},{self.DelayUpgrade}"
-            + f",{self.DelayRemove}"
-            + f',"{self.NodeStorage}","{self.RewardsAddress}","{self.DonateAddress}"'
-            + f",{self.MaxLoadAverageAllowed},{self.DesiredLoadAverage}"
-            + f",{self.PortStart},{self.HDIOReadLessThan},{self.HDIOReadRemove}"
-            + f",{self.HDIOWriteLessThan},{self.HDIOWriteRemove}"
-            + f",{self.NetIOReadLessThan},{self.NetIOReadRemove}"
-            + f",{self.NetIOWriteLessThan},{self.NetIOWriteRemove}"
-            + f",{self.LastStoppedAt},{self.Host},{self.CrisisBytes}"
-            + f",{self.MetricsPortStart},{self.Environment},{self.StartArgs})"
+            f"Machine({self.cpu_count},{self.node_cap},{self.cpu_less_than},{self.cpu_remove}"
+            + f",{self.mem_less_than},{self.mem_remove},{self.hd_less_than}"
+            + f",{self.hd_remove},{self.delay_start},{self.delay_upgrade}"
+            + f",{self.delay_remove}"
+            + f',"{self.node_storage}","{self.rewards_address}","{self.donate_address}"'
+            + f",{self.max_load_average_allowed},{self.desired_load_average}"
+            + f",{self.port_start},{self.hdio_read_less_than},{self.hdio_read_remove}"
+            + f",{self.hdio_write_less_than},{self.hdio_write_remove}"
+            + f",{self.netio_read_less_than},{self.netio_read_remove}"
+            + f",{self.netio_write_less_than},{self.netio_write_remove}"
+            + f",{self.last_stopped_at},{self.host},{self.crisis_bytes}"
+            + f",{self.metrics_port_start},{self.environment},{self.start_args})"
         )
 
     def __json__(self):
         return {
-            "CpuCount": self.CpuCount,
-            "NodeCap": self.NodeCap,
-            "CpuLessThan": self.CpuLessThan,
-            "CpuRemove": self.CpuRemove,
-            "MemLessThan": self.MemLessThan,
-            "MemRemove": self.MemRemove,
-            "HDLessThan": self.HDLessThan,
-            "HDRemove": self.HDRemove,
-            "DelayStart": self.DelayStart,
-            "DelayUpgrade": self.DelayUpgrade,
-            "DelayRemove": self.DelayRemove,
-            "NodeStorage": f"{self.NodeStorage}",
-            "RewardsAddress": f"{self.RewardsAddress}",
-            "DonateAddress": f"{self.DonateAddress}",
-            "MaxLoadAverageAllowed": self.MaxLoadAverageAllowed,
-            "DesiredLoadAverage": self.DesiredLoadAverage,
-            "PortStart": self.PortStart,
-            "HDIOReadLessThan": self.HDIOReadLessThan,
-            "HDIOReadRemove": self.HDIOReadRemove,
-            "HDIOWriteLessThan": self.HDIOWriteLessThan,
-            "HDIOWriteRemove": self.HDIOWriteRemove,
-            "NetIOReadLessThan": self.NetIOReadLessThan,
-            "NetIOReadRemove": self.NetIOReadRemove,
-            "NetIOWriteLessThan": self.NetIOWriteLessThan,
-            "NetIOWriteRemove": self.NetIOWriteRemove,
-            "LastStoppedAt": self.LastStoppedAt,
-            "Host": f"{self.Host}",
-            "CrisisBytes": self.CrisisBytes,
-            "MetricsPortStart": self.MetricsPortStart,
-            "Environment": f"{self.Environment}",
-            "StartArgs": f"{self.StartArgs}",
+            "cpu_count": self.cpu_count,
+            "node_cap": self.node_cap,
+            "cpu_less_than": self.cpu_less_than,
+            "cpu_remove": self.cpu_remove,
+            "mem_less_than": self.mem_less_than,
+            "mem_remove": self.mem_remove,
+            "hd_less_than": self.hd_less_than,
+            "hd_remove": self.hd_remove,
+            "delay_start": self.delay_start,
+            "delay_upgrade": self.delay_upgrade,
+            "delay_remove": self.delay_remove,
+            "node_storage": f"{self.node_storage}",
+            "rewards_address": f"{self.rewards_address}",
+            "donate_address": f"{self.donate_address}",
+            "max_load_average_allowed": self.max_load_average_allowed,
+            "desired_load_average": self.desired_load_average,
+            "port_start": self.port_start,
+            "hdio_read_less_than": self.hdio_read_less_than,
+            "hdio_read_remove": self.hdio_read_remove,
+            "hdio_write_less_than": self.hdio_write_less_than,
+            "hdio_write_remove": self.hdio_write_remove,
+            "netio_read_less_than": self.netio_read_less_than,
+            "netio_read_remove": self.netio_read_remove,
+            "netio_write_less_than": self.netio_write_less_than,
+            "netio_write_remove": self.netio_write_remove,
+            "last_stopped_at": self.last_stopped_at,
+            "host": f"{self.host}",
+            "crisis_bytes": self.crisis_bytes,
+            "metrics_port_start": self.metrics_port_start,
+            "environment": f"{self.environment}",
+            "start_args": f"{self.start_args}",
+            "max_concurrent_upgrades": self.max_concurrent_upgrades,
+            "max_concurrent_starts": self.max_concurrent_starts,
+            "max_concurrent_removals": self.max_concurrent_removals,
+            "node_removal_strategy": f"{self.node_removal_strategy}",
+        }
+
+
+# NEW: Container table for Docker container management
+class Container(Base):
+    """Optional: Docker containers hosting nodes"""
+
+    __tablename__ = "container"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Foreign key to machine
+    machine_id: Mapped[int] = mapped_column(ForeignKey("machine.id"), default=1)
+
+    # Docker container details
+    container_id: Mapped[str] = mapped_column(Unicode(64), unique=True)
+    name: Mapped[str] = mapped_column(UnicodeText)
+    image: Mapped[str] = mapped_column(UnicodeText)
+    status: Mapped[str] = mapped_column(Unicode(32))  # running, stopped, etc.
+    created_at: Mapped[int] = mapped_column(Integer)
+
+    # Relationships
+    machine: Mapped["Machine"] = relationship(back_populates="containers")
+    nodes: Mapped[list["Node"]] = relationship(
+        back_populates="container", cascade="all, delete-orphan"
+    )
+
+    def __init__(
+        self,
+        container_id,
+        name,
+        image,
+        status,
+        created_at,
+        machine_id=1,
+    ):
+        self.container_id = container_id
+        self.name = name
+        self.image = image
+        self.status = status
+        self.created_at = created_at
+        self.machine_id = machine_id
+
+    def __repr__(self):
+        return (
+            f'Container({self.id},"{self.container_id}","{self.name}","{self.image}"'
+            + f',"{self.status}",{self.created_at})'
+        )
+
+    def __json__(self):
+        return {
+            "id": self.id,
+            "container_id": f"{self.container_id}",
+            "name": f"{self.name}",
+            "image": f"{self.image}",
+            "status": f"{self.status}",
+            "created_at": self.created_at,
+            "machine_id": self.machine_id,
         }
 
 
 # Extend the Base class to create our Node info
 class Node(Base):
+    """Nodes on host OS or in containers"""
+
     __tablename__ = "node"
     # No schema in sqlite3
     # __table_args__ = {"schema": "colony"}
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Foreign key to machine
+    machine_id: Mapped[int] = mapped_column(ForeignKey("machine.id"), default=1)
+
+    # NEW: Optional container reference
+    container_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("container.id"), nullable=True
+    )
+
+    # NEW: Process manager type
+    manager_type: Mapped[str] = mapped_column(
+        UnicodeText, default="systemd"
+    )  # "systemd", "docker", "setsid", "antctl", "launchctl"
+
     # Maps to antnode-{nodename}
-    nodename: Mapped[str] = mapped_column(Unicode(10))
+    node_name: Mapped[str] = mapped_column(Unicode(10))
     # service definition name
     service: Mapped[str] = mapped_column(UnicodeText)
     # User running node
@@ -233,10 +356,14 @@ class Node(Base):
     # node environment settings
     environment: Mapped[Optional[str]] = mapped_column(UnicodeText)
 
+    # Relationships
+    machine: Mapped["Machine"] = relationship(back_populates="nodes")
+    container: Mapped[Optional["Container"]] = relationship(back_populates="nodes")
+
     def __init__(
         self,
         id,
-        nodename,
+        node_name,
         service,
         user,
         binary,
@@ -257,9 +384,12 @@ class Node(Base):
         method,
         layout,
         environment,
+        machine_id=1,
+        container_id=None,
+        manager_type="systemd",
     ):
         self.id = id
-        self.nodename = nodename
+        self.node_name = node_name
         self.service = service
         self.user = user
         self.binary = binary
@@ -280,20 +410,24 @@ class Node(Base):
         self.method = method
         self.layout = layout
         self.environment = environment
+        self.machine_id = machine_id
+        self.container_id = container_id
+        self.manager_type = manager_type
 
     def __repr__(self):
         return (
-            f'Node({self.id},"{self.nodename}","{self.service}","{self.user},"{self.binary}"'
+            f'Node({self.id},"{self.node_name}","{self.service}","{self.user},"{self.binary}"'
             + f',"{self.version}","{self.root_dir}",{self.port},{self.metrics_port}'
             + f',"{self.network}","{self.wallet}","{self.peer_id}","{self.status}",{self.timestamp}'
             + f',{self.records},{self.uptime},{self.shunned},{self.age},"{self.host}"'
-            + f',{self.method},{self.layout},"{self.environment}")'
+            + f',{self.method},{self.layout},"{self.environment}"'
+            + f',{self.machine_id},{self.container_id},"{self.manager_type}")'
         )
 
     def __json__(self):
         return {
             "id": self.id,
-            "nodename": f"{self.nodename}",
+            "node_name": f"{self.node_name}",
             "service": f"{self.service}",
             "user": f"{self.user}",
             "binary": f"{self.binary}",
@@ -314,4 +448,7 @@ class Node(Base):
             "method": f"{self.method}",
             "layout": f"{self.layout}",
             "environment": f"{self.environment}",
+            "machine_id": self.machine_id,
+            "container_id": self.container_id,
+            "manager_type": f"{self.manager_type}",
         }

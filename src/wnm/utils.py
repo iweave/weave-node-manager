@@ -50,7 +50,7 @@ def read_systemd_service(antnode, machine_config):
         if ip := re.findall(r"--ip ([^ ]+)", data)[0]:
             # If we have the special wildcard listen address, use default
             if ip == "0.0.0.0":
-                details["host"] = machine_config.Host
+                details["host"] = machine_config.host
             else:
                 details["host"] = ip
         if optional := re.findall(r'Environment="(.+)"', data):
@@ -69,7 +69,7 @@ def read_node_metadata(host, port):
     # Only return version number when we have one, to stop clobbering the binary check
     try:
         url = "http://{0}:{1}/metadata".format(host, port)
-        response = requests.get(url)
+        response = requests.get(url, timeout=5)
         data = response.text
     except requests.exceptions.ConnectionError:
         logging.debug("Connection Refused on port: {0}:{1}".format(host, str(port)))
@@ -99,7 +99,7 @@ def read_node_metrics(host, port):
     metrics = {}
     try:
         url = "http://{0}:{1}/metrics".format(host, port)
-        response = requests.get(url)
+        response = requests.get(url, timeout=5)
         metrics["status"] = RUNNING
         metrics["uptime"] = int(
             (re.findall(r"ant_node_uptime ([\d]+)", response.text) or [0])[0]
@@ -172,10 +172,10 @@ def survey_systemd_nodes(antnodes, machine_config):
             logging.info("can't decode " + str(node))
             continue
         card = {
-            "nodename": re.findall(r"antnode([\d]+).service", node)[0],
+            "node_name": re.findall(r"antnode([\d]+).service", node)[0],
             "service": node,
             "timestamp": int(time.time()),
-            "host": machine_config.Host or "127.0.0.1",
+            "host": machine_config.host or "127.0.0.1",
             "method": "systemd",
             "layout": "1",
         }
@@ -209,7 +209,7 @@ def survey_systemd_nodes(antnodes, machine_config):
             card["shunned"] = 0
         card["age"] = get_node_age(card["root_dir"])
         # harcoded for anm
-        card["host"] = machine_config.Host
+        card["host"] = machine_config.host
         # Append the node dict to the detail list
         details.append(card)
 
@@ -245,12 +245,12 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
             stderr=subprocess.STDOUT,
         ).stdout.decode("utf-8")
         if re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", p):
-            metrics["SystemStart"] = int(
+            metrics["system_start"] = int(
                 time.mktime(time.strptime(p.strip(), "%Y-%m-%d %H:%M:%S"))
             )
     except subprocess.CalledProcessError as err:
         logging.error("GMM ERROR:", err)
-        metrics["SystemStart"] = 0
+        metrics["system_start"] = 0
 
     # Get some initial stats for comparing after a few seconds
     # We start these counters AFTER reading the database
@@ -258,31 +258,31 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
     start_disk_counters = psutil.disk_io_counters()
     start_net_counters = psutil.net_io_counters()
 
-    metrics["TotalNodes"] = len(db_nodes)
+    metrics["total_nodes"] = len(db_nodes)
     data = Counter(node[0] for node in db_nodes)
-    metrics["RunningNodes"] = data[RUNNING]
-    metrics["StoppedNodes"] = data[STOPPED]
-    metrics["RestartingNodes"] = data[RESTARTING]
-    metrics["UpgradingNodes"] = data[UPGRADING]
-    metrics["MigratingNodes"] = data[MIGRATING]
-    metrics["RemovingNodes"] = data[REMOVING]
-    metrics["DeadNodes"] = data[DEAD]
+    metrics["running_nodes"] = data[RUNNING]
+    metrics["stopped_nodes"] = data[STOPPED]
+    metrics["restarting_nodes"] = data[RESTARTING]
+    metrics["upgrading_nodes"] = data[UPGRADING]
+    metrics["migrating_nodes"] = data[MIGRATING]
+    metrics["removing_nodes"] = data[REMOVING]
+    metrics["dead_nodes"] = data[DEAD]
     metrics["antnode"] = shutil.which("antnode")
     if not metrics["antnode"]:
         logging.warning("Unable to locate current antnode binary, exiting")
         sys.exit(1)
-    metrics["AntNodeVersion"] = get_antnode_version(metrics["antnode"])
-    metrics["QueenNodeVersion"] = (
-        db_nodes[0][1] if metrics["TotalNodes"] > 0 else metrics["AntNodeVersion"]
+    metrics["antnode_version"] = get_antnode_version(metrics["antnode"])
+    metrics["queen_node_version"] = (
+        db_nodes[0][1] if metrics["total_nodes"] > 0 else metrics["antnode_version"]
     )
-    metrics["NodesLatestV"] = (
-        sum(1 for node in db_nodes if node[1] == metrics["AntNodeVersion"]) or 0
+    metrics["nodes_latest_v"] = (
+        sum(1 for node in db_nodes if node[1] == metrics["antnode_version"]) or 0
     )
-    metrics["NodesNoVersion"] = sum(1 for node in db_nodes if not node[1]) or 0
-    metrics["NodesToUpgrade"] = (
-        metrics["TotalNodes"] - metrics["NodesLatestV"] - metrics["NodesNoVersion"]
+    metrics["nodes_no_version"] = sum(1 for node in db_nodes if not node[1]) or 0
+    metrics["nodes_to_upgrade"] = (
+        metrics["total_nodes"] - metrics["nodes_latest_v"] - metrics["nodes_no_version"]
     )
-    metrics["NodesByVersion"] = Counter(ver[1] for ver in db_nodes)
+    metrics["nodes_by_version"] = Counter(ver[1] for ver in db_nodes)
 
     # Windows has to build load average over 5 seconds. The first 5 seconds returns 0's
     # I don't plan on supporting windows, but if this get's modular, I don't want this
@@ -290,49 +290,49 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
     # if platform.system() == "Windows":
     #    discard=psutil.getloadavg()
     #    time.sleep(5)
-    metrics["LoadAverage1"], metrics["LoadAverage5"], metrics["LoadAverage15"] = (
+    metrics["load_average_1"], metrics["load_average_5"], metrics["load_average_15"] = (
         psutil.getloadavg()
     )
     # Get CPU Metrics over 1 second
-    metrics["IdleCpuPercent"], metrics["IOWait"] = psutil.cpu_times_percent(1)[3:5]
+    metrics["idle_cpu_percent"], metrics["io_wait"] = psutil.cpu_times_percent(1)[3:5]
     # Really we returned Idle percent, subtract from 100 to get used.
-    metrics["UsedCpuPercent"] = 100 - metrics["IdleCpuPercent"]
+    metrics["used_cpu_percent"] = 100 - metrics["idle_cpu_percent"]
     data = psutil.virtual_memory()
     # print(data)
-    metrics["UsedMemPercent"] = data.percent
-    metrics["FreeMemPercent"] = 100 - metrics["UsedMemPercent"]
+    metrics["used_mem_percent"] = data.percent
+    metrics["free_mem_percent"] = 100 - metrics["used_mem_percent"]
     data = psutil.disk_io_counters()
     # This only checks the drive mapped to the first node and will need to be updated
     # when we eventually support multiple drives
     data = psutil.disk_usage(node_storage)
-    metrics["UsedHDPercent"] = data.percent
-    metrics["TotalHDBytes"] = data.total
+    metrics["used_hd_percent"] = data.percent
+    metrics["total_hd_bytes"] = data.total
     end_time = time.time()
     end_disk_counters = psutil.disk_io_counters()
     end_net_counters = psutil.net_io_counters()
-    metrics["HDWriteBytes"] = int(
+    metrics["hdio_write_bytes"] = int(
         (end_disk_counters.write_bytes - start_disk_counters.write_bytes)
         / (end_time - start_time)
     )
-    metrics["HDReadBytes"] = int(
+    metrics["hdio_read_bytes"] = int(
         (end_disk_counters.read_bytes - start_disk_counters.read_bytes)
         / (end_time - start_time)
     )
-    metrics["NetWriteBytes"] = int(
+    metrics["netio_write_bytes"] = int(
         (end_net_counters.bytes_sent - start_net_counters.bytes_sent)
         / (end_time - start_time)
     )
-    metrics["NetReadBytes"] = int(
+    metrics["netio_read_bytes"] = int(
         (end_net_counters.bytes_recv - start_net_counters.bytes_recv)
         / (end_time - start_time)
     )
     # print (json.dumps(metrics,indent=2))
     # How close (out of 100) to removal limit will we be with a max bytes per node (2GB default)
     # For running nodes with Porpoise(tm).
-    metrics["NodeHDCrisis"] = int(
+    metrics["node_hd_crisis"] = int(
         (
-            ((metrics["TotalNodes"]) * int(crisis_bytes))
-            / (metrics["TotalHDBytes"] * (remove_limit / 100))
+            ((metrics["total_nodes"]) * int(crisis_bytes))
+            / (metrics["total_hd_bytes"] * (remove_limit / 100))
         )
         * 100
     )
@@ -384,7 +384,7 @@ def set_node_status(S, id, status):
 # Update metrics after checking counters
 def update_counters(S, old, config):
     # Are we already removing a node
-    if old["RemovingNodes"]:
+    if old["removing_nodes"]:
         with S() as session:
             removals = session.execute(
                 select(Node.timestamp, Node.id)
@@ -394,18 +394,18 @@ def update_counters(S, old, config):
         # Iterate through active removals
         records_to_remove = len(removals)
         for check in removals:
-            # If the DelayRemove timer has expired, delete the entry
+            # If the delay_remove timer has expired, delete the entry
             if isinstance(check[0], int) and check[0] < (
-                int(time.time()) - (config["DelayRemove"] * 60)
+                int(time.time()) - config["delay_remove"]
             ):
                 logging.info("Deleting removed node " + str(check[1]))
                 with S() as session:
                     session.execute(delete(Node).where(Node.id == check[1]))
                     session.commit()
                 records_to_remove -= 1
-        old["RemovingNodes"] = records_to_remove
+        old["removing_nodes"] = records_to_remove
     # Are we already upgrading a node
-    if old["UpgradingNodes"]:
+    if old["upgrading_nodes"]:
         with S() as session:
             upgrades = session.execute(
                 select(Node.timestamp, Node.id, Node.host, Node.metrics_port)
@@ -415,19 +415,19 @@ def update_counters(S, old, config):
         # Iterate through active upgrades
         records_to_upgrade = len(upgrades)
         for check in upgrades:
-            # If the DelayUpgrade timer has expired, check on status
+            # If the delay_upgrade timer has expired, check on status
             if isinstance(check[0], int) and check[0] < (
-                int(time.time()) - (config["DelayUpgrade"] * 60)
+                int(time.time()) - config["delay_upgrade"]
             ):
                 logging.info("Updating upgraded node " + str(check[1]))
                 node_metrics = read_node_metrics(check[2], check[3])
                 node_metadata = read_node_metadata(check[2], check[3])
                 if node_metrics and node_metadata:
-                    update_node_from_metrics(check[1], node_metrics, node_metadata)
+                    update_node_from_metrics(S, check[1], node_metrics, node_metadata)
                 records_to_upgrade -= 1
-        old["UpgradingNodes"] = records_to_upgrade
+        old["upgrading_nodes"] = records_to_upgrade
     # Are we already restarting a node
-    if old["RestartingNodes"]:
+    if old["restarting_nodes"]:
         with S() as session:
             restarts = session.execute(
                 select(Node.timestamp, Node.id, Node.host, Node.metrics_port)
@@ -437,17 +437,17 @@ def update_counters(S, old, config):
         # Iterate through active upgrades
         records_to_restart = len(restarts)
         for check in restarts:
-            # If the DelayUpgrade timer has expired, check on status
+            # If the delay_start timer has expired, check on status
             if isinstance(check[0], int) and check[0] < (
-                int(time.time()) - (config["DelayStart"] * 60)
+                int(time.time()) - config["delay_start"]
             ):
                 logging.info("Updating restarted node " + str(check[1]))
                 node_metrics = read_node_metrics(check[2], check[3])
                 node_metadata = read_node_metadata(check[2], check[3])
                 if node_metrics and node_metadata:
-                    update_node_from_metrics(check[1], node_metrics, node_metadata)
+                    update_node_from_metrics(S, check[1], node_metrics, node_metadata)
                 records_to_restart -= 1
-        old["RestartingNodes"] = records_to_restart
+        old["restarting_nodes"] = records_to_restart
     return old
 
 
@@ -539,7 +539,7 @@ def upgrade_node(S, node, metrics):
                 {
                     "status": UPGRADING,
                     "timestamp": int(time.time()),
-                    "version": metrics["AntNodeVersion"],
+                    "version": metrics["antnode_version"],
                 }
             )
             session.commit()
@@ -564,7 +564,7 @@ def remove_node(S, id, no_delay=False):
             # Mark this node as REMOVING
             set_node_status(S, id, REMOVING)
 
-        nodename = f"antnode{node.nodename}"
+        nodename = f"antnode{node.node_name}"
         # Remove node data and log
         try:
             subprocess.run(
@@ -630,16 +630,16 @@ def create_node(S, config, metrics):
             result = session.execute(select(Node.id).order_by(Node.id.desc())).first()
         card["id"] = result[0] + 1
     # Set the node name
-    card["nodename"] = f"{card['id']:04}"
-    card["service"] = f"antnode{card['nodename']}.service"
+    card["node_name"] = f"{card['id']:04}"
+    card["service"] = f"antnode{card['node_name']}.service"
     card["user"] = "ant"
-    card["version"] = metrics["AntNodeVersion"]
-    card["root_dir"] = f"{config['NodeStorage']}/antnode{card['nodename']}"
+    card["version"] = metrics["antnode_version"]
+    card["root_dir"] = f"{config['node_storage']}/antnode{card['node_name']}"
     card["binary"] = f"{card['root_dir']}/antnode"
-    card["port"] = config["PortStart"] * PORT_MULTIPLIER + card["id"]
+    card["port"] = config["port_start"] * PORT_MULTIPLIER + card["id"]
     card["metrics_port"] = METRICS_PORT_BASE + card["id"]
     card["network"] = "evm-arbitrum-one"
-    card["wallet"] = config["RewardsAddress"]
+    card["wallet"] = config["rewards_address"]
     card["peer_id"] = ""
     card["status"] = STOPPED
     card["timestamp"] = int(time.time())
@@ -647,14 +647,14 @@ def create_node(S, config, metrics):
     card["uptime"] = 0
     card["shunned"] = 0
     card["age"] = card["timestamp"]
-    card["host"] = config["Host"]
-    card["environment"] = config["Environment"]
+    card["host"] = config["host"]
+    card["environment"] = config["environment"]
     if card["environment"]:
         env_string = f'Environment="{0}"'.format(card["environment"])
     else:
         env_string = ""
 
-    log_dir = f"/var/log/antnode/antnode{card['nodename']}"
+    log_dir = f"/var/log/antnode/antnode{card['node_name']}"
     # Create the node directory and log directory
     try:
         subprocess.run(
@@ -686,7 +686,7 @@ def create_node(S, config, metrics):
         logging.error("CN3 ERROR:", err)
     # build the systemd service unit
     service = f"""[Unit]
-Description=antnode{card['nodename']}
+Description=antnode{card['node_name']}
 [Service]
 {env_string}
 User={card['user']}
@@ -737,10 +737,10 @@ def migrate_node(S, config, metrics):
     else:
         env_string = ""
 
-    log_dir = f"/var/log/antnode/antnode{card['nodename']}"
+    log_dir = f"/var/log/antnode/antnode{card['node_name']}"
     # build the systemd service unit
     service = f"""[Unit]
-Description=antnode{card['nodename']}
+Description=antnode{card['node_name']}
 [Service]
 {env_string}
 User={card['user']}

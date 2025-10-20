@@ -8,6 +8,28 @@ Weave Node Manager (wnm) is a Python application for managing Autonomi nodes on 
 
 **Important**: This is Linux-only software targeting Python 3.12.3+. It requires systemd, ufw firewall, and sudo privileges.
 
+## Development Environment
+
+**IMPORTANT: Use Docker for Development and Testing**
+
+Since WNM is Linux-only and requires systemd, always use the Docker development environment for running and testing the application:
+
+```bash
+# Run tests in Docker container
+./scripts/test.sh
+
+# Interactive development shell in Docker
+./scripts/dev.sh
+
+# Inside the container, you can run:
+pytest tests/ -v                    # Run all tests
+python3 -m wnm --dry_run           # Run application in dry-run mode
+```
+
+See `DOCKER-DEV.md` for complete Docker development environment documentation.
+
+**Do NOT run tests directly on macOS** - the application currently requires Linux-specific features (systemd, ufw, /proc filesystem) that are not available on macOS.
+
 ## Development Commands
 
 ### Setup Development Environment

@@ -16,43 +16,43 @@ class TestMachine:
         db_session.commit()
 
         assert machine.id is not None
-        assert machine.CpuCount == 8
-        assert machine.NodeCap == 10
-        assert machine.RewardsAddress == "0x1234567890123456789012345678901234567890"
+        assert machine.cpu_count == 8
+        assert machine.node_cap == 10
+        assert machine.rewards_address == "0x1234567890123456789012345678901234567890"
 
     def test_machine_repr(self, machine):
         """Test Machine string representation"""
         repr_str = repr(machine)
         assert "Machine(" in repr_str
-        assert str(machine.CpuCount) in repr_str
-        assert str(machine.NodeCap) in repr_str
+        assert str(machine.cpu_count) in repr_str
+        assert str(machine.node_cap) in repr_str
 
     def test_machine_json(self, machine):
         """Test Machine JSON serialization"""
         json_data = machine.__json__()
-        assert json_data["CpuCount"] == 8
-        assert json_data["NodeCap"] == 10
-        assert json_data["CpuLessThan"] == 70
-        assert json_data["CpuRemove"] == 85
-        assert json_data["RewardsAddress"] == "0x1234567890123456789012345678901234567890"
+        assert json_data["cpu_count"] == 8
+        assert json_data["node_cap"] == 10
+        assert json_data["cpu_less_than"] == 70
+        assert json_data["cpu_remove"] == 85
+        assert json_data["rewards_address"] == "0x1234567890123456789012345678901234567890"
 
     def test_machine_update(self, db_session, machine):
         """Test updating Machine fields"""
-        machine.NodeCap = 20
-        machine.CpuLessThan = 60
+        machine.node_cap = 20
+        machine.cpu_less_than = 60
         db_session.commit()
 
         stmt = select(Machine).where(Machine.id == machine.id)
         updated = db_session.execute(stmt).scalar_one()
-        assert updated.NodeCap == 20
-        assert updated.CpuLessThan == 60
+        assert updated.node_cap == 20
+        assert updated.cpu_less_than == 60
 
     def test_machine_query(self, db_session, machine):
         """Test querying Machine"""
         stmt = select(Machine).where(Machine.id == 1)
         result = db_session.execute(stmt).scalar_one()
         assert result.id == machine.id
-        assert result.CpuCount == machine.CpuCount
+        assert result.cpu_count == machine.cpu_count
 
 
 class TestNode:
@@ -65,7 +65,7 @@ class TestNode:
         db_session.commit()
 
         assert node.id == 1
-        assert node.nodename == "test001"
+        assert node.node_name == "test001"
         assert node.status == "RUNNING"
         assert node.port == 55001
         assert node.metrics_port == 13001
@@ -74,13 +74,13 @@ class TestNode:
         """Test Node string representation"""
         repr_str = repr(node)
         assert "Node(" in repr_str
-        assert node.nodename in repr_str
+        assert node.node_name in repr_str
 
     def test_node_json(self, node):
         """Test Node JSON serialization"""
         json_data = node.__json__()
         assert json_data["id"] == 1
-        assert json_data["nodename"] == "test001"
+        assert json_data["node_name"] == "test001"
         assert json_data["status"] == "RUNNING"
         assert json_data["port"] == 55001
         assert json_data["method"] == "systemd"
@@ -120,7 +120,7 @@ class TestNode:
         # Check they're ordered by ID
         for i, node in enumerate(all_nodes, 1):
             assert node.id == i
-            assert node.nodename == f"test{i:03d}"
+            assert node.node_name == f"test{i:03d}"
 
     def test_query_by_status(self, db_session, multiple_nodes):
         """Test querying nodes by status"""
