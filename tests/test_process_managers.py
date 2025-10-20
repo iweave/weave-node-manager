@@ -1,126 +1,335 @@
-"""Tests for process managers (systemd, docker, setsid, etc.)
+"""Tests for process managers (systemd, docker, setsid, etc.)"""
 
-This is a stub file that will be expanded as we implement the
-ProcessManager abstraction in Phase 3 of the refactoring.
-"""
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from wnm.common import DEAD, RUNNING, STOPPED
+from wnm.models import Node
+from wnm.process_managers import (
+    DockerManager,
+    SetsidManager,
+    SystemdManager,
+    get_default_manager_type,
+    get_process_manager,
+)
+from wnm.process_managers.base import NodeProcess
 
-@pytest.mark.skip(reason="ProcessManager abstraction not yet implemented")
+
+@pytest.fixture
+def mock_node():
+    """Create a mock node for testing"""
+    node = Mock(spec=Node)
+    node.id = 1
+    node.node_name = "0001"
+    node.service = "antnode0001.service"
+    node.root_dir = "/tmp/test_node/antnode0001"
+    node.port = 55001
+    node.metrics_port = 13001
+    node.wallet = "0x1234567890abcdef"
+    node.network = "evm-arbitrum-one"
+    node.environment = ""
+    node.binary = "/tmp/test_node/antnode0001/antnode"
+    return node
+
+
+class TestProcessManagerFactory:
+    """Tests for ProcessManager factory"""
+
+    def test_get_systemd_manager(self):
+        """Test getting SystemdManager from factory"""
+        manager = get_process_manager("systemd")
+        assert isinstance(manager, SystemdManager)
+
+    def test_get_docker_manager(self):
+        """Test getting DockerManager from factory"""
+        manager = get_process_manager("docker")
+        assert isinstance(manager, DockerManager)
+
+    def test_get_setsid_manager(self):
+        """Test getting SetsidManager from factory"""
+        manager = get_process_manager("setsid")
+        assert isinstance(manager, SetsidManager)
+
+    def test_unknown_manager_type(self):
+        """Test error handling for unknown manager type"""
+        with pytest.raises(ValueError, match="Unsupported manager type"):
+            get_process_manager("unknown")
+
+    def test_get_default_manager_type(self):
+        """Test getting default manager type"""
+        manager_type = get_default_manager_type()
+        assert manager_type in ["systemd", "setsid", "docker"]
+
+
 class TestSystemdManager:
-    """Tests for SystemdManager
+    """Tests for SystemdManager"""
 
-    Will test:
-    - Creating systemd service files
-    - Starting/stopping services
-    - Checking service status
-    - Enabling/disabling services
-    - Managing firewall rules (UFW)
-    """
-
-    def test_create_node(self):
-        """Test creating a node with systemd"""
-        pass
-
-    def test_start_node(self):
+    @patch("subprocess.run")
+    def test_start_node(self, mock_run, mock_node):
         """Test starting a systemd node"""
-        pass
+        mock_run.return_value = Mock(returncode=0, stdout="")
+        manager = SystemdManager()
+        result = manager.start_node(mock_node)
+        assert result is True
+        # Verify systemctl start was called
+        assert any("systemctl" in str(call) for call in mock_run.call_args_list)
 
-    def test_stop_node(self):
+    @patch("subprocess.run")
+    def test_stop_node(self, mock_run, mock_node):
         """Test stopping a systemd node"""
-        pass
+        mock_run.return_value = Mock(returncode=0)
+        manager = SystemdManager()
+        result = manager.stop_node(mock_node)
+        assert result is True
+        # Verify systemctl stop was called
+        assert any("systemctl" in str(call) for call in mock_run.call_args_list)
 
-    def test_get_status(self):
-        """Test getting systemd node status"""
-        pass
+    @patch("subprocess.run")
+    @patch("os.path.isdir")
+    def test_get_status_running(self, mock_isdir, mock_run, mock_node):
+        """Test getting systemd node status when running"""
+        mock_isdir.return_value = True
+        mock_run.return_value = Mock(
+            returncode=0, stdout="MainPID=1234\nActiveState=active\n"
+        )
+        manager = SystemdManager()
+        status = manager.get_status(mock_node)
+        assert isinstance(status, NodeProcess)
+        assert status.node_id == 1
+        assert status.status == RUNNING
+        assert status.pid == 1234
 
-    def test_remove_node(self):
+    @patch("subprocess.run")
+    @patch("os.path.isdir")
+    def test_get_status_stopped(self, mock_isdir, mock_run, mock_node):
+        """Test getting systemd node status when stopped"""
+        mock_isdir.return_value = True
+        mock_run.return_value = Mock(
+            returncode=0, stdout="MainPID=0\nActiveState=inactive\n"
+        )
+        manager = SystemdManager()
+        status = manager.get_status(mock_node)
+        assert status.status == STOPPED
+        assert status.pid is None
+
+    @patch("subprocess.run")
+    def test_remove_node(self, mock_run, mock_node):
         """Test removing a systemd node"""
-        pass
+        mock_run.return_value = Mock(returncode=0)
+        manager = SystemdManager()
+        result = manager.remove_node(mock_node)
+        assert result is True
+        # Verify cleanup commands were called
+        assert mock_run.call_count >= 2  # stop + rm + daemon-reload
+
+    @patch("subprocess.run")
+    def test_enable_firewall_port(self, mock_run):
+        """Test enabling firewall port"""
+        mock_run.return_value = Mock(returncode=0)
+        manager = SystemdManager()
+        result = manager.enable_firewall_port(55001)
+        assert result is True
+        assert any("ufw" in str(call) for call in mock_run.call_args_list)
+
+    @patch("subprocess.run")
+    def test_disable_firewall_port(self, mock_run):
+        """Test disabling firewall port"""
+        mock_run.return_value = Mock(returncode=0)
+        manager = SystemdManager()
+        result = manager.disable_firewall_port(55001)
+        assert result is True
 
 
-@pytest.mark.skip(reason="ProcessManager abstraction not yet implemented")
 class TestDockerManager:
-    """Tests for DockerManager
+    """Tests for DockerManager"""
 
-    Will test:
-    - Creating Docker containers
-    - Starting/stopping containers
-    - Checking container status
-    - Monitoring via docker stats
-    - Single node per container
-    - Multiple nodes per container
-    """
-
-    def test_create_container_single_node(self):
-        """Test creating a container with a single node"""
-        pass
-
-    def test_create_container_multiple_nodes(self):
-        """Test creating a container with multiple nodes"""
-        pass
-
-    def test_start_container(self):
+    @patch("subprocess.run")
+    def test_start_container(self, mock_run, mock_node):
         """Test starting a Docker container"""
-        pass
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+        manager = DockerManager()
+        result = manager.start_node(mock_node)
+        assert result is True
+        # Verify docker start was called
+        assert any("docker" in str(call) for call in mock_run.call_args_list)
 
-    def test_stop_container(self):
+    @patch("subprocess.run")
+    def test_stop_container(self, mock_run, mock_node):
         """Test stopping a Docker container"""
-        pass
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+        manager = DockerManager()
+        result = manager.stop_node(mock_node)
+        assert result is True
+        # Verify docker stop was called
+        assert any("docker" in str(call) for call in mock_run.call_args_list)
 
-    def test_get_status(self):
-        """Test getting Docker container status"""
-        pass
+    @patch("subprocess.run")
+    @patch("os.path.isdir")
+    def test_get_status_running(self, mock_isdir, mock_run, mock_node):
+        """Test getting Docker container status when running"""
+        mock_isdir.return_value = True
+        mock_run.return_value = Mock(
+            returncode=0, stdout="running|1234|abc123def456\n", stderr=""
+        )
+        manager = DockerManager()
+        status = manager.get_status(mock_node)
+        assert status.status == RUNNING
+        assert status.pid == 1234
+        assert status.container_id == "abc123def456"
 
-    def test_remove_container(self):
+    @patch("subprocess.run")
+    @patch("os.path.isdir")
+    def test_get_status_stopped(self, mock_isdir, mock_run, mock_node):
+        """Test getting Docker container status when stopped"""
+        mock_isdir.return_value = True
+        # Container doesn't exist (CalledProcessError, not Exception)
+        import subprocess
+        mock_run.side_effect = subprocess.CalledProcessError(1, "docker")
+        manager = DockerManager()
+        status = manager.get_status(mock_node)
+        assert status.status == STOPPED
+
+    @patch("subprocess.run")
+    def test_remove_container(self, mock_run, mock_node):
         """Test removing a Docker container"""
-        pass
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+        manager = DockerManager()
+        with patch("shutil.rmtree"):  # Mock directory removal
+            result = manager.remove_node(mock_node)
+        assert result is True
 
-    def test_monitor_stats(self):
-        """Test monitoring container via docker stats"""
-        pass
+    def test_firewall_operations_noop(self):
+        """Test that firewall operations are no-op for Docker"""
+        manager = DockerManager()
+        assert manager.enable_firewall_port(55001) is True
+        assert manager.disable_firewall_port(55001) is True
 
 
-@pytest.mark.skip(reason="ProcessManager abstraction not yet implemented")
 class TestSetsidManager:
-    """Tests for SetsidManager
+    """Tests for SetsidManager"""
 
-    Will test:
-    - Non-sudo process launching
-    - PID file management
-    - Process monitoring via psutil
-    """
+    def test_pid_file_path(self, mock_node):
+        """Test PID file path generation"""
+        manager = SetsidManager()
+        pid_file = manager._get_pid_file(mock_node)
+        assert str(pid_file) == f"{mock_node.root_dir}/node.pid"
 
-    def test_create_node(self):
-        """Test creating a node with setsid"""
-        pass
+    @patch("psutil.pid_exists")
+    def test_write_read_pid_file(self, mock_pid_exists, mock_node):
+        """Test PID file creation and reading"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_node.root_dir = tmpdir
+            manager = SetsidManager()
 
-    def test_start_node(self):
+            # Write PID
+            manager._write_pid_file(mock_node, 12345)
+
+            # Mock that PID exists
+            mock_pid_exists.return_value = True
+
+            # Read it back
+            pid = manager._read_pid_file(mock_node)
+            assert pid == 12345
+
+            # Verify file was created
+            pid_file = Path(tmpdir) / "node.pid"
+            assert pid_file.exists()
+
+    @patch("wnm.process_managers.setsid_manager.subprocess.Popen")
+    @patch("wnm.process_managers.setsid_manager.psutil.process_iter")
+    @patch("wnm.process_managers.setsid_manager.shutil.which")
+    def test_start_node(self, mock_which, mock_process_iter, mock_popen, mock_node):
         """Test starting a setsid node"""
-        pass
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_node.root_dir = tmpdir
 
-    def test_stop_node(self):
+            # Create mock binary
+            binary = Path(tmpdir) / "antnode"
+            binary.touch()
+            binary.chmod(0o755)
+
+            # Mock which to return None (ufw not available)
+            mock_which.return_value = None
+
+            # Mock process
+            mock_process = Mock()
+            mock_process.poll.return_value = None  # Process is running
+            mock_process.pid = 99999
+            mock_popen.return_value = mock_process
+
+            # Mock process_iter to find our process
+            mock_proc_info = Mock()
+            mock_proc_info.info = {
+                "pid": 12345,
+                "cmdline": ["antnode", "--port", str(mock_node.port)],
+            }
+            mock_process_iter.return_value = [mock_proc_info]
+
+            manager = SetsidManager()
+            result = manager.start_node(mock_node)
+            assert result is True
+
+    @patch("wnm.process_managers.setsid_manager.psutil.Process")
+    @patch("wnm.process_managers.setsid_manager.psutil.pid_exists")
+    @patch("wnm.process_managers.setsid_manager.shutil.which")
+    def test_stop_node(self, mock_which, mock_pid_exists, mock_process_class, mock_node):
         """Test stopping a setsid node"""
-        pass
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_node.root_dir = tmpdir
 
-    def test_get_status(self):
+            # Mock which to return None (ufw not available)
+            mock_which.return_value = None
+
+            # Create PID file and mock that PID exists
+            manager = SetsidManager()
+            manager._write_pid_file(mock_node, 12345)
+            mock_pid_exists.return_value = True
+
+            # Mock process
+            mock_process = Mock()
+            mock_process.wait = Mock()
+            mock_process_class.return_value = mock_process
+
+            result = manager.stop_node(mock_node)
+            assert result is True
+            mock_process.terminate.assert_called_once()
+
+    @patch("psutil.pid_exists")
+    @patch("os.path.isdir")
+    def test_get_status(self, mock_isdir, mock_pid_exists, mock_node):
         """Test getting setsid node status"""
-        pass
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mock_node.root_dir = tmpdir
+            mock_isdir.return_value = True
 
-    def test_pid_file_management(self):
-        """Test PID file creation and cleanup"""
-        pass
+            manager = SetsidManager()
+
+            # No PID file = stopped
+            status = manager.get_status(mock_node)
+            assert status.status == STOPPED
+
+            # Create PID file
+            manager._write_pid_file(mock_node, 12345)
+            mock_pid_exists.return_value = False  # Process doesn't exist
+
+            status = manager.get_status(mock_node)
+            assert status.status == STOPPED
+
+    def test_firewall_operations_best_effort(self):
+        """Test that firewall operations are best-effort for setsid"""
+        manager = SetsidManager()
+        # Should not raise even if firewall commands fail
+        assert manager.enable_firewall_port(55001) is True
+        assert manager.disable_firewall_port(55001) is True
 
 
-@pytest.mark.skip(reason="ProcessManager abstraction not yet implemented")
+# Skip antctl tests for now (not implemented)
+@pytest.mark.skip(reason="AntctlManager not yet implemented")
 class TestAntctlManager:
-    """Tests for AntctlManager
-
-    Will test:
-    - Wrapper around antctl commands
-    - Parsing antctl output
-    """
+    """Tests for AntctlManager"""
 
     def test_create_node(self):
         """Test creating a node with antctl"""
@@ -136,30 +345,4 @@ class TestAntctlManager:
 
     def test_parse_output(self):
         """Test parsing antctl command output"""
-        pass
-
-
-@pytest.mark.skip(reason="ProcessManager abstraction not yet implemented")
-class TestProcessManagerFactory:
-    """Tests for ProcessManager factory
-
-    Will test:
-    - Getting correct manager by type
-    - Error handling for unknown types
-    """
-
-    def test_get_systemd_manager(self):
-        """Test getting SystemdManager from factory"""
-        pass
-
-    def test_get_docker_manager(self):
-        """Test getting DockerManager from factory"""
-        pass
-
-    def test_get_setsid_manager(self):
-        """Test getting SetsidManager from factory"""
-        pass
-
-    def test_unknown_manager_type(self):
-        """Test error handling for unknown manager type"""
         pass
