@@ -9,6 +9,7 @@ import logging
 
 from wnm.process_managers.base import ProcessManager
 from wnm.process_managers.docker_manager import DockerManager
+from wnm.process_managers.launchd_manager import LaunchctlManager
 from wnm.process_managers.setsid_manager import SetsidManager
 from wnm.process_managers.systemd_manager import SystemdManager
 
@@ -34,9 +35,9 @@ def get_process_manager(
         "systemd": SystemdManager,
         "docker": DockerManager,
         "setsid": SetsidManager,
+        "launchctl": LaunchctlManager,
         # Future managers:
         # "antctl": AntctlManager,
-        # "launchctl": LaunchctlManager,
     }
 
     manager_class = managers.get(manager_type)
@@ -69,9 +70,9 @@ def get_default_manager_type() -> str:
             return "systemd"
         return "setsid"
 
-    # macOS: use setsid for now (launchctl in future)
+    # macOS: use launchctl for native macOS support
     if system == "Darwin":
-        return "setsid"
+        return "launchctl"
 
     # Windows: not supported
     if system == "Windows":

@@ -10,6 +10,7 @@ from wnm.common import DEAD, RUNNING, STOPPED
 from wnm.models import Node
 from wnm.process_managers import (
     DockerManager,
+    LaunchctlManager,
     SetsidManager,
     SystemdManager,
     get_default_manager_type,
@@ -53,6 +54,11 @@ class TestProcessManagerFactory:
         manager = get_process_manager("setsid")
         assert isinstance(manager, SetsidManager)
 
+    def test_get_launchctl_manager(self):
+        """Test getting LaunchctlManager from factory"""
+        manager = get_process_manager("launchctl")
+        assert isinstance(manager, LaunchctlManager)
+
     def test_unknown_manager_type(self):
         """Test error handling for unknown manager type"""
         with pytest.raises(ValueError, match="Unsupported manager type"):
@@ -61,7 +67,7 @@ class TestProcessManagerFactory:
     def test_get_default_manager_type(self):
         """Test getting default manager type"""
         manager_type = get_default_manager_type()
-        assert manager_type in ["systemd", "setsid", "docker"]
+        assert manager_type in ["systemd", "setsid", "docker", "launchctl"]
 
 
 class TestSystemdManager:
@@ -187,6 +193,7 @@ class TestDockerManager:
         mock_isdir.return_value = True
         # Container doesn't exist (CalledProcessError, not Exception)
         import subprocess
+
         mock_run.side_effect = subprocess.CalledProcessError(1, "docker")
         manager = DockerManager()
         status = manager.get_status(mock_node)
@@ -275,7 +282,9 @@ class TestSetsidManager:
     @patch("wnm.process_managers.setsid_manager.psutil.Process")
     @patch("wnm.process_managers.setsid_manager.psutil.pid_exists")
     @patch("wnm.process_managers.setsid_manager.shutil.which")
-    def test_stop_node(self, mock_which, mock_pid_exists, mock_process_class, mock_node):
+    def test_stop_node(
+        self, mock_which, mock_pid_exists, mock_process_class, mock_node
+    ):
         """Test stopping a setsid node"""
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_node.root_dir = tmpdir
@@ -322,6 +331,208 @@ class TestSetsidManager:
         """Test that firewall operations are best-effort for setsid"""
         manager = SetsidManager()
         # Should not raise even if firewall commands fail
+        assert manager.enable_firewall_port(55001) is True
+        assert manager.disable_firewall_port(55001) is True
+
+
+class TestLaunchctlManager:
+    """Tests for LaunchctlManager (macOS launchd)"""
+
+    @patch("subprocess.run")
+    @patch("os.path.exists")
+    @patch("os.makedirs")
+    @patch("shutil.copy2")
+    @patch("os.chmod")
+    @patch("builtins.open", create=True)
+    def test_create_node(
+        self,
+        mock_open,
+        mock_chmod,
+        mock_copy,
+        mock_makedirs,
+        mock_exists,
+        mock_run,
+        mock_node,
+    ):
+        """Test creating a launchd node"""
+        mock_exists.return_value = True
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+        mock_open.return_value.__enter__ = Mock()
+        mock_open.return_value.__exit__ = Mock()
+
+        manager = LaunchctlManager()
+        result = manager.create_node(mock_node, "/usr/local/bin/antnode")
+
+        assert result is True
+        # Verify launchctl load was called
+        assert any(
+            "launchctl" in str(call) and "load" in str(call)
+            for call in mock_run.call_args_list
+        )
+        # Verify plist file was written
+        mock_open.assert_called()
+
+    @patch("subprocess.run")
+    @patch("os.path.exists")
+    def test_start_node(self, mock_exists, mock_run, mock_node):
+        """Test starting a launchd node"""
+        mock_exists.return_value = True
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+
+        manager = LaunchctlManager()
+        result = manager.start_node(mock_node)
+
+        assert result is True
+        # Verify launchctl load was called
+        assert any(
+            "launchctl" in str(call) and "load" in str(call)
+            for call in mock_run.call_args_list
+        )
+
+    @patch("subprocess.run")
+    @patch("os.path.exists")
+    def test_stop_node(self, mock_exists, mock_run, mock_node):
+        """Test stopping a launchd node"""
+        mock_exists.return_value = True
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+
+        manager = LaunchctlManager()
+        result = manager.stop_node(mock_node)
+
+        assert result is True
+        # Verify launchctl unload was called
+        assert any(
+            "launchctl" in str(call) and "unload" in str(call)
+            for call in mock_run.call_args_list
+        )
+
+    @patch("subprocess.run")
+    def test_restart_node(self, mock_run, mock_node):
+        """Test restarting a launchd node"""
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+
+        manager = LaunchctlManager()
+        result = manager.restart_node(mock_node)
+
+        assert result is True
+        # Verify launchctl kickstart was called
+        assert any(
+            "launchctl" in str(call) and "kickstart" in str(call)
+            for call in mock_run.call_args_list
+        )
+
+    @patch("subprocess.run")
+    @patch("os.getuid")
+    def test_get_status_running(self, mock_getuid, mock_run, mock_node):
+        """Test getting launchd node status when running"""
+        mock_getuid.return_value = 501
+        mock_run.return_value = Mock(
+            returncode=0, stdout='"PID" = 12345;\n"LastExitStatus" = 0;\n', stderr=""
+        )
+
+        manager = LaunchctlManager()
+        status = manager.get_status(mock_node)
+
+        assert isinstance(status, NodeProcess)
+        assert status.node_id == 1
+        assert status.status == RUNNING
+        assert status.pid == 12345
+
+    @patch("subprocess.run")
+    @patch("os.getuid")
+    def test_get_status_stopped(self, mock_getuid, mock_run, mock_node):
+        """Test getting launchd node status when stopped"""
+        mock_getuid.return_value = 501
+        mock_run.return_value = Mock(
+            returncode=0, stdout='"LastExitStatus" = 0;\n', stderr=""
+        )
+
+        manager = LaunchctlManager()
+        status = manager.get_status(mock_node)
+
+        assert status.status == STOPPED
+        assert status.pid is None
+
+    @patch("subprocess.run")
+    @patch("os.getuid")
+    def test_get_status_not_found(self, mock_getuid, mock_run, mock_node):
+        """Test getting status when service not found"""
+        mock_getuid.return_value = 501
+        mock_run.return_value = Mock(
+            returncode=1, stdout="", stderr="Could not find service"
+        )
+
+        manager = LaunchctlManager()
+        status = manager.get_status(mock_node)
+
+        assert status.status == STOPPED
+        assert status.pid is None
+
+    @patch("subprocess.run")
+    @patch("os.path.exists")
+    @patch("os.remove")
+    @patch("shutil.rmtree")
+    def test_remove_node(
+        self, mock_rmtree, mock_remove, mock_exists, mock_run, mock_node
+    ):
+        """Test removing a launchd node"""
+        mock_exists.return_value = True
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+
+        manager = LaunchctlManager()
+        result = manager.remove_node(mock_node)
+
+        assert result is True
+        # Verify unload was called
+        assert any(
+            "launchctl" in str(call) and "unload" in str(call)
+            for call in mock_run.call_args_list
+        )
+        # Verify cleanup
+        mock_remove.assert_called()  # plist file removed
+        assert mock_rmtree.call_count >= 1  # directories removed
+
+    def test_plist_generation(self, mock_node):
+        """Test that plist XML is generated correctly"""
+        manager = LaunchctlManager()
+        plist_content = manager._generate_plist_content(mock_node, "/path/to/antnode")
+
+        # Verify plist contains required keys
+        assert "com.autonomi.antnode-1" in plist_content
+        assert "ProgramArguments" in plist_content
+        assert "RunAtLoad" in plist_content
+        assert "KeepAlive" in plist_content
+        assert str(mock_node.port) in plist_content
+        assert str(mock_node.metrics_port) in plist_content
+        assert mock_node.wallet in plist_content
+        assert mock_node.network in plist_content
+        # Verify --enable-metrics-server flag is NOT present
+        assert "--enable-metrics-server" not in plist_content
+
+    def test_service_label_generation(self, mock_node):
+        """Test service label generation"""
+        manager = LaunchctlManager()
+        label = manager._get_service_label(mock_node)
+        assert label == "com.autonomi.antnode-1"
+
+    @patch("os.getuid")
+    def test_service_domain_generation(self, mock_getuid):
+        """Test service domain generation"""
+        mock_getuid.return_value = 501
+        manager = LaunchctlManager()
+        domain = manager._get_service_domain()
+        assert domain == "gui/501"
+
+    def test_plist_path_generation(self, mock_node):
+        """Test plist path generation"""
+        manager = LaunchctlManager()
+        plist_path = manager._get_plist_path(mock_node)
+        assert plist_path.endswith("/Library/LaunchAgents/com.autonomi.antnode-1.plist")
+
+    def test_firewall_operations_best_effort(self):
+        """Test that firewall operations work (use null firewall on macOS)"""
+        manager = LaunchctlManager()
+        # Should not raise - macOS uses null firewall by default
         assert manager.enable_firewall_port(55001) is True
         assert manager.disable_firewall_port(55001) is True
 
