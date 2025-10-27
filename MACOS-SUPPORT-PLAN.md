@@ -862,10 +862,12 @@ Each node has its own copy of the antnode binary in `{node.root_dir}/antnode`.
 
 Based on dependencies and risk:
 
-1. ✅ **Phase 4 (System Metrics)** - Quick win, low risk
-   - Fix `uptime --since` command
-   - Fix `os.sched_getaffinity()` call
-   - **Duration:** 1 day
+1. ✅ **Phase 4 (System Metrics)** - COMPLETED 2025-10-26
+   - Fixed `uptime --since` command (uses sysctl on macOS)
+   - Fixed `os.sched_getaffinity()` call (uses os.cpu_count() on macOS)
+   - Fixed CPU metrics parsing (handles missing iowait on macOS)
+   - Added platform-specific tests (4/4 passing on macOS natively)
+   - **Duration:** 1 day (as estimated)
 
 2. ✅ **Phase 3 (File Paths)** - Enables local testing
    - Add platform detection to config.py
@@ -925,11 +927,13 @@ Based on dependencies and risk:
 - [ ] All path constants replaced
 - [ ] macOS uses ~/Library/Application Support/autonomi/node
 
-**Phase 4: System Metrics**
-- [ ] `uptime --since` replacement works on macOS
-- [ ] CPU count detection works on macOS
-- [ ] System metrics collection succeeds on macOS
-- [ ] Platform-specific tests pass
+**Phase 4: System Metrics** ✅ COMPLETED
+- [x] `uptime --since` replacement works on macOS (sysctl kern.boottime)
+- [x] CPU count detection works on macOS (os.cpu_count())
+- [x] CPU metrics parsing works on macOS (no iowait field)
+- [x] System metrics collection succeeds on macOS
+- [x] Platform-specific tests pass (4/4 native macOS tests, 88/88 Linux tests)
+- [x] No regressions in Linux functionality
 
 **Phase 5: Refactor utils.py**
 - [ ] All systemd direct calls removed

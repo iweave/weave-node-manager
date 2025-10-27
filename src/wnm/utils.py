@@ -1,5 +1,6 @@
 import logging
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -239,16 +240,32 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
 
     # Get system start time before we probe metrics
     try:
-        p = subprocess.run(
-            ["uptime", "--since"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        ).stdout.decode("utf-8")
-        if re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", p):
-            metrics["system_start"] = int(
-                time.mktime(time.strptime(p.strip(), "%Y-%m-%d %H:%M:%S"))
-            )
-    except subprocess.CalledProcessError as err:
+        if platform.system() == "Darwin":
+            # macOS: use sysctl kern.boottime
+            p = subprocess.run(
+                ["sysctl", "-n", "kern.boottime"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=True
+            ).stdout.decode("utf-8")
+            # Parse: { sec = 1234567890, usec = 0 }
+            match = re.search(r"sec = (\d+)", p)
+            if match:
+                metrics["system_start"] = int(match.group(1))
+            else:
+                raise ValueError("Could not parse kern.boottime")
+        else:
+            # Linux: use uptime --since
+            p = subprocess.run(
+                ["uptime", "--since"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            ).stdout.decode("utf-8")
+            if re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", p):
+                metrics["system_start"] = int(
+                    time.mktime(time.strptime(p.strip(), "%Y-%m-%d %H:%M:%S"))
+                )
+    except (subprocess.CalledProcessError, ValueError) as err:
         logging.error("GMM ERROR:", err)
         metrics["system_start"] = 0
 
@@ -294,7 +311,14 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
         psutil.getloadavg()
     )
     # Get CPU Metrics over 1 second
-    metrics["idle_cpu_percent"], metrics["io_wait"] = psutil.cpu_times_percent(1)[3:5]
+    cpu_times = psutil.cpu_times_percent(1)
+    if platform.system() == "Darwin":
+        # macOS: cpu_times has (user, nice, system, idle) - no iowait
+        metrics["idle_cpu_percent"] = cpu_times.idle
+        metrics["io_wait"] = 0  # Not available on macOS
+    else:
+        # Linux: cpu_times has (user, nice, system, idle, iowait, ...)
+        metrics["idle_cpu_percent"], metrics["io_wait"] = cpu_times[3:5]
     # Really we returned Idle percent, subtract from 100 to get used.
     metrics["used_cpu_percent"] = 100 - metrics["idle_cpu_percent"]
     data = psutil.virtual_memory()

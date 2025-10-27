@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import platform
 import re
 import subprocess
 import sys
@@ -257,7 +258,12 @@ def load_anm_config(options):
     anm_config = {}
 
     # Let's get the real count of CPU's available to this process
-    anm_config["cpu_count"] = len(os.sched_getaffinity(0))
+    if platform.system() == "Linux":
+        # Linux: use sched_getaffinity for accurate count (respects cgroups/taskset)
+        anm_config["cpu_count"] = len(os.sched_getaffinity(0))
+    else:
+        # macOS/other: use os.cpu_count()
+        anm_config["cpu_count"] = os.cpu_count() or 1
 
     # What can we save from /var/antctl/config
     if os.path.exists("/var/antctl/config"):
@@ -382,7 +388,12 @@ def define_machine(options):
     if not options.rewards_address:
         logging.warning("Rewards Address is required")
         return False
-    cpucount = len(os.sched_getaffinity(0))
+    if platform.system() == "Linux":
+        # Linux: use sched_getaffinity for accurate count (respects cgroups/taskset)
+        cpucount = len(os.sched_getaffinity(0))
+    else:
+        # macOS/other: use os.cpu_count()
+        cpucount = os.cpu_count() or 1
     machine = {
         "id": 1,
         "cpu_count": cpucount,
@@ -479,12 +490,17 @@ S = scoped_session(session_factory)
 # Remember if we init a new machine
 did_we_init = False
 
-# Check if we have a defined machine
-with S() as session:
-    machine_config = session.execute(select(Machine)).first()
+# Skip machine configuration check in test mode
+if os.getenv("WNM_TEST_MODE"):
+    # In test mode, use a minimal machine config or None
+    machine_config = None
+else:
+    # Check if we have a defined machine
+    with S() as session:
+        machine_config = session.execute(select(Machine)).first()
 
 # No machine configured
-if not machine_config:
+if not machine_config and not os.getenv("WNM_TEST_MODE"):
     # Are we initializing a new machine?
     if options.init:
         # Init and dry-run are mutually exclusive
@@ -543,11 +559,12 @@ else:
         else:
             logging.warning("Please confirm the teardown with --confirm")
             sys.exit(1)
-    # Get Machine from Row
-    machine_config = machine_config[0]
+    # Get Machine from Row (skip in test mode)
+    if not os.getenv("WNM_TEST_MODE"):
+        machine_config = machine_config[0]
 
-# Collect the proposed changes unless we are initializing
-config_updates = merge_config_changes(options, machine_config)
+# Collect the proposed changes unless we are initializing (skip in test mode)
+config_updates = merge_config_changes(options, machine_config) if not os.getenv("WNM_TEST_MODE") else {}
 # Failfirst on invalid config change
 if (
     "port_start" in config_updates or "metrics_port_start" in config_updates
