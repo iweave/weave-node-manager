@@ -73,7 +73,7 @@ class TestMacOSSystemMetrics:
         assert 0 <= used_percent <= 100
 
     def test_platform_imports(self):
-        """Test that platform module is imported in config and utils"""
+        """Test that PLATFORM constant is available in config and utils"""
         # Set test mode
         os.environ["WNM_TEST_MODE"] = "1"
 
@@ -84,11 +84,11 @@ class TestMacOSSystemMetrics:
         import wnm.config
         import wnm.utils
 
-        # Verify platform is available in both modules
-        assert hasattr(wnm.config, 'platform')
-        assert hasattr(wnm.utils, 'platform')
-        assert wnm.config.platform.system() == "Darwin"
-        assert wnm.utils.platform.system() == "Darwin"
+        # Verify PLATFORM constant is available (defined in config, imported in utils)
+        assert hasattr(wnm.config, 'PLATFORM')
+        assert hasattr(wnm.utils, 'PLATFORM')
+        assert wnm.config.PLATFORM == "Darwin"
+        assert wnm.utils.PLATFORM == "Darwin"
 
 
 @pytest.mark.skipif(platform.system() == "Darwin", reason="Linux only")

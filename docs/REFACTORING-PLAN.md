@@ -700,16 +700,22 @@ def test_create_docker_node():
 **Phase 4 ✅ COMPLETE** - Firewall abstraction implemented
 **Phase 5 ✅ COMPLETE** - Decision engine refactored
 
-### Next: Phase 6 - Node Selection Strategies (Optional)
-1. Create NodeSelector interface for pluggable selection strategies
-2. Implement YoungestSelector (current behavior)
-3. Implement LeastRecordsSelector
-4. Implement MostBannedSelector
-5. Add machine config option to choose strategy
+**🍎 macOS Support** (see MACOS-SUPPORT-PLAN.md):
+- ✅ Phase 4 (System Metrics) - COMPLETE 2025-10-26
+- ✅ Phase 3 (Platform-Agnostic Paths) - COMPLETE 2025-10-27
+- 🔄 Phase 1 (Launchd Manager) - IN PROGRESS
+
+### Next: Complete macOS Support
+1. **Phase 1 (Launchd Manager)** - Implement node lifecycle management for macOS
+   - Create LaunchctlManager for launchd integration
+   - Generate .plist files for node services
+   - Update factory to detect and use launchd on macOS
+   - Add comprehensive tests
 
 ### Alternative Next Steps:
+- **Phase 6**: Node Selection Strategies - Pluggable removal strategies
 - **Phase 7**: Daemon Mode Scaffold - Add optional long-running mode with API
-- **Testing**: Increase code coverage from 39% to 50%+
+- **Testing**: Increase code coverage from 47% to 50%+
 - **Documentation**: Add API documentation and usage examples
 
 ---
@@ -763,7 +769,7 @@ def test_create_docker_node():
 - [x] Separation of concerns: planning vs execution ✅
 
 **Overall Project Metrics (In Progress):**
-- [ ] 50%+ code coverage with pytest (currently 39%)
+- [x] 47% code coverage with pytest (up from 39%, approaching 50% target) ✅
 - [x] Snake_case migration complete ✅
 - [x] At least 2 process managers working (systemd, docker, setsid) ✅
 - [x] Firewall abstraction with UFW and null implementations ✅
@@ -771,6 +777,9 @@ def test_create_docker_node():
 - [x] Action-based planning system implemented ✅
 - [x] Non-sudo operation supported (setsid) ✅
 - [x] Docker nodes create/start/stop/monitor ✅
+- [x] Platform-agnostic paths (macOS, Linux root, Linux user) ✅
+- [x] macOS system metrics support (CPU, memory, load) ✅
+- [ ] macOS node management (launchd) - IN PROGRESS
 - [ ] Multi-action concurrency support (foundation laid)
 - [ ] API scaffold ready for dashboard integration
 

@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 
 from wnm.common import DEAD, RESTARTING, RUNNING, STOPPED, UPGRADING
+from wnm.config import BOOTSTRAP_CACHE_DIR
 from wnm.models import Node
 from wnm.process_managers.base import NodeProcess, ProcessManager
 
@@ -100,7 +101,7 @@ class DockerManager(ProcessManager):
             # Volume mounts
             "-v", f"{node.root_dir}:/data",
             "-v", f"{binary_path}:/usr/local/bin/antnode:ro",
-            "-v", "/var/antctl/bootstrap-cache:/bootstrap-cache:ro",
+            "-v", f"{BOOTSTRAP_CACHE_DIR}:/bootstrap-cache:ro",
         ]
 
         # Add environment variables

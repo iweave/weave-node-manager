@@ -28,7 +28,53 @@ from wnm.models import Base, Machine, Node
 
 logging.getLogger("sqlalchemy.engine.Engine").disabled = True
 
-import wnm.utils
+
+# ============================================================================
+# Platform Detection and Path Constants
+# ============================================================================
+
+PLATFORM = platform.system()  # 'Linux', 'Darwin', 'Windows'
+
+# Determine if running as root on Linux
+IS_ROOT = PLATFORM == "Linux" and os.geteuid() == 0
+
+# Platform-specific base directories
+if PLATFORM == "Darwin":
+    # macOS: Use standard macOS application directories
+    BASE_DIR = os.path.expanduser("~/Library/Application Support/autonomi")
+    NODE_STORAGE = os.path.expanduser("~/Library/Application Support/autonomi/node")
+    LOG_DIR = os.path.expanduser("~/Library/Logs/autonomi")
+    BOOTSTRAP_CACHE_DIR = os.path.expanduser("~/Library/Caches/autonomi/bootstrap-cache")
+elif PLATFORM == "Linux":
+    if IS_ROOT:
+        # Linux root: Use legacy /var/antctl paths for backwards compatibility
+        BASE_DIR = "/var/antctl"
+        NODE_STORAGE = "/var/antctl/services"
+        LOG_DIR = "/var/log/antnode"
+        BOOTSTRAP_CACHE_DIR = "/var/antctl/bootstrap-cache"
+    else:
+        # Linux user: Use XDG Base Directory specification
+        BASE_DIR = os.path.expanduser("~/.local/share/autonomi")
+        NODE_STORAGE = os.path.expanduser("~/.local/share/autonomi/node")
+        LOG_DIR = os.path.expanduser("~/.local/share/autonomi/logs")
+        BOOTSTRAP_CACHE_DIR = os.path.expanduser("~/.local/share/autonomi/bootstrap-cache")
+else:
+    # Windows or other platforms
+    BASE_DIR = os.path.expanduser("~/autonomi")
+    NODE_STORAGE = os.path.expanduser("~/autonomi/node")
+    LOG_DIR = os.path.expanduser("~/autonomi/logs")
+    BOOTSTRAP_CACHE_DIR = os.path.expanduser("~/autonomi/bootstrap-cache")
+
+# Derived paths
+LOCK_FILE = os.path.join(BASE_DIR, "wnm_active")
+DEFAULT_DB_PATH = f"sqlite:///{os.path.join(BASE_DIR, 'colony.db')}"
+
+# Create directories if they don't exist (except in test mode)
+if not os.getenv("WNM_TEST_MODE"):
+    os.makedirs(BASE_DIR, exist_ok=True)
+    os.makedirs(NODE_STORAGE, exist_ok=True)
+    os.makedirs(LOG_DIR, exist_ok=True)
+    os.makedirs(BOOTSTRAP_CACHE_DIR, exist_ok=True)
 
 
 # Config file parser
@@ -258,7 +304,7 @@ def load_anm_config(options):
     anm_config = {}
 
     # Let's get the real count of CPU's available to this process
-    if platform.system() == "Linux":
+    if PLATFORM == "Linux":
         # Linux: use sched_getaffinity for accurate count (respects cgroups/taskset)
         anm_config["cpu_count"] = len(os.sched_getaffinity(0))
     else:
@@ -290,7 +336,7 @@ def load_anm_config(options):
         os.getenv("DelayRemove") or options.delay_remove or 300
     )
     anm_config["node_storage"] = (
-        os.getenv("NodeStorage") or options.node_storage or "/var/antctl/services"
+        os.getenv("NodeStorage") or options.node_storage or NODE_STORAGE
     )
     # Default to the faucet donation address
     try:
@@ -388,7 +434,7 @@ def define_machine(options):
     if not options.rewards_address:
         logging.warning("Rewards Address is required")
         return False
-    if platform.system() == "Linux":
+    if PLATFORM == "Linux":
         # Linux: use sched_getaffinity for accurate count (respects cgroups/taskset)
         cpucount = len(os.sched_getaffinity(0))
     else:
@@ -407,7 +453,7 @@ def define_machine(options):
         "delay_start": int(options.delay_start) if options.delay_start else 300,
         "delay_upgrade": int(options.delay_upgrade) if options.delay_upgrade else 300,
         "delay_remove": int(options.delay_remove) if options.delay_remove else 300,
-        "node_storage": options.node_storage or "/var/antctl/services",
+        "node_storage": options.node_storage or NODE_STORAGE,
         "rewards_address": options.rewards_address,
         "donate_address": options.donate_address
         or "0x00455d78f850b0358E8cea5be24d415E01E107CF",

@@ -1,6 +1,5 @@
 import logging
 import os
-import platform
 import re
 import shutil
 import subprocess
@@ -28,6 +27,7 @@ from wnm.common import (
     STOPPED,
     UPGRADING,
 )
+from wnm.config import BOOTSTRAP_CACHE_DIR, LOG_DIR, PLATFORM
 from wnm.models import Base, Machine, Node
 
 
@@ -240,7 +240,7 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
 
     # Get system start time before we probe metrics
     try:
-        if platform.system() == "Darwin":
+        if PLATFORM == "Darwin":
             # macOS: use sysctl kern.boottime
             p = subprocess.run(
                 ["sysctl", "-n", "kern.boottime"],
@@ -312,7 +312,7 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
     )
     # Get CPU Metrics over 1 second
     cpu_times = psutil.cpu_times_percent(1)
-    if platform.system() == "Darwin":
+    if PLATFORM == "Darwin":
         # macOS: cpu_times has (user, nice, system, idle) - no iowait
         metrics["idle_cpu_percent"] = cpu_times.idle
         metrics["io_wait"] = 0  # Not available on macOS
@@ -592,7 +592,7 @@ def remove_node(S, id, no_delay=False):
         # Remove node data and log
         try:
             subprocess.run(
-                ["sudo", "rm", "-rf", node.root_dir, f"/var/log/antnode/{nodename}"]
+                ["sudo", "rm", "-rf", node.root_dir, f"{LOG_DIR}/{nodename}"]
             )
         except subprocess.CalledProcessError as err:
             logging.error("RN1 ERROR:", err)
@@ -678,7 +678,7 @@ def create_node(S, config, metrics):
     else:
         env_string = ""
 
-    log_dir = f"/var/log/antnode/antnode{card['node_name']}"
+    log_dir = f"{LOG_DIR}/antnode{card['node_name']}"
     # Create the node directory and log directory
     try:
         subprocess.run(
@@ -714,7 +714,7 @@ Description=antnode{card['node_name']}
 [Service]
 {env_string}
 User={card['user']}
-ExecStart={card['binary']} --bootstrap-cache-dir /var/antctl/bootstrap-cache --root-dir {card['root_dir']} --port {card['port']} --enable-metrics-server --metrics-server-port {card['metrics_port']} --log-output-dest {log_dir} --max-log-files 1 --max-archived-log-files 1 --rewards-address {card['wallet']} {card['network']}
+ExecStart={card['binary']} --bootstrap-cache-dir {BOOTSTRAP_CACHE_DIR} --root-dir {card['root_dir']} --port {card['port']} --enable-metrics-server --metrics-server-port {card['metrics_port']} --log-output-dest {log_dir} --max-log-files 1 --max-archived-log-files 1 --rewards-address {card['wallet']} {card['network']}
 Restart=always
 #RestartSec=300
 """
@@ -761,14 +761,14 @@ def migrate_node(S, config, metrics):
     else:
         env_string = ""
 
-    log_dir = f"/var/log/antnode/antnode{card['node_name']}"
+    log_dir = f"{LOG_DIR}/antnode{card['node_name']}"
     # build the systemd service unit
     service = f"""[Unit]
 Description=antnode{card['node_name']}
 [Service]
 {env_string}
 User={card['user']}
-ExecStart={card['binary']} --bootstrap-cache-dir /var/antctl/bootstrap-cache --no-upnp --root-dir {card['root_dir']} --port {card['port']} --enable-metrics-server --metrics-server-port {card['metrics_port']} --log-output-dest {log_dir} --max-log-files 1 --max-archived-log-files 1 --rewards-address {card['wallet']} {card['network']}
+ExecStart={card['binary']} --bootstrap-cache-dir {BOOTSTRAP_CACHE_DIR} --no-upnp --root-dir {card['root_dir']} --port {card['port']} --enable-metrics-server --metrics-server-port {card['metrics_port']} --log-output-dest {log_dir} --max-log-files 1 --max-archived-log-files 1 --rewards-address {card['wallet']} {card['network']}
 Restart=always
 #RestartSec=300
 """

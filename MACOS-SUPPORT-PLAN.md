@@ -869,10 +869,17 @@ Based on dependencies and risk:
    - Added platform-specific tests (4/4 passing on macOS natively)
    - **Duration:** 1 day (as estimated)
 
-2. ✅ **Phase 3 (File Paths)** - Enables local testing
-   - Add platform detection to config.py
-   - Update all path references
-   - **Duration:** 3 days
+2. ✅ **Phase 3 (File Paths)** - COMPLETED 2025-10-27
+   - Added centralized platform detection (PLATFORM, IS_ROOT constants)
+   - Created platform-specific path constants (BASE_DIR, NODE_STORAGE, LOG_DIR, BOOTSTRAP_CACHE_DIR, LOCK_FILE)
+   - Updated all hardcoded paths in config.py, __main__.py, utils.py, and all process managers
+   - Fixed circular import (removed unused wnm.utils import from config.py)
+   - Eliminated duplicate platform detection calls (now single source of truth)
+   - macOS: Uses ~/Library/Application Support/autonomi paths
+   - Linux (root): Preserves /var/antctl paths for backwards compatibility
+   - Linux (user): Uses ~/.local/share/autonomi paths (XDG spec)
+   - Tests: 88 passed on macOS, 88 passed on Linux (no regressions)
+   - **Duration:** 1 day (faster than 3-day estimate)
 
 3. ✅ **Phase 1 (Launchd Manager)** - Core functionality
    - Implement LaunchctlManager
@@ -920,12 +927,16 @@ Based on dependencies and risk:
 - [ ] NullFirewall used successfully in integration tests
 - [ ] No firewall errors on macOS
 
-**Phase 3: Platform-Agnostic Paths**
-- [ ] User-level paths work on macOS and Linux
-- [ ] Root detection works on Linux
-- [ ] Lock file, DB, logs created in correct locations
-- [ ] All path constants replaced
-- [ ] macOS uses ~/Library/Application Support/autonomi/node
+**Phase 3: Platform-Agnostic Paths** ✅ COMPLETED
+- [x] User-level paths work on macOS and Linux
+- [x] Root detection works on Linux (IS_ROOT constant)
+- [x] Lock file, DB, logs created in correct locations
+- [x] All path constants replaced (12 occurrences across 6 files)
+- [x] macOS uses ~/Library/Application Support/autonomi
+- [x] NODE_STORAGE defaults to platform-appropriate paths (overridable during --init)
+- [x] Centralized platform detection (PLATFORM constant, single source of truth)
+- [x] No circular imports or duplicate platform.system() calls
+- [x] Tests pass on both macOS (88) and Linux (88) with no regressions
 
 **Phase 4: System Metrics** ✅ COMPLETED
 - [x] `uptime --since` replacement works on macOS (sysctl kern.boottime)

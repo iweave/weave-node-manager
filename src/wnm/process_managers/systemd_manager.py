@@ -12,6 +12,7 @@ import subprocess
 import time
 
 from wnm.common import DEAD, RESTARTING, RUNNING, STOPPED, UPGRADING
+from wnm.config import BOOTSTRAP_CACHE_DIR, LOG_DIR
 from wnm.models import Node
 from wnm.process_managers.base import NodeProcess, ProcessManager
 
@@ -45,7 +46,7 @@ class SystemdManager(ProcessManager):
 
         # Prepare service name
         service_name = f"antnode{node.node_name}.service"
-        log_dir = f"/var/log/antnode/antnode{node.node_name}"
+        log_dir = f"{LOG_DIR}/antnode{node.node_name}"
 
         # Create directories
         try:
@@ -92,7 +93,7 @@ Description=antnode{node.node_name}
 [Service]
 {env_string}
 User={user}
-ExecStart={binary_in_node_dir} --bootstrap-cache-dir /var/antctl/bootstrap-cache --root-dir {node.root_dir} --port {node.port} --enable-metrics-server --metrics-server-port {node.metrics_port} --log-output-dest {log_dir} --max-log-files 1 --max-archived-log-files 1 --rewards-address {node.wallet} {node.network}
+ExecStart={binary_in_node_dir} --bootstrap-cache-dir {BOOTSTRAP_CACHE_DIR} --root-dir {node.root_dir} --port {node.port} --enable-metrics-server --metrics-server-port {node.metrics_port} --log-output-dest {log_dir} --max-log-files 1 --max-archived-log-files 1 --rewards-address {node.wallet} {node.network}
 Restart=always
 #RestartSec=300
 """
@@ -283,7 +284,7 @@ Restart=always
         # Remove data and logs
         try:
             subprocess.run(
-                ["sudo", "rm", "-rf", node.root_dir, f"/var/log/antnode/{nodename}"],
+                ["sudo", "rm", "-rf", node.root_dir, f"{LOG_DIR}/{nodename}"],
                 check=True,
             )
         except subprocess.CalledProcessError as err:

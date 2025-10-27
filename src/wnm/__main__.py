@@ -6,7 +6,14 @@ import time
 
 from sqlalchemy import insert, select
 
-from wnm.config import S, apply_config_updates, config_updates, machine_config, options
+from wnm.config import (
+    LOCK_FILE,
+    S,
+    apply_config_updates,
+    config_updates,
+    machine_config,
+    options,
+)
 from wnm.decision_engine import DecisionEngine
 from wnm.executor import ActionExecutor
 from wnm.models import Node
@@ -86,13 +93,13 @@ def choose_action(machine_config, metrics, dry_run):
 def main():
 
     # Are we already running
-    if os.path.exists("/var/antctl/wnm_active"):
+    if os.path.exists(LOCK_FILE):
         logging.warning("wnm still running")
         sys.exit(1)
 
     # We're starting, so lets create a lock file
     try:
-        with open("/var/antctl/wnm_active", "w") as file:
+        with open(LOCK_FILE, "w") as file:
             file.write(str(int(time.time())))
     except (PermissionError, OSError) as e:
         logging.error(f"Unable to create lock file: {e}")
@@ -169,7 +176,7 @@ def main():
     this_action = choose_action(local_config, metrics, options.dry_run)
     print("Action:", json.dumps(this_action, indent=2))
 
-    os.remove("/var/antctl/wnm_active")
+    os.remove(LOCK_FILE)
     sys.exit(1)
 
 

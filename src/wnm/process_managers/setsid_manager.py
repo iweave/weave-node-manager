@@ -16,6 +16,7 @@ from pathlib import Path
 import psutil
 
 from wnm.common import DEAD, RESTARTING, RUNNING, STOPPED, UPGRADING
+from wnm.config import BOOTSTRAP_CACHE_DIR
 from wnm.models import Node
 from wnm.process_managers.base import NodeProcess, ProcessManager
 
@@ -123,7 +124,7 @@ class SetsidManager(ProcessManager):
         cmd = [
             str(binary),
             "--bootstrap-cache-dir",
-            "/var/antctl/bootstrap-cache",
+            BOOTSTRAP_CACHE_DIR,
             "--root-dir",
             node.root_dir,
             "--port",
