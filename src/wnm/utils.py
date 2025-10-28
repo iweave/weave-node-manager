@@ -373,6 +373,3 @@ def update_nodes(S):
                 if node_metadata["status"] == STOPPED and check[4] == STOPPED:
                     continue
                 update_node_from_metrics(S, check[1], node_metrics, node_metadata)
-
-
-# Create a new node
