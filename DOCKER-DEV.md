@@ -1,6 +1,10 @@
 # Docker Development Environment
 
-Since WNM requires Linux-specific tools (systemd, ufw) that aren't available on macOS, we use Docker containers for both development and testing.
+**Note:** This Docker environment is primarily for Linux-specific testing (systemd, UFW firewall).
+
+**macOS users can run tests natively** using `./scripts/test-macos.sh` - Docker is optional for macOS users who want to test Linux-specific functionality.
+
+Since WNM now supports both Linux and macOS, we use Docker containers for Linux-specific development and testing on macOS host machines.
 
 ## Quick Start
 
@@ -155,9 +159,27 @@ The container needs `privileged: true` in docker-compose.yml for systemd to work
 3. Iterate until tests pass
 4. Commit changes
 
+## Native macOS Development
+
+**If you're on macOS**, you can develop and test natively without Docker:
+
+```bash
+# Run tests natively
+./scripts/test-macos.sh
+
+# Run application
+python3 -m wnm --dry_run
+
+# Format code
+black src/
+isort src/
+```
+
+Tests marked with `@pytest.mark.linux_only` will be automatically skipped on macOS.
+
 ## Future Enhancements
 
 - Docker-in-Docker support for testing container-based nodes
 - Pre-commit hooks that run tests in Docker
 - CI/CD integration with same Docker images
-- macOS-specific testing with launchctl (Phase 7+)
+- Docker training for containerized node management (coming after macOS support completion)

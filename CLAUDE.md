@@ -4,15 +4,43 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Weave Node Manager (wnm) is a Python application for managing Autonomi nodes on Linux systems. It's an Alpha-stage Python port of the `anm` (autonomic node manager) tool. The system automatically manages node lifecycle: creating, starting, stopping, upgrading, and removing nodes based on system resource thresholds (CPU, memory, disk, network I/O, load average).
+Weave Node Manager (wnm) is a Python application for managing Autonomi nodes on Linux and macOS systems. It's an Alpha-stage Python port of the `anm` (autonomic node manager) tool. The system automatically manages node lifecycle: creating, starting, stopping, upgrading, and removing nodes based on system resource thresholds (CPU, memory, disk, network I/O, load average).
 
-**Important**: This is Linux-only software targeting Python 3.12.3+. It requires systemd, ufw firewall, and sudo privileges.
+**Platforms**:
+- **Linux**: systemd or setsid for process management, UFW for firewall (root or user-level)
+- **macOS**: launchd for process management, no firewall management (user-level only)
+- **Python 3.12.3+** required
 
 ## Development Environment
 
-**IMPORTANT: Use Docker for Development and Testing**
+### macOS Development (Native)
 
-Since WNM is Linux-only and requires systemd, always use the Docker development environment for running and testing the application:
+**On macOS, you can run and test natively** using launchd for process management:
+
+```bash
+# Run tests natively on macOS
+./scripts/test-macos.sh
+
+# Or run tests directly
+pytest tests/ -v -m "not linux_only"
+
+# Run application in dry-run mode
+python3 -m wnm --dry_run
+
+# Initialize with rewards address
+python3 -m wnm --init --rewards_address 0xYourEthereumAddress
+```
+
+**macOS Notes**:
+- Uses `~/Library/Application Support/autonomi/` for data
+- Uses `~/Library/Logs/autonomi/` for logs
+- Nodes managed via launchd (`~/Library/LaunchAgents/`)
+- No root/sudo required
+- Some tests marked `@pytest.mark.linux_only` will be skipped
+
+### Linux Development (Docker)
+
+**On Linux, use Docker for systemd/UFW testing**:
 
 ```bash
 # Run tests in Docker container
@@ -27,8 +55,6 @@ python3 -m wnm --dry_run           # Run application in dry-run mode
 ```
 
 See `DOCKER-DEV.md` for complete Docker development environment documentation.
-
-**Do NOT run tests directly on macOS** - the application currently requires Linux-specific features (systemd, ufw, /proc filesystem) that are not available on macOS.
 
 ## Development Commands
 
@@ -82,11 +108,14 @@ wnm
 ### Core Flow (`__main__.py`)
 The application runs as a single-execution cycle (typically invoked via cron every minute):
 
-1. **Locking**: Creates `/var/antctl/wnm_active` lock file to prevent concurrent runs
+1. **Locking**: Creates platform-specific lock file to prevent concurrent runs
+   - macOS: `~/Library/Application Support/autonomi/wnm_active`
+   - Linux (root): `/var/antctl/wnm_active`
+   - Linux (user): `~/.local/share/autonomi/wnm_active`
 2. **Configuration**: Loads machine config from SQLite database or initializes from `anm` migration
 3. **Metrics Collection**: Gathers system metrics (CPU, memory, disk, I/O, load average) and node statuses
 4. **Decision Engine**: `choose_action()` determines what action to take based on thresholds
-5. **Action Execution**: Performs one action per cycle (add/remove/upgrade/restart node, or idle)
+5. **Action Execution**: Performs one action per cycle (add/remove/upgrade/restart node, or idle) via ProcessManager
 6. **Cleanup**: Removes lock file and exits
 
 ### Database Models (`models.py`)
@@ -105,15 +134,31 @@ Multi-layer configuration priority (highest to lowest):
 
 Configuration loading happens at module import, creating global `options`, `machine_config`, and database session factory `S`.
 
-### Node Management (`utils.py`)
-Key functions for node lifecycle:
+### Process Management (`process_managers/`)
+Platform-specific process managers handle node lifecycle via factory pattern:
 
-- **Survey**: `survey_machine()` - Scans systemd services to discover nodes
+- **SystemdManager** (`systemd_manager.py`): Linux root-level, uses systemd services
+- **LaunchctlManager** (`launchd_manager.py`): macOS, uses launchd agents
+- **SetsidManager** (`setsid_manager.py`): Linux user-level, background processes
+
+All managers implement the `ProcessManager` base class with these methods:
+- `create_node()`: Creates directories, copies binary, starts node
+- `start_node()`, `stop_node()`, `restart_node()`: Controls node lifecycle
+- `get_status()`: Returns node process status
+- `remove_node()`: Stops node and cleans up files
+- `survey_nodes()`: Discovers existing nodes
+
+### Firewall Management (`firewall/`)
+Platform-specific firewall managers:
+
+- **UfwManager** (`ufw_manager.py`): Linux, manages UFW firewall rules
+- **NullFirewallManager** (`null_manager.py`): macOS and fallback, no-op implementation
+
+### Node Management (`utils.py`)
+Legacy helper functions (being phased out in favor of ProcessManager abstraction):
+
 - **Metrics**: `read_node_metrics()`, `read_node_metadata()` - Polls node HTTP endpoints
-- **Create**: `create_node()` - Generates systemd service, directories, starts node
-- **Upgrade**: `upgrade_node()` - Copies new binary, restarts service, sets UPGRADING status
-- **Remove**: `remove_node()` - Stops node, deletes data/logs/service files
-- **Start/Stop**: `start_systemd_node()`, `stop_systemd_node()` - Controls systemd services and UFW firewall
+- **Binary**: `get_latest_binary_version()` - Checks for new antnode versions
 
 ### Node States (`common.py`)
 Nodes transition through states tracked in the database:
@@ -155,15 +200,20 @@ Port ranges cannot be changed after initialization.
 
 ## Key Configuration Parameters
 
-Resource thresholds control when nodes are added/removed:
-- `CpuLessThan/CpuRemove`: CPU percentage thresholds for add/remove decisions
-- `MemLessThan/MemRemove`: Memory percentage thresholds
-- `HDLessThan/HDRemove`: Disk usage percentage thresholds
-- `DesiredLoadAverage/MaxLoadAverageAllowed`: Load average thresholds
-- `NodeCap`: Maximum number of nodes allowed
-- `DelayStart/DelayRestart/DelayUpgrade/DelayRemove`: Minutes to wait in transitional states
-- `NodeStorage`: Root directory for node data (default: `/var/antctl/services`)
-- `RewardsAddress`: Ethereum address for node rewards (required)
+Resource thresholds control when nodes are added/removed (use snake_case on command line):
+- `--cpu_less_than` / `--cpu_remove`: CPU percentage thresholds for add/remove decisions (default: 70% / 80%)
+- `--mem_less_than` / `--mem_remove`: Memory percentage thresholds (default: 70% / 80%)
+- `--hd_less_than` / `--hd_remove`: Disk usage percentage thresholds (default: 70% / 80%)
+- `--desired_load_average` / `--max_load_average_allowed`: Load average thresholds
+- `--node_cap`: Maximum number of nodes allowed (default: 50)
+- `--delay_start` / `--delay_restart` / `--delay_upgrade` / `--delay_remove`: Minutes to wait in transitional states
+- `--node_storage`: Root directory for node data (platform-specific defaults)
+- `--rewards_address`: Ethereum address for node rewards (required)
+
+**Platform-Specific Default Paths**:
+- macOS: `~/Library/Application Support/autonomi/node/`
+- Linux (root): `/var/antctl/services/`
+- Linux (user): `~/.local/share/autonomi/node/`
 
 ## Important Constraints
 
@@ -171,5 +221,17 @@ Resource thresholds control when nodes are added/removed:
 - Nodes are added/removed based on the "youngest" (most recent `age` timestamp)
 - Upgrades only proceed when no removals are pending
 - Database has single Machine row (id=1); updates apply to entire cluster
-- Requires sudo access for systemd, ufw, file operations
 - Lock file prevents concurrent execution
+- **Platform-specific requirements**:
+  - Linux (root): Requires sudo for systemd and ufw
+  - Linux (user): No sudo required, uses setsid
+  - macOS: No sudo required, uses launchd
+
+## Platform Support
+
+See `MACOS-SUPPORT-PLAN.md` for detailed macOS implementation roadmap.
+See `PLATFORM-SUPPORT.md` for platform-specific details on:
+- Process management (systemd, launchd, setsid)
+- Firewall management (UFW, null)
+- Path conventions
+- Binary management and upgrades

@@ -1,64 +1,274 @@
 # Weave Node Manager
 
 ## Overview
-Weave Node Manager (wnm) is a Python application designed to manage nodes for decentralized networks.
+Weave Node Manager (wnm) is a Python application designed to manage Autonomi nodes on Linux and macOS systems.
+
+**Platforms**:
+- **Linux**: systemd or setsid for process management, UFW for firewall
+- **macOS**: launchd for process management (native support)
+- **Python 3.12.3+** required
 
 ## Features
-- Update node metrics and statuses.
-- Manage systemd services and ufw firewall for linux nodes.
-- Support for configuration via YAML, JSON, or command-line parameters.
+- Automatic node lifecycle management (create, start, stop, upgrade, remove)
+- Resource-based decision engine (CPU, memory, disk, I/O, load average thresholds)
+- Platform-specific process management (systemd on Linux, launchd on macOS)
+- Per-node binary copies for independent upgrades
+- SQLite database for configuration and state tracking
+- Support for configuration via environment variables, config files, or command-line parameters
 
-## Warning - In Progress
+## Warning - Alpha Software
 
-This code is Alpha. It can currently only take over an [anm](https://github.com/safenetforum-community/NTracking/tree/main/anm) initiated set of nodes (at least one node). This project is essentially starting as a Python port of `anm`. It will eventually also have the option of using `antctl` instead of `systemd` to control nodes.
+This code is Alpha. On Linux, it can migrate from an existing [anm](https://github.com/safenetforum-community/NTracking/tree/main/anm) installation. On macOS, it provides native development and testing support using launchd.
 
 ## Installation
-1. Create a directory to hold data:
-   ```
-   mkdir /home/ubuntu/wnm
-   ```
-2. Navigate to the project directory:
-   ```
-   cd /home/ubuntu/wnm
-3. Install the required dependencies:
-   ```
-   sudo apt install -y python3.12-venv python3-dotenv
-   ```
-4. Create a virtual environment
-   ```
-   python3 -m venv .venv
-   ```
-5. Activate the virtual environment
-   ```
-   . .venv/bin/activate
-   ```
-6. Install the package:
-   ```
-   pip install wnm 
-   ```
-7. Run to initialize environment from anm
-   ```
-   wnm
-   ```
-8. Add to cron to run every minute
-   ```
-   echo <<EOF
-   SHELL=/bin/bash
-   PATH=/home/ubuntu/.local/bin:/home/ubuntu/wnm/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-   */1 * * * * ubuntu cd /home/ubuntu/wnm && wnm > /home/ubuntu/wnm/cron.out 2>&1
-   EOF
-   ```
+
+### macOS (Development & Testing)
+
+macOS support uses launchd for process management and is ideal for development and testing.
+
+#### 1. Install antup (Autonomi binary manager)
+```bash
+curl -sSL https://raw.githubusercontent.com/maidsafe/antup/main/install.sh | bash
+```
+
+#### 2. Download antnode binary
+```bash
+~/.local/bin/antup node
+```
+
+#### 3. Install WNM from PyPI
+```bash
+pip3 install weave-node-manager
+```
+
+#### 4. Or install from source
+```bash
+git clone https://github.com/dawn-code/weave-node-manager.git
+cd weave-node-manager
+pip3 install -e .
+```
+
+#### 5. Initialize and configure
+```bash
+# Initialize with your rewards address
+wnm --init --rewards_address 0xYourEthereumAddress
+
+# Run in dry-run mode to test
+wnm --dry_run
+
+# Or run normally to start managing nodes
+wnm
+```
+
+#### 6. Optional: Add to cron for automatic management
+```bash
+# Add to crontab (runs every minute)
+crontab -e
+
+# Add this line:
+*/1 * * * * /usr/local/bin/wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
+```
+
+**macOS Notes:**
+- Uses `~/Library/Application Support/autonomi/node/` for data
+- Uses `~/Library/Logs/autonomi/` for logs
+- Nodes managed via launchd (`~/Library/LaunchAgents/`)
+- No root/sudo access required
+
+### Linux (User-Level, Recommended)
+
+Non-root installation using setsid for process management.
+
+#### 1. Install antup (Autonomi binary manager)
+```bash
+curl -sSL https://raw.githubusercontent.com/maidsafe/antup/main/install.sh | bash
+```
+
+#### 2. Download antnode binary
+```bash
+~/.local/bin/antup node
+```
+
+#### 3. Install WNM from PyPI
+```bash
+pip3 install weave-node-manager
+```
+
+#### 4. Or install from source
+```bash
+git clone https://github.com/dawn-code/weave-node-manager.git
+cd weave-node-manager
+pip3 install -e .
+```
+
+#### 5. Initialize and configure
+```bash
+# Initialize with your rewards address
+wnm --init --rewards_address 0xYourEthereumAddress
+
+# Run in dry-run mode to test
+wnm --dry_run
+
+# Or run normally
+wnm
+```
+
+#### 6. Optional: Add to cron
+```bash
+crontab -e
+
+# Add this line:
+*/1 * * * * ~/.local/bin/wnm >> ~/.local/share/autonomi/logs/wnm-cron.log 2>&1
+```
+
+**Linux User-Level Notes:**
+- Uses `~/.local/share/autonomi/node/` for data (XDG spec)
+- Uses `~/.local/share/autonomi/logs/` for logs
+- Nodes run as background processes (setsid)
+- No root/sudo required
+
+### Linux (Root-Level, Production)
+
+Root installation using systemd for process management.
+
+#### 1. Install system dependencies
+```bash
+sudo apt install -y python3.12-venv python3-pip
+```
+
+#### 2. Install antup and antnode
+```bash
+curl -sSL https://raw.githubusercontent.com/maidsafe/antup/main/install.sh | bash
+~/.local/bin/antup node
+sudo cp ~/.local/bin/antnode /usr/local/bin/
+```
+
+#### 3. Install WNM
+```bash
+sudo pip3 install weave-node-manager
+```
+
+#### 4. Initialize as root
+```bash
+# Migrate from existing anm installation
+sudo wnm --init --migrate_anm
+
+# Or initialize fresh
+sudo wnm --init --rewards_address 0xYourEthereumAddress
+```
+
+#### 5. Add to cron
+```bash
+sudo crontab -e
+
+# Add this line:
+*/1 * * * * /usr/local/bin/wnm >> /var/log/antnode/wnm-cron.log 2>&1
+```
+
+**Linux Root-Level Notes:**
+- Uses `/var/antctl/` for data (legacy anm compatibility)
+- Uses `/var/log/antnode/` for logs
+- Nodes managed via systemd (`/etc/systemd/system/`)
+- Requires root/sudo access
+- Supports migration from anm
 
 ## Configuration
-Configuration can be done through a `.env` file, YAML, or JSON files. The application will prioritize these configurations over default values.
 
-Upon finding an existing installation of [anm - aatonnomicc node manager](https://github.com/safenetforum-community/NTracking/tree/main/anm), wnm will disable anm and take over management of the cluster. The /var/antctl/config is only read on first ingestion, configuration priority then moves to the `.env` file or a named configuration file.
+Configuration follows a multi-layer priority system (highest to lowest):
+
+1. **Command-line arguments**: `wnm --cpu_less_than 70 --node_cap 50`
+2. **Environment variables**: Set in `.env` file or shell
+3. **Config files**:
+   - macOS: `~/Library/Application Support/autonomi/config`
+   - Linux (user): `~/.local/share/autonomi/config`
+   - Linux (root): `/var/antctl/config`
+4. **Database-stored config**: Persisted in `colony.db` after initialization
+5. **Default values**: Built-in defaults
+
+### Key Configuration Parameters
+
+Resource thresholds control when nodes are added or removed:
+
+- `--cpu_less_than` / `--cpu_remove`: CPU percentage thresholds (default: 70% / 80%)
+- `--mem_less_than` / `--mem_remove`: Memory percentage thresholds (default: 70% / 80%)
+- `--hd_less_than` / `--hd_remove`: Disk usage percentage thresholds (default: 70% / 80%)
+- `--desired_load_average` / `--max_load_average_allowed`: Load average thresholds
+- `--node_cap`: Maximum number of nodes (default: 50)
+- `--rewards_address`: Ethereum address for node rewards (required)
+- `--node_storage`: Root directory for node data (auto-detected per platform)
+
+### anm Migration (Linux Only)
+
+Upon finding an existing [anm](https://github.com/safenetforum-community/NTracking/tree/main/anm) installation, wnm will:
+1. Disable anm by removing `/etc/cron.d/anm`
+2. Import configuration from `/var/antctl/config`
+3. Discover and import existing nodes from systemd
+4. Take over management of the cluster
+
+Use `wnm --init --migrate_anm` to trigger migration.
 
 ## Usage
-To run the application, execute the following command:
+
+### Run Once
+```bash
+# macOS or Linux
+wnm
+
+# With dry-run (no actual changes)
+wnm --dry_run
+
+# Initialize first time
+wnm --init --rewards_address 0xYourEthereumAddress
 ```
-python main.py
+
+### Run via Cron (Recommended)
+
+WNM is designed to run every minute via cron, making one decision per cycle:
+
+**macOS:**
+```bash
+crontab -e
+# Add: */1 * * * * /usr/local/bin/wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
 ```
+
+**Linux (user):**
+```bash
+crontab -e
+# Add: */1 * * * * ~/.local/bin/wnm >> ~/.local/share/autonomi/logs/wnm-cron.log 2>&1
+```
+
+**Linux (root):**
+```bash
+sudo crontab -e
+# Add: */1 * * * * /usr/local/bin/wnm >> /var/log/antnode/wnm-cron.log 2>&1
+```
+
+### Development Mode
+
+For development with live code reloading:
+
+**macOS (native):**
+```bash
+python3 -m wnm --dry_run
+```
+
+**Linux (Docker):**
+```bash
+./scripts/dev.sh
+# Inside container:
+python3 -m wnm --dry_run
+```
+
+See `DOCKER-DEV.md` for comprehensive Docker development workflow.
+
+## Platform Support
+
+See `PLATFORM-SUPPORT.md` for detailed information about:
+- Platform-specific process managers (systemd, launchd, setsid)
+- Firewall management (UFW, null)
+- Path conventions per platform
+- Binary management and upgrades
+- Testing strategies
 
 ## Contributing
 Contributions are welcome! Please submit a pull request or open an issue for any enhancements or bug fixes.
