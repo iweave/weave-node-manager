@@ -44,3 +44,11 @@ line-length = 88
 
 [tool.isort]
 profile = "black"
+
+[tool.pytest.ini_options]
+markers = [
+    "linux_only: tests that require Linux (systemd, ufw, etc.)",
+    "macos_only: tests that require macOS (launchctl, etc.)",
+    "requires_docker: tests that require Docker",
+    "integration: integration tests (slow)",
+]

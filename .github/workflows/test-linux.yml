@@ -1,0 +1,15 @@
+name: Linux Tests
+
+on: [push, pull_request]
+
+jobs:
+  test-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run Linux tests in Docker
+        run: |
+          chmod +x scripts/test-linux.sh
+          ./scripts/test-linux.sh

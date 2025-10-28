@@ -1,6 +1,7 @@
 """Pytest fixtures for WNM tests"""
 
 import os
+import platform
 import tempfile
 from pathlib import Path
 
@@ -150,3 +151,27 @@ def multiple_nodes(db_session, sample_node_config):
         nodes.append(n)
     db_session.commit()
     return nodes
+
+
+@pytest.fixture
+def process_manager_type():
+    """Return appropriate process manager for current platform"""
+    system = platform.system()
+    if system == "Darwin":
+        return "launchctl"
+    elif system == "Linux":
+        return "systemd"
+    else:
+        return "setsid"
+
+
+@pytest.fixture
+def firewall_manager_type():
+    """Return appropriate firewall manager for current platform"""
+    system = platform.system()
+    if system == "Darwin":
+        return "null"
+    elif system == "Linux":
+        return "ufw"
+    else:
+        return "null"
