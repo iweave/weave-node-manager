@@ -1,29 +1,37 @@
 """Action executor for performing node lifecycle operations.
 
 This module contains the ActionExecutor class which takes planned actions
-from the DecisionEngine and executes them by calling the appropriate utility
-functions.
+from the DecisionEngine and executes them using ProcessManager abstractions.
 """
 
 import logging
+import os
+import shutil
+import subprocess
 import time
 from typing import Any, Dict, List
 
 from packaging.version import Version
-from sqlalchemy import select
+from sqlalchemy import insert, select, text
 from sqlalchemy.orm import scoped_session
 
 from wnm.actions import Action, ActionType
-from wnm.common import DEAD, RUNNING, STOPPED
+from wnm.common import (
+    DEAD,
+    METRICS_PORT_BASE,
+    PORT_MULTIPLIER,
+    REMOVING,
+    RESTARTING,
+    RUNNING,
+    STOPPED,
+    UPGRADING,
+)
+from wnm.config import LOG_DIR
 from wnm.models import Machine, Node
+from wnm.process_managers.factory import get_process_manager
 from wnm.utils import (
-    create_node,
     get_antnode_version,
-    remove_node,
-    start_systemd_node,
-    stop_systemd_node,
     update_nodes,
-    upgrade_node,
 )
 
 
@@ -42,6 +50,81 @@ class ActionExecutor:
             session_factory: SQLAlchemy session factory for database operations
         """
         self.S = session_factory
+
+    def _get_process_manager(self, node: Node):
+        """Get the appropriate process manager for a node.
+
+        Args:
+            node: Node database record
+
+        Returns:
+            ProcessManager instance for the node's manager type
+        """
+        # Get manager type from node, or use machine config default
+        manager_type = getattr(node, "manager_type", None)
+        return get_process_manager(manager_type)
+
+    def _set_node_status(self, node_id: int, status: str) -> bool:
+        """Update node status in database.
+
+        Args:
+            node_id: ID of the node
+            status: New status to set
+
+        Returns:
+            True if status was updated successfully
+        """
+        try:
+            with self.S() as session:
+                session.query(Node).filter(Node.id == node_id).update(
+                    {"status": status, "timestamp": int(time.time())}
+                )
+                session.commit()
+            return True
+        except Exception as e:
+            logging.error(f"Failed to set node status for {node_id}: {e}")
+            return False
+
+    def _upgrade_node_binary(self, node: Node, new_version: str) -> bool:
+        """Upgrade a node's binary and restart it.
+
+        Args:
+            node: Node to upgrade
+            new_version: Version string for the new binary
+
+        Returns:
+            True if upgrade succeeded
+        """
+        # Source binary location
+        source_binary = os.path.expanduser("~/.local/bin/antnode")
+
+        # Copy new binary to node directory
+        try:
+            shutil.copy2(source_binary, node.binary)
+            os.chmod(node.binary, 0o755)
+            logging.info(f"Copied new binary from {source_binary} to {node.binary}")
+        except (OSError, shutil.Error) as err:
+            logging.error(f"Failed to copy binary for upgrade: {err}")
+            return False
+
+        # Restart the node with new binary
+        manager = self._get_process_manager(node)
+        if not manager.restart_node(node):
+            logging.error(f"Failed to restart node {node.id} during upgrade")
+            return False
+
+        # Update status to UPGRADING
+        with self.S() as session:
+            session.query(Node).filter(Node.id == node.id).update(
+                {
+                    "status": UPGRADING,
+                    "timestamp": int(time.time()),
+                    "version": new_version,
+                }
+            )
+            session.commit()
+
+        return True
 
     def execute(
         self,
@@ -76,7 +159,9 @@ class ActionExecutor:
                 results.append(result)
             except Exception as e:
                 logging.error(f"Failed to execute {action.type.value}: {e}")
-                results.append({"action": action.type.value, "success": False, "error": str(e)})
+                results.append(
+                    {"action": action.type.value, "success": False, "error": str(e)}
+                )
 
         # Return status from the first (highest priority) action
         if results:
@@ -156,14 +241,20 @@ class ActionExecutor:
             else:
                 with self.S() as session:
                     broken = session.execute(
-                        select(Node.timestamp, Node.id, Node.host, Node.metrics_port)
+                        select(Node)
                         .where(Node.status == DEAD)
                         .order_by(Node.timestamp.asc())
                     ).all()
 
-                for check in broken:
-                    logging.info(f"Removing dead node {check[1]}")
-                    remove_node(self.S, check[1], no_delay=True)
+                for row in broken:
+                    node = row[0]
+                    logging.info(f"Removing dead node {node.id}")
+                    manager = self._get_process_manager(node)
+                    manager.remove_node(node)
+                    # Delete from database immediately (no delay for dead nodes)
+                    with self.S() as session:
+                        session.delete(node)
+                        session.commit()
 
             return {"status": "removed-dead-nodes"}
 
@@ -171,30 +262,40 @@ class ActionExecutor:
             # Remove youngest stopped node
             with self.S() as session:
                 youngest = session.execute(
-                    select(Node.id).where(Node.status == STOPPED).order_by(Node.age.desc())
+                    select(Node).where(Node.status == STOPPED).order_by(Node.age.desc())
                 ).first()
 
             if youngest:
                 if dry_run:
                     logging.warning("DRYRUN: Remove youngest stopped node")
                 else:
-                    remove_node(self.S, youngest[0], no_delay=True)
+                    node = youngest[0]
+                    manager = self._get_process_manager(node)
+                    manager.remove_node(node)
+                    # Delete from database immediately (no delay for stopped nodes)
+                    with self.S() as session:
+                        session.delete(node)
+                        session.commit()
                 return {"status": "removed-stopped-node"}
             else:
                 return {"status": "no-stopped-nodes-to-remove"}
 
         else:
-            # Remove youngest running node
+            # Remove youngest running node (with delay)
             with self.S() as session:
                 youngest = session.execute(
-                    select(Node.id).where(Node.status == RUNNING).order_by(Node.age.desc())
+                    select(Node).where(Node.status == RUNNING).order_by(Node.age.desc())
                 ).first()
 
             if youngest:
                 if dry_run:
                     logging.warning("DRYRUN: Remove youngest running node")
                 else:
-                    remove_node(self.S, youngest[0])
+                    node = youngest[0]
+                    manager = self._get_process_manager(node)
+                    manager.stop_node(node)
+                    # Mark as REMOVING (will be deleted later after delay)
+                    self._set_node_status(node.id, REMOVING)
                 return {"status": "removed-running-node"}
             else:
                 return {"status": "no-running-nodes-to-remove"}
@@ -212,7 +313,10 @@ class ActionExecutor:
             if dry_run:
                 logging.warning("DRYRUN: Stopping youngest node")
             else:
-                stop_systemd_node(self.S, youngest[0])
+                node = youngest[0]
+                manager = self._get_process_manager(node)
+                manager.stop_node(node)
+                self._set_node_status(node.id, STOPPED)
                 # Update the last stopped time
                 with self.S() as session:
                     session.query(Machine).filter(Machine.id == 1).update(
@@ -239,11 +343,15 @@ class ActionExecutor:
             if dry_run:
                 logging.warning("DRYRUN: Upgrade oldest node")
             else:
-                oldest = oldest[0]
+                node = oldest[0]
                 # If we don't have a version number from metadata, grab from binary
-                if not oldest.version:
-                    oldest.version = get_antnode_version(oldest.binary)
-                upgrade_node(oldest, metrics)
+                if not node.version:
+                    node.version = get_antnode_version(node.binary)
+
+                # Perform the upgrade (copies binary, restarts, sets UPGRADING status)
+                if not self._upgrade_node_binary(node, metrics["antnode_version"]):
+                    return {"status": "upgrade-failed"}
+
             return {"status": "upgrading-node"}
         else:
             return {"status": "no-nodes-to-upgrade"}
@@ -258,24 +366,28 @@ class ActionExecutor:
             ).first()
 
         if oldest:
-            oldest = oldest[0]
+            node = oldest[0]
             # If we don't have a version number from metadata, grab from binary
-            if not oldest.version:
-                oldest.version = get_antnode_version(oldest.binary)
+            if not node.version:
+                node.version = get_antnode_version(node.binary)
 
             # If the stopped version is old, upgrade it (which also starts it)
-            if Version(metrics["antnode_version"]) > Version(oldest.version):
+            if Version(metrics["antnode_version"]) > Version(node.version):
                 if dry_run:
                     logging.warning("DRYRUN: Upgrade and start stopped node")
                 else:
-                    upgrade_node(oldest, metrics)
+                    # Perform the upgrade (copies binary, restarts, sets UPGRADING status)
+                    if not self._upgrade_node_binary(node, metrics["antnode_version"]):
+                        return {"status": "failed-upgrade"}
                 return {"status": "upgrading-stopped-node"}
             else:
                 if dry_run:
                     logging.warning("DRYRUN: Start stopped node")
                     return {"status": "starting-node"}
                 else:
-                    if start_systemd_node(oldest):
+                    manager = self._get_process_manager(node)
+                    if manager.start_node(node):
+                        self._set_node_status(node.id, RESTARTING)
                         return {"status": "started-node"}
                     else:
                         return {"status": "failed-start-node"}
@@ -289,11 +401,70 @@ class ActionExecutor:
         if dry_run:
             logging.warning("DRYRUN: Add a node")
             return {"status": "add-node"}
+
+        # Find next available node ID (look for holes first)
+        sql = text(
+            "select n1.id + 1 as id from node n1 "
+            + "left join node n2 on n2.id = n1.id + 1 "
+            + "where n2.id is null "
+            + "and n1.id <> (select max(id) from node) "
+            + "order by n1.id;"
+        )
+        with self.S() as session:
+            result = session.execute(sql).first()
+
+        if result:
+            node_id = result[0]
         else:
-            if create_node(machine_config, metrics):
-                return {"status": "added-node"}
-            else:
-                return {"status": "failed-create-node"}
+            # No holes, use max + 1
+            with self.S() as session:
+                result = session.execute(
+                    select(Node.id).order_by(Node.id.desc())
+                ).first()
+            node_id = result[0] + 1 if result else 1
+
+        # Create node object
+        node = Node(
+            id=node_id,
+            node_name=f"{node_id:04}",
+            service=f"antnode{node_id:04}.service",
+            user=machine_config.get("user", "ant"),
+            version=metrics["antnode_version"],
+            root_dir=f"{machine_config['node_storage']}/antnode{node_id:04}",
+            binary=f"{machine_config['node_storage']}/antnode{node_id:04}/antnode",
+            port=machine_config["port_start"] * PORT_MULTIPLIER + node_id,
+            metrics_port=METRICS_PORT_BASE + node_id,
+            network="evm-arbitrum-one",
+            wallet=machine_config["rewards_address"],
+            peer_id="",
+            status=STOPPED,
+            timestamp=int(time.time()),
+            records=0,
+            uptime=0,
+            shunned=0,
+            age=int(time.time()),
+            host=machine_config["host"],
+            environment=machine_config.get("environment", ""),
+        )
+
+        # Insert into database
+        with self.S() as session:
+            session.add(node)
+            session.commit()
+            session.refresh(node)  # Get the persisted node
+
+        # Create the node using process manager
+        source_binary = os.path.expanduser("~/.local/bin/antnode")
+        manager = self._get_process_manager(node)
+
+        if not manager.create_node(node, source_binary):
+            logging.error(f"Failed to create node {node.id}")
+            return {"status": "failed-create-node"}
+
+        # Update status to RESTARTING (node is starting up)
+        self._set_node_status(node.id, RESTARTING)
+
+        return {"status": "added-node"}
 
     def _execute_survey(self, dry_run: bool) -> Dict[str, Any]:
         """Execute node survey (idle monitoring)."""
