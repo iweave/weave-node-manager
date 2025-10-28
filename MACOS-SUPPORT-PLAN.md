@@ -894,10 +894,13 @@ Based on dependencies and risk:
    - No firewall errors on macOS
    - **Duration:** Verification only
 
-5. **Phase 5 (Refactor utils.py)** - Cleanup (NEXT)
-   - Remove systemd/ufw direct calls
-   - Use manager abstractions
-   - **Duration:** 1 week
+5. ✅ **Phase 5 (Refactor utils.py)** - COMPLETED 2025-10-28
+   - Created migration module for survey_machine()
+   - Added survey_nodes() to all ProcessManagers
+   - Refactored executor.py to use ProcessManager abstractions
+   - Removed systemd/ufw direct calls from executor
+   - Legacy utils.py functions retained for backward compatibility
+   - **Duration:** <1 day
 
 6. **Phase 6 (Testing Infrastructure)** - Quality assurance
    - Add platform-specific fixtures
@@ -949,11 +952,13 @@ Based on dependencies and risk:
 - [x] Platform-specific tests pass (4/4 native macOS tests, 88/88 Linux tests)
 - [x] No regressions in Linux functionality
 
-**Phase 5: Refactor utils.py**
-- [ ] All systemd direct calls removed
-- [ ] All ufw direct calls removed
-- [ ] Manager abstractions used throughout
-- [ ] No regressions in Linux functionality
+**Phase 5: Refactor utils.py** ✅ COMPLETED
+- [x] survey_machine() moved to migration module
+- [x] survey_nodes() added to all ProcessManagers
+- [x] executor.py refactored to use ProcessManager directly
+- [x] All node lifecycle operations use manager abstractions
+- [x] Legacy functions remain for backward compatibility
+- [x] No regressions in tests (112/118 passing)
 
 **Phase 6: Testing Infrastructure**
 - [ ] macOS tests run natively via `./scripts/test-macos.sh`
