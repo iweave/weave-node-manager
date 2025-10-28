@@ -200,10 +200,6 @@ class SetsidManager(ProcessManager):
         # Open firewall port (best effort, may fail without sudo)
         self.enable_firewall_port(node.port)
 
-        # Update status
-        if self.S:
-            self._set_node_status(node.id, RESTARTING)
-
         return True
 
     def stop_node(self, node: Node) -> bool:
@@ -252,10 +248,6 @@ class SetsidManager(ProcessManager):
 
         # Close firewall port
         self.disable_firewall_port(node.port)
-
-        # Update status
-        if self.S:
-            self._set_node_status(node.id, STOPPED)
 
         return True
 
@@ -346,17 +338,3 @@ class SetsidManager(ProcessManager):
             "Setsid survey not implemented (setsid nodes created fresh by WNM)"
         )
         return []
-
-    def _set_node_status(self, node_id: int, status: str):
-        """Helper to update node status in database"""
-        if not self.S:
-            return
-
-        try:
-            with self.S() as session:
-                session.query(Node).filter(Node.id == node_id).update(
-                    {"status": status, "timestamp": int(time.time())}
-                )
-                session.commit()
-        except Exception as e:
-            logging.error(f"Failed to set node status for {node_id}: {e}")

@@ -167,10 +167,6 @@ class DockerManager(ProcessManager):
         # Wait a moment for container to start
         time.sleep(1)
 
-        # Update status
-        if self.S:
-            self._set_node_status(node.id, RESTARTING)
-
         return True
 
     def start_node(self, node: Node) -> bool:
@@ -197,10 +193,6 @@ class DockerManager(ProcessManager):
         except subprocess.CalledProcessError as err:
             logging.error(f"Failed to start container: {err}")
             return False
-
-        # Update status
-        if self.S:
-            self._set_node_status(node.id, RESTARTING)
 
         return True
 
@@ -230,10 +222,6 @@ class DockerManager(ProcessManager):
             logging.error(f"Failed to stop container: {err}")
             return False
 
-        # Update status
-        if self.S:
-            self._set_node_status(node.id, STOPPED)
-
         return True
 
     def restart_node(self, node: Node) -> bool:
@@ -260,10 +248,6 @@ class DockerManager(ProcessManager):
         except subprocess.CalledProcessError as err:
             logging.error(f"Failed to restart container: {err}")
             return False
-
-        # Update status
-        if self.S:
-            self._set_node_status(node.id, RESTARTING)
 
         return True
 
@@ -385,17 +369,3 @@ class DockerManager(ProcessManager):
             "Docker survey not implemented (docker nodes created fresh by WNM)"
         )
         return []
-
-    def _set_node_status(self, node_id: int, status: str):
-        """Helper to update node status in database"""
-        if not self.S:
-            return
-
-        try:
-            with self.S() as session:
-                session.query(Node).filter(Node.id == node_id).update(
-                    {"status": status, "timestamp": int(time.time())}
-                )
-                session.commit()
-        except Exception as e:
-            logging.error(f"Failed to set node status for {node_id}: {e}")
