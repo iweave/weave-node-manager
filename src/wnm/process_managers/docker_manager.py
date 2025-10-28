@@ -21,7 +21,12 @@ from wnm.process_managers.base import NodeProcess, ProcessManager
 class DockerManager(ProcessManager):
     """Manage nodes in Docker containers"""
 
-    def __init__(self, session_factory=None, image="autonomi/node:latest", firewall_type: str = "null"):
+    def __init__(
+        self,
+        session_factory=None,
+        image="autonomi/node:latest",
+        firewall_type: str = "null",
+    ):
         """
         Initialize DockerManager.
 
@@ -91,17 +96,25 @@ class DockerManager(ProcessManager):
 
         # Build docker run command
         cmd = [
-            "docker", "run",
+            "docker",
+            "run",
             "-d",  # Detached mode
-            "--name", container_name,
-            "--restart", "unless-stopped",
+            "--name",
+            container_name,
+            "--restart",
+            "unless-stopped",
             # Port mappings
-            "-p", f"{node.port}:{node.port}/udp",
-            "-p", f"{node.metrics_port}:{node.metrics_port}/tcp",
+            "-p",
+            f"{node.port}:{node.port}/udp",
+            "-p",
+            f"{node.metrics_port}:{node.metrics_port}/tcp",
             # Volume mounts
-            "-v", f"{node.root_dir}:/data",
-            "-v", f"{binary_path}:/usr/local/bin/antnode:ro",
-            "-v", f"{BOOTSTRAP_CACHE_DIR}:/bootstrap-cache:ro",
+            "-v",
+            f"{node.root_dir}:/data",
+            "-v",
+            f"{binary_path}:/usr/local/bin/antnode:ro",
+            "-v",
+            f"{BOOTSTRAP_CACHE_DIR}:/bootstrap-cache:ro",
         ]
 
         # Add environment variables
@@ -113,16 +126,23 @@ class DockerManager(ProcessManager):
         cmd.append(self.image)
 
         # Add the command to run
-        cmd.extend([
-            "antnode",
-            "--root-dir", "/data",
-            "--port", str(node.port),
-            "--enable-metrics-server",
-            "--metrics-server-port", str(node.metrics_port),
-            "--bootstrap-cache-dir", "/bootstrap-cache",
-            "--rewards-address", node.wallet,
-            node.network,
-        ])
+        cmd.extend(
+            [
+                "antnode",
+                "--root-dir",
+                "/data",
+                "--port",
+                str(node.port),
+                "--enable-metrics-server",
+                "--metrics-server-port",
+                str(node.metrics_port),
+                "--bootstrap-cache-dir",
+                "/bootstrap-cache",
+                "--rewards-address",
+                node.wallet,
+                node.network,
+            ]
+        )
 
         # Run the container
         try:
@@ -263,9 +283,11 @@ class DockerManager(ProcessManager):
             # Get container info
             result = subprocess.run(
                 [
-                    "docker", "inspect",
-                    "--format", "{{.State.Status}}|{{.State.Pid}}|{{.Id}}",
-                    container_name
+                    "docker",
+                    "inspect",
+                    "--format",
+                    "{{.State.Status}}|{{.State.Pid}}|{{.Id}}",
+                    container_name,
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -336,6 +358,7 @@ class DockerManager(ProcessManager):
         # Remove node data directory
         try:
             import shutil
+
             node_dir = Path(node.root_dir)
             if node_dir.exists():
                 shutil.rmtree(node_dir)
@@ -343,6 +366,25 @@ class DockerManager(ProcessManager):
             logging.error(f"Failed to remove node directory: {err}")
 
         return True
+
+    def survey_nodes(self, machine_config) -> list:
+        """
+        Survey all docker-managed antnode containers.
+
+        Docker nodes are typically not used for migration scenarios.
+        This returns an empty list as docker containers are created
+        fresh by WNM and don't pre-exist.
+
+        Args:
+            machine_config: Machine configuration object
+
+        Returns:
+            Empty list (docker nodes don't pre-exist for migration)
+        """
+        logging.info(
+            "Docker survey not implemented (docker nodes created fresh by WNM)"
+        )
+        return []
 
     def _set_node_status(self, node_id: int, status: str):
         """Helper to update node status in database"""

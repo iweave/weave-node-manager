@@ -7,15 +7,23 @@ Designed for user-level node management (no sudo required).
 
 import logging
 import os
+import plistlib
 import re
 import shutil
 import subprocess
+import time
 from typing import Optional
 
 from wnm.common import DEAD, RESTARTING, RUNNING, STOPPED, UPGRADING
 from wnm.config import BOOTSTRAP_CACHE_DIR, LOG_DIR
 from wnm.models import Node
 from wnm.process_managers.base import NodeProcess, ProcessManager
+from wnm.utils import (
+    get_antnode_version,
+    get_node_age,
+    read_node_metadata,
+    read_node_metrics,
+)
 
 
 class LaunchctlManager(ProcessManager):
@@ -412,3 +420,172 @@ class LaunchctlManager(ProcessManager):
             logging.warning(f"Failed to disable firewall for port {node.port}")
 
         return True
+
+    def survey_nodes(self, machine_config) -> list:
+        """
+        Survey all launchd-managed antnode services.
+
+        Scans ~/Library/LaunchAgents for com.autonomi.antnode-*.plist files
+        and collects their configuration and current status.
+
+        Args:
+            machine_config: Machine configuration object
+
+        Returns:
+            List of node dictionaries ready for database insertion
+        """
+        plist_dir = self.plist_dir
+        plist_names = []
+
+        # Scan for antnode plist files
+        if os.path.exists(plist_dir):
+            try:
+                for file in os.listdir(plist_dir):
+                    if re.match(r"com\.autonomi\.antnode-\d+\.plist", file):
+                        plist_names.append(file)
+            except PermissionError as e:
+                logging.error(f"Permission denied reading {plist_dir}: {e}")
+                return []
+            except Exception as e:
+                logging.error(f"Error listing launchd plists: {e}")
+                return []
+
+        if not plist_names:
+            logging.info("No launchd antnode services found")
+            return []
+
+        logging.info(f"Found {len(plist_names)} launchd services to survey")
+
+        details = []
+        for plist_name in plist_names:
+            logging.debug(f"{time.strftime('%Y-%m-%d %H:%M')} surveying {plist_name}")
+
+            # Extract node ID from plist name (e.g., "com.autonomi.antnode-1.plist" -> 1)
+            node_id_match = re.findall(r"antnode-(\d+)\.plist", plist_name)
+            if not node_id_match:
+                logging.info(f"Can't decode {plist_name}")
+                continue
+
+            node_id = int(node_id_match[0])
+
+            card = {
+                "node_name": f"{node_id:04}",
+                "service": plist_name,
+                "timestamp": int(time.time()),
+                "host": machine_config.host or "127.0.0.1",
+                "method": "launchctl",
+                "layout": "1",
+            }
+
+            # Read configuration from plist file
+            config = self._read_plist_file(plist_name, machine_config)
+            card.update(config)
+
+            if not config:
+                logging.warning(f"Could not read config from {plist_name}")
+                continue
+
+            # Check if node is running by querying metrics port
+            metadata = read_node_metadata(card["host"], card["metrics_port"])
+
+            if isinstance(metadata, dict) and metadata.get("status") == RUNNING:
+                # Node is running - collect metadata and metrics
+                card.update(metadata)
+                card.update(read_node_metrics(card["host"], card["metrics_port"]))
+            else:
+                # Node is stopped
+                if not os.path.isdir(card.get("root_dir", "")):
+                    card["status"] = DEAD
+                    card["version"] = ""
+                else:
+                    card["status"] = STOPPED
+                    card["version"] = get_antnode_version(card.get("binary", ""))
+                card["peer_id"] = ""
+                card["records"] = 0
+                card["uptime"] = 0
+                card["shunned"] = 0
+
+            card["age"] = get_node_age(card.get("root_dir", ""))
+            card["host"] = machine_config.host  # Ensure we use machine config host
+
+            details.append(card)
+
+        return details
+
+    def _read_plist_file(self, plist_name: str, machine_config) -> dict:
+        """
+        Read node configuration from a launchd plist file.
+
+        Args:
+            plist_name: Name of the plist file (e.g., "com.autonomi.antnode-1.plist")
+            machine_config: Machine configuration object
+
+        Returns:
+            Dictionary with node configuration, or empty dict on error
+        """
+        details = {}
+        plist_path = os.path.join(self.plist_dir, plist_name)
+
+        try:
+            with open(plist_path, "rb") as file:
+                plist_data = plistlib.load(file)
+
+            # Extract node ID from label
+            label = plist_data.get("Label", "")
+            node_id_match = re.findall(r"antnode-(\d+)", label)
+            if not node_id_match:
+                logging.warning(f"Could not extract node ID from plist label: {label}")
+                return details
+
+            details["id"] = int(node_id_match[0])
+
+            # Extract arguments from ProgramArguments
+            args = plist_data.get("ProgramArguments", [])
+            if len(args) < 1:
+                logging.warning(f"No program arguments in plist: {plist_name}")
+                return details
+
+            details["binary"] = args[0]
+
+            # Parse arguments
+            i = 1
+            while i < len(args):
+                arg = args[i]
+                if arg == "--port" and i + 1 < len(args):
+                    details["port"] = int(args[i + 1])
+                    i += 2
+                elif arg == "--metrics-server-port" and i + 1 < len(args):
+                    details["metrics_port"] = int(args[i + 1])
+                    i += 2
+                elif arg == "--root-dir" and i + 1 < len(args):
+                    details["root_dir"] = args[i + 1]
+                    i += 2
+                elif arg == "--rewards-address" and i + 1 < len(args):
+                    details["wallet"] = args[i + 1]
+                    i += 1
+                    # Network is the next argument
+                    if i + 1 < len(args):
+                        details["network"] = args[i + 1]
+                    i += 1
+                elif arg == "--ip" and i + 1 < len(args):
+                    ip = args[i + 1]
+                    details["host"] = machine_config.host if ip == "0.0.0.0" else ip
+                    i += 2
+                else:
+                    i += 1
+
+            # Default host if not specified
+            if "host" not in details:
+                details["host"] = machine_config.host
+
+            # Extract environment variables
+            env_vars = plist_data.get("EnvironmentVariables", {})
+            details["environment"] = " ".join(f"{k}={v}" for k, v in env_vars.items())
+
+            # macOS runs as current user (no user field in plist)
+            details["user"] = os.getenv("USER", "unknown")
+
+        except Exception as e:
+            logging.debug(f"Error reading plist file {plist_path}: {e}")
+
+        return details

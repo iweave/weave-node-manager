@@ -16,11 +16,11 @@ from wnm.config import (
 )
 from wnm.decision_engine import DecisionEngine
 from wnm.executor import ActionExecutor
+from wnm.migration import survey_machine
 from wnm.models import Node
 from wnm.utils import (
     get_antnode_version,
     get_machine_metrics,
-    survey_machine,
     update_counters,
 )
 
@@ -69,7 +69,9 @@ def choose_action(machine_config, metrics, dry_run):
             for check in no_version:
                 # Update version number from binary
                 version = get_antnode_version(check[2])
-                logging.info(f"Updating version number for node {check[1]} to {version}")
+                logging.info(
+                    f"Updating version number for node {check[1]} to {version}"
+                )
                 with S() as session:
                     session.query(Node).filter(Node.id == check[1]).update(
                         {"version": version}

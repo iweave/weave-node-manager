@@ -152,7 +152,10 @@ class SetsidManager(ProcessManager):
                 stderr=subprocess.DEVNULL,
                 stdin=subprocess.DEVNULL,
                 start_new_session=True,
-                env={**os.environ, **({"CUSTOM_ENV": node.environment} if node.environment else {})},
+                env={
+                    **os.environ,
+                    **({"CUSTOM_ENV": node.environment} if node.environment else {}),
+                },
             )
 
             # Give process a moment to start
@@ -160,7 +163,9 @@ class SetsidManager(ProcessManager):
 
             # Check if process started successfully
             if process.poll() is not None:
-                logging.error(f"Process exited immediately with code {process.returncode}")
+                logging.error(
+                    f"Process exited immediately with code {process.returncode}"
+                )
                 return False
 
             # Get actual PID of the antnode process (not setsid wrapper)
@@ -168,18 +173,24 @@ class SetsidManager(ProcessManager):
             time.sleep(1)  # Give process time to spawn
 
             # Find the antnode process by command line
-            for proc in psutil.process_iter(['pid', 'cmdline']):
+            for proc in psutil.process_iter(["pid", "cmdline"]):
                 try:
-                    cmdline = proc.info['cmdline']
-                    if cmdline and 'antnode' in cmdline[0] and str(node.port) in ' '.join(cmdline):
-                        pid = proc.info['pid']
+                    cmdline = proc.info["cmdline"]
+                    if (
+                        cmdline
+                        and "antnode" in cmdline[0]
+                        and str(node.port) in " ".join(cmdline)
+                    ):
+                        pid = proc.info["pid"]
                         self._write_pid_file(node, pid)
                         logging.info(f"Node {node.id} started with PID {pid}")
                         break
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     continue
             else:
-                logging.warning(f"Could not find PID for node {node.id}, using setsid PID")
+                logging.warning(
+                    f"Could not find PID for node {node.id}, using setsid PID"
+                )
                 self._write_pid_file(node, process.pid)
 
         except (subprocess.SubprocessError, OSError) as err:
@@ -316,6 +327,25 @@ class SetsidManager(ProcessManager):
             return False
 
         return True
+
+    def survey_nodes(self, machine_config) -> list:
+        """
+        Survey all setsid-managed antnode processes.
+
+        Setsid nodes are typically not used for migration scenarios.
+        This returns an empty list as setsid processes are created
+        fresh by WNM and don't pre-exist.
+
+        Args:
+            machine_config: Machine configuration object
+
+        Returns:
+            Empty list (setsid nodes don't pre-exist for migration)
+        """
+        logging.info(
+            "Setsid survey not implemented (setsid nodes created fresh by WNM)"
+        )
+        return []
 
     def _set_node_status(self, node_id: int, status: str):
         """Helper to update node status in database"""

@@ -129,6 +129,26 @@ class ProcessManager(ABC):
         """
         pass
 
+    @abstractmethod
+    def survey_nodes(self, machine_config) -> list:
+        """
+        Survey all nodes managed by this process manager.
+
+        This is used during database initialization/rebuild to discover
+        existing nodes by scanning the manager's configuration directory.
+        Each manager handles its own path logic internally.
+
+        The database is the source of truth for regular operations.
+        This method is ONLY used for initialization and migration.
+
+        Args:
+            machine_config: Machine configuration object
+
+        Returns:
+            List of node dictionaries ready for database insertion
+        """
+        pass
+
     def enable_firewall_port(
         self, port: int, protocol: str = "udp", comment: str = None
     ) -> bool:

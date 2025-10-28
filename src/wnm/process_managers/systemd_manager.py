@@ -15,6 +15,12 @@ from wnm.common import DEAD, RESTARTING, RUNNING, STOPPED, UPGRADING
 from wnm.config import BOOTSTRAP_CACHE_DIR, LOG_DIR
 from wnm.models import Node
 from wnm.process_managers.base import NodeProcess, ProcessManager
+from wnm.utils import (
+    get_antnode_version,
+    get_node_age,
+    read_node_metadata,
+    read_node_metrics,
+)
 
 
 class SystemdManager(ProcessManager):
@@ -83,9 +89,7 @@ class SystemdManager(ProcessManager):
             return False
 
         # Build systemd service unit
-        env_string = (
-            f'Environment="{node.environment}"' if node.environment else ""
-        )
+        env_string = f'Environment="{node.environment}"' if node.environment else ""
         binary_in_node_dir = f"{node.root_dir}/antnode"
 
         service_content = f"""[Unit]
@@ -258,7 +262,9 @@ Restart=always
             if not os.path.isdir(node.root_dir):
                 status = DEAD
 
-            return NodeProcess(node_id=node.id, pid=pid if pid > 0 else None, status=status)
+            return NodeProcess(
+                node_id=node.id, pid=pid if pid > 0 else None, status=status
+            )
 
         except (subprocess.CalledProcessError, ValueError, KeyError) as err:
             logging.error(f"Failed to get node status: {err}")
@@ -310,6 +316,143 @@ Restart=always
             logging.error(f"Failed to reload systemd: {err}")
 
         return True
+
+    def survey_nodes(self, machine_config) -> list:
+        """
+        Survey all systemd-managed antnode services.
+
+        Scans /etc/systemd/system for antnode*.service files and
+        collects their configuration and current status.
+
+        Args:
+            machine_config: Machine configuration object
+
+        Returns:
+            List of node dictionaries ready for database insertion
+        """
+        systemd_dir = "/etc/systemd/system"
+        service_names = []
+
+        # Scan for antnode service files
+        if os.path.exists(systemd_dir):
+            try:
+                for file in os.listdir(systemd_dir):
+                    if re.match(r"antnode[\d]+\.service", file):
+                        service_names.append(file)
+            except PermissionError as e:
+                logging.error(f"Permission denied reading {systemd_dir}: {e}")
+                return []
+            except Exception as e:
+                logging.error(f"Error listing systemd services: {e}")
+                return []
+
+        if not service_names:
+            logging.info("No systemd antnode services found")
+            return []
+
+        logging.info(f"Found {len(service_names)} systemd services to survey")
+
+        details = []
+        for service_name in service_names:
+            logging.debug(f"{time.strftime('%Y-%m-%d %H:%M')} surveying {service_name}")
+
+            node_id_match = re.findall(r"antnode([\d]+)\.service", service_name)
+            if not node_id_match:
+                logging.info(f"Can't decode {service_name}")
+                continue
+
+            card = {
+                "node_name": node_id_match[0],
+                "service": service_name,
+                "timestamp": int(time.time()),
+                "host": machine_config.host or "127.0.0.1",
+                "method": "systemd",
+                "layout": "1",
+            }
+
+            # Read configuration from systemd service file
+            config = self._read_service_file(service_name, machine_config)
+            card.update(config)
+
+            if not config:
+                logging.warning(f"Could not read config from {service_name}")
+                continue
+
+            # Check if node is running by querying metrics port
+            metadata = read_node_metadata(card["host"], card["metrics_port"])
+
+            if isinstance(metadata, dict) and metadata.get("status") == RUNNING:
+                # Node is running - collect metadata and metrics
+                card.update(metadata)
+                card.update(read_node_metrics(card["host"], card["metrics_port"]))
+            else:
+                # Node is stopped
+                if not os.path.isdir(card.get("root_dir", "")):
+                    card["status"] = DEAD
+                    card["version"] = ""
+                else:
+                    card["status"] = STOPPED
+                    card["version"] = get_antnode_version(card.get("binary", ""))
+                card["peer_id"] = ""
+                card["records"] = 0
+                card["uptime"] = 0
+                card["shunned"] = 0
+
+            card["age"] = get_node_age(card.get("root_dir", ""))
+            card["host"] = machine_config.host  # Ensure we use machine config host
+
+            details.append(card)
+
+        return details
+
+    def _read_service_file(self, service_name: str, machine_config) -> dict:
+        """
+        Read node configuration from a systemd service file.
+
+        Args:
+            service_name: Name of the service file (e.g., "antnode0001.service")
+            machine_config: Machine configuration object
+
+        Returns:
+            Dictionary with node configuration, or empty dict on error
+        """
+        details = {}
+        service_path = f"/etc/systemd/system/{service_name}"
+
+        try:
+            with open(service_path, "r") as file:
+                data = file.read()
+
+            details["id"] = int(re.findall(r"antnode(\d+)", service_name)[0])
+            details["binary"] = re.findall(r"ExecStart=([^ ]+)", data)[0]
+            details["user"] = re.findall(r"User=(\w+)", data)[0]
+            details["root_dir"] = re.findall(r"--root-dir ([\w\/]+)", data)[0]
+            details["port"] = int(re.findall(r"--port (\d+)", data)[0])
+            details["metrics_port"] = int(
+                re.findall(r"--metrics-server-port (\d+)", data)[0]
+            )
+            details["wallet"] = re.findall(r"--rewards-address ([^ ]+)", data)[0]
+            details["network"] = re.findall(r"--rewards-address [^ ]+ ([\w\-]+)", data)[
+                0
+            ]
+
+            # Check for IP listen address
+            ip_matches = re.findall(r"--ip ([^ ]+)", data)
+            if ip_matches:
+                ip = ip_matches[0]
+                # If wildcard listen address, use default
+                details["host"] = machine_config.host if ip == "0.0.0.0" else ip
+            else:
+                details["host"] = machine_config.host
+
+            # Check for environment variables
+            env_matches = re.findall(r'Environment="(.+)"', data)
+            details["environment"] = env_matches[0] if env_matches else ""
+
+        except Exception as e:
+            logging.debug(f"Error reading service file {service_path}: {e}")
+
+        return details
 
     def _set_node_status(self, node_id: int, status: str):
         """Helper to update node status in database"""

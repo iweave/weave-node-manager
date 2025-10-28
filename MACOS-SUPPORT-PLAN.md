@@ -881,28 +881,31 @@ Based on dependencies and risk:
    - Tests: 88 passed on macOS, 88 passed on Linux (no regressions)
    - **Duration:** 1 day (faster than 3-day estimate)
 
-3. ✅ **Phase 1 (Launchd Manager)** - Core functionality
-   - Implement LaunchctlManager
-   - Update factory to use it
-   - **Duration:** 1 week
+3. ✅ **Phase 1 (Launchd Manager)** - COMPLETED 2025-10-27
+   - Implemented LaunchctlManager (416 lines)
+   - Updated factory to use "launchctl" for Darwin
+   - Added 13 comprehensive tests (all passing)
+   - Binary management with per-node copies
+   - **Duration:** 1 day (faster than 1-week estimate)
 
-4. ✅ **Phase 2 (Null Firewall)** - Verify existing code
-   - Confirm factory returns "null" for Darwin
-   - Test with NullFirewallManager
-   - **Duration:** 1 day
+4. ✅ **Phase 2 (Null Firewall)** - COMPLETED (already working)
+   - Confirmed factory returns "null" for Darwin
+   - Tested with NullFirewallManager
+   - No firewall errors on macOS
+   - **Duration:** Verification only
 
-5. ✅ **Phase 5 (Refactor utils.py)** - Cleanup
+5. **Phase 5 (Refactor utils.py)** - Cleanup (NEXT)
    - Remove systemd/ufw direct calls
    - Use manager abstractions
    - **Duration:** 1 week
 
-6. ✅ **Phase 6 (Testing Infrastructure)** - Quality assurance
+6. **Phase 6 (Testing Infrastructure)** - Quality assurance
    - Add platform-specific fixtures
    - Create test runner scripts
    - Add GitHub Actions
    - **Duration:** 3 days
 
-7. ✅ **Phase 7 (Documentation)** - User communication
+7. **Phase 7 (Documentation)** - User communication
    - Update README, CLAUDE.md
    - Create PLATFORM-SUPPORT.md
    - **Duration:** 1 day
@@ -915,17 +918,17 @@ Based on dependencies and risk:
 
 ### Phase Completion Criteria
 
-**Phase 1: Launchd Manager**
-- [ ] LaunchctlManager implements all ProcessManager methods
-- [ ] Can create/start/stop/restart nodes on macOS
-- [ ] Plist files generated correctly with --relay flag and evm-arbitrum-one parameter
-- [ ] Each node has its own antnode binary copy in {root_dir}/antnode
-- [ ] Unit tests with mocked launchctl commands (70%+ coverage)
+**Phase 1: Launchd Manager** ✅ COMPLETED
+- [x] LaunchctlManager implements all ProcessManager methods
+- [x] Can create/start/stop/restart nodes on macOS
+- [x] Plist files generated correctly with --relay flag and evm-arbitrum-one parameter
+- [x] Each node has its own antnode binary copy in {root_dir}/antnode
+- [x] Unit tests with mocked launchctl commands (70%+ coverage)
 
-**Phase 2: Null Firewall**
-- [ ] Factory returns "null" for macOS
-- [ ] NullFirewall used successfully in integration tests
-- [ ] No firewall errors on macOS
+**Phase 2: Null Firewall** ✅ COMPLETED
+- [x] Factory returns "null" for macOS
+- [x] NullFirewall used successfully in integration tests
+- [x] No firewall errors on macOS
 
 **Phase 3: Platform-Agnostic Paths** ✅ COMPLETED
 - [x] User-level paths work on macOS and Linux
