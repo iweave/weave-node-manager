@@ -117,8 +117,9 @@ class TestForcedRemoveAction:
 
         result = executor._force_remove_node("antnode0001", dry_run=False)
 
-        assert result["status"] == "removed-node"
-        assert result["node"] == "antnode0001"
+        assert result["status"] == "removed-nodes"
+        assert result["removed_count"] == 1
+        assert "antnode0001" in result["removed_nodes"]
         mock_manager.remove_node.assert_called_once()
 
         # Verify node is removed from database
@@ -171,8 +172,11 @@ class TestForcedRemoveAction:
 
         result = executor._force_remove_node("antnode9999", dry_run=False)
 
-        assert result["status"] == "error"
-        assert "not found" in result["message"].lower()
+        assert result["status"] == "removed-nodes"
+        assert result["removed_count"] == 0
+        assert result["failed_count"] == 1
+        assert result["failed_nodes"][0]["service"] == "antnode9999"
+        assert "not found" in result["failed_nodes"][0]["error"]
 
 
 class TestForcedUpgradeAction:
@@ -195,8 +199,9 @@ class TestForcedUpgradeAction:
 
         result = executor._force_upgrade_node("antnode0001", metrics, dry_run=False)
 
-        assert result["status"] == "upgraded-node"
-        assert result["node"] == "antnode0001"
+        assert result["status"] == "upgraded-nodes"
+        assert result["upgraded_count"] == 1
+        assert "antnode0001" in result["upgraded_nodes"]
         mock_upgrade.assert_called_once()
 
     @patch("wnm.executor.ActionExecutor._upgrade_node_binary")
@@ -216,8 +221,9 @@ class TestForcedUpgradeAction:
 
         result = executor._force_upgrade_node("antnode0001", metrics, dry_run=False)
 
-        assert result["status"] == "upgraded-node"
-        assert result["node"] == "antnode0001"
+        assert result["status"] == "upgraded-nodes"
+        assert result["upgraded_count"] == 1
+        assert "antnode0001" in result["upgraded_nodes"]
         mock_upgrade.assert_called_once()
 
     @patch("wnm.executor.ActionExecutor._upgrade_node_binary")
@@ -237,8 +243,9 @@ class TestForcedUpgradeAction:
 
         result = executor._force_upgrade_node("antnode0001", metrics, dry_run=False)
 
-        assert result["status"] == "upgraded-node"
-        assert result["node"] == "antnode0001"
+        assert result["status"] == "upgraded-nodes"
+        assert result["upgraded_count"] == 1
+        assert "antnode0001" in result["upgraded_nodes"]
 
     @patch("wnm.executor.ActionExecutor._upgrade_node_binary")
     def test_force_upgrade_oldest_running_node(
@@ -291,8 +298,9 @@ class TestForcedStopAction:
 
         result = executor._force_stop_node("antnode0001", dry_run=False)
 
-        assert result["status"] == "stopped-node"
-        assert result["node"] == "antnode0001"
+        assert result["status"] == "stopped-nodes"
+        assert result["stopped_count"] == 1
+        assert "antnode0001" in result["stopped_nodes"]
         mock_manager.stop_node.assert_called_once()
 
         # Verify node status updated to STOPPED
@@ -315,8 +323,9 @@ class TestForcedStopAction:
 
         result = executor._force_stop_node("antnode0001", dry_run=False)
 
-        assert result["status"] == "stopped-node"
-        assert result["node"] == "antnode0001"
+        assert result["status"] == "stopped-nodes"
+        assert result["stopped_count"] == 1
+        assert "antnode0001" in result["stopped_nodes"]
 
     @patch("wnm.executor.ActionExecutor._get_process_manager")
     def test_force_stop_youngest_running_node(
@@ -361,8 +370,9 @@ class TestForcedStartAction:
 
         result = executor._force_start_node("antnode0001", metrics, dry_run=False)
 
-        assert result["status"] == "started-node"
-        assert result["node"] == "antnode0001"
+        assert result["status"] == "started-nodes"
+        assert result["started_count"] == 1
+        assert "antnode0001" in result["started_nodes"]
         mock_manager.start_node.assert_called_once()
 
     @patch("wnm.executor.ActionExecutor._get_process_manager")
@@ -387,8 +397,9 @@ class TestForcedStartAction:
 
         result = executor._force_start_node("antnode0001", metrics, dry_run=False)
 
-        assert result["status"] == "started-node"
-        assert result["node"] == "antnode0001"
+        assert result["status"] == "started-nodes"
+        assert result["started_count"] == 1
+        assert "antnode0001" in result["started_nodes"]
 
     def test_force_start_already_running_node(self, db_session, node):
         """Test forced start of already running node returns error"""
@@ -402,8 +413,11 @@ class TestForcedStartAction:
 
         result = executor._force_start_node("antnode0001", metrics, dry_run=False)
 
-        assert result["status"] == "error"
-        assert "already running" in result["message"].lower()
+        assert result["status"] == "started-nodes"
+        assert result["started_count"] == 0
+        assert result["failed_count"] == 1
+        assert result["failed_nodes"][0]["service"] == "antnode0001"
+        assert "already running" in result["failed_nodes"][0]["error"]
 
     @patch("wnm.executor.ActionExecutor._upgrade_node_binary")
     @patch("wnm.executor.get_antnode_version")
@@ -425,8 +439,9 @@ class TestForcedStartAction:
 
         result = executor._force_start_node("antnode0001", metrics, dry_run=False)
 
-        assert result["status"] == "upgrading-node"
-        assert result["node"] == "antnode0001"
+        assert result["status"] == "started-nodes"
+        assert result["upgraded_count"] == 1
+        assert "antnode0001" in result["upgraded_nodes"]
         mock_upgrade.assert_called_once()
 
     @patch("wnm.executor.ActionExecutor._get_process_manager")
@@ -478,8 +493,11 @@ class TestForcedStartAction:
 
         result = executor._force_start_node("antnode9999", metrics, dry_run=False)
 
-        assert result["status"] == "error"
-        assert "not found" in result["message"].lower()
+        assert result["status"] == "started-nodes"
+        assert result["started_count"] == 0
+        assert result["failed_count"] == 1
+        assert result["failed_nodes"][0]["service"] == "antnode9999"
+        assert "not found" in result["failed_nodes"][0]["error"]
 
     @patch("wnm.executor.get_antnode_version")
     def test_force_start_dry_run(self, mock_version, db_session, node):
@@ -497,8 +515,9 @@ class TestForcedStartAction:
 
         result = executor._force_start_node("antnode0001", metrics, dry_run=True)
 
-        assert result["status"] == "started-node"
-        assert result["node"] == "antnode0001"
+        assert result["status"] == "start-dryrun"
+        assert result["started_count"] == 1
+        assert "antnode0001" in result["started_nodes"]
 
 
 class TestForcedDisableAction:
@@ -520,8 +539,9 @@ class TestForcedDisableAction:
 
         result = executor._force_disable_node("antnode0001", dry_run=False)
 
-        assert result["status"] == "disabled-node"
-        assert result["node"] == "antnode0001"
+        assert result["status"] == "disabled-nodes"
+        assert result["disabled_count"] == 1
+        assert "antnode0001" in result["disabled_nodes"]
         mock_manager.stop_node.assert_called_once()
 
         # Verify node status updated to DISABLED
@@ -543,8 +563,9 @@ class TestForcedDisableAction:
 
         result = executor._force_disable_node("antnode0001", dry_run=False)
 
-        assert result["status"] == "disabled-node"
-        assert result["node"] == "antnode0001"
+        assert result["status"] == "disabled-nodes"
+        assert result["disabled_count"] == 1
+        assert "antnode0001" in result["disabled_nodes"]
         # Should not call stop_node since it's already stopped
         mock_manager.stop_node.assert_not_called()
 
@@ -567,8 +588,143 @@ class TestForcedDisableAction:
 
         result = executor._force_disable_node("antnode9999", dry_run=False)
 
-        assert result["status"] == "error"
-        assert "not found" in result["message"].lower()
+        assert result["status"] == "disabled-nodes"
+        assert result["disabled_count"] == 0
+        assert result["failed_count"] == 1
+        assert result["failed_nodes"][0]["service"] == "antnode9999"
+        assert "not found" in result["failed_nodes"][0]["error"]
+
+
+class TestCommaSeparatedActions:
+    """Test forced actions with comma-separated node names"""
+
+    @patch("wnm.executor.ActionExecutor._get_process_manager")
+    def test_force_remove_multiple_nodes(self, mock_get_manager, db_session, multiple_nodes):
+        """Test forced remove with comma-separated node names"""
+        mock_manager = MagicMock()
+        mock_manager.remove_node.return_value = True
+        mock_get_manager.return_value = mock_manager
+
+        executor = ActionExecutor(lambda: db_session)
+
+        result = executor._force_remove_node("antnode0001,antnode0003,antnode0005", dry_run=False)
+
+        assert result["status"] == "removed-nodes"
+        assert result["removed_count"] == 3
+        assert "antnode0001" in result["removed_nodes"]
+        assert "antnode0003" in result["removed_nodes"]
+        assert "antnode0005" in result["removed_nodes"]
+
+    @patch("wnm.executor.ActionExecutor._upgrade_node_binary")
+    def test_force_upgrade_multiple_nodes(self, mock_upgrade, db_session, multiple_nodes):
+        """Test forced upgrade with comma-separated node names"""
+        mock_upgrade.return_value = True
+
+        executor = ActionExecutor(lambda: db_session)
+        metrics = {"antnode_version": "0.5.0"}
+
+        result = executor._force_upgrade_node("antnode0001,antnode0002", metrics, dry_run=False)
+
+        assert result["status"] == "upgraded-nodes"
+        assert result["upgraded_count"] == 2
+        assert "antnode0001" in result["upgraded_nodes"]
+        assert "antnode0002" in result["upgraded_nodes"]
+
+    @patch("wnm.executor.ActionExecutor._get_process_manager")
+    def test_force_stop_multiple_nodes(self, mock_get_manager, db_session, multiple_nodes):
+        """Test forced stop with comma-separated node names"""
+        mock_manager = MagicMock()
+        mock_manager.stop_node.return_value = True
+        mock_get_manager.return_value = mock_manager
+
+        executor = ActionExecutor(lambda: db_session)
+
+        result = executor._force_stop_node("antnode0001,antnode0002", dry_run=False)
+
+        assert result["status"] == "stopped-nodes"
+        assert result["stopped_count"] == 2
+        assert "antnode0001" in result["stopped_nodes"]
+        assert "antnode0002" in result["stopped_nodes"]
+
+    @patch("wnm.executor.ActionExecutor._get_process_manager")
+    @patch("wnm.executor.get_antnode_version")
+    def test_force_start_multiple_nodes(self, mock_version, mock_get_manager, db_session, multiple_nodes):
+        """Test forced start with comma-separated node names"""
+        # Stop some nodes first and set their versions
+        multiple_nodes[0].status = STOPPED
+        multiple_nodes[0].version = "0.4.6"
+        multiple_nodes[1].status = STOPPED
+        multiple_nodes[1].version = "0.4.6"
+        db_session.commit()
+
+        mock_version.return_value = "0.4.6"
+        mock_manager = MagicMock()
+        mock_manager.start_node.return_value = True
+        mock_get_manager.return_value = mock_manager
+
+        executor = ActionExecutor(lambda: db_session)
+        metrics = {"antnode_version": "0.4.6"}
+
+        result = executor._force_start_node("antnode0001,antnode0002", metrics, dry_run=False)
+
+        assert result["status"] == "started-nodes"
+        assert result["started_count"] == 2
+        assert "antnode0001" in result["started_nodes"]
+        assert "antnode0002" in result["started_nodes"]
+
+    @patch("wnm.executor.ActionExecutor._get_process_manager")
+    def test_force_disable_multiple_nodes(self, mock_get_manager, db_session, multiple_nodes):
+        """Test forced disable with comma-separated node names"""
+        mock_manager = MagicMock()
+        mock_manager.stop_node.return_value = True
+        mock_get_manager.return_value = mock_manager
+
+        executor = ActionExecutor(lambda: db_session)
+
+        result = executor._force_disable_node("antnode0001,antnode0002", dry_run=False)
+
+        assert result["status"] == "disabled-nodes"
+        assert result["disabled_count"] == 2
+        assert "antnode0001" in result["disabled_nodes"]
+        assert "antnode0002" in result["disabled_nodes"]
+
+    @patch("wnm.executor.ActionExecutor._get_process_manager")
+    def test_comma_separated_with_spaces(self, mock_get_manager, db_session, multiple_nodes):
+        """Test comma-separated names with spaces are handled correctly"""
+        mock_manager = MagicMock()
+        mock_manager.remove_node.return_value = True
+        mock_get_manager.return_value = mock_manager
+
+        executor = ActionExecutor(lambda: db_session)
+
+        # Test with spaces around commas
+        result = executor._force_remove_node("antnode0001 , antnode0003 , antnode0005", dry_run=False)
+
+        assert result["status"] == "removed-nodes"
+        assert result["removed_count"] == 3
+        assert "antnode0001" in result["removed_nodes"]
+        assert "antnode0003" in result["removed_nodes"]
+        assert "antnode0005" in result["removed_nodes"]
+
+    @patch("wnm.executor.ActionExecutor._get_process_manager")
+    def test_comma_separated_partial_failure(self, mock_get_manager, db_session, multiple_nodes):
+        """Test comma-separated actions handle partial failures correctly"""
+        mock_manager = MagicMock()
+        mock_manager.remove_node.return_value = True
+        mock_get_manager.return_value = mock_manager
+
+        executor = ActionExecutor(lambda: db_session)
+
+        # Mix of existing and non-existing nodes
+        result = executor._force_remove_node("antnode0001,antnode9999,antnode0003", dry_run=False)
+
+        assert result["status"] == "removed-nodes"
+        assert result["removed_count"] == 2
+        assert "antnode0001" in result["removed_nodes"]
+        assert "antnode0003" in result["removed_nodes"]
+        assert result["failed_count"] == 1
+        assert result["failed_nodes"][0]["service"] == "antnode9999"
+        assert "not found" in result["failed_nodes"][0]["error"]
 
 
 class TestForcedTeardownAction:
