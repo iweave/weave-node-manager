@@ -543,7 +543,7 @@ class ActionExecutor:
         """Execute a forced action bypassing the decision engine.
 
         Args:
-            action_type: Type of action ('add', 'remove', 'upgrade', 'stop', 'disable', 'teardown')
+            action_type: Type of action ('add', 'remove', 'upgrade', 'start', 'stop', 'disable', 'teardown')
             machine_config: Machine configuration
             metrics: Current system metrics
             service_name: Optional node name for targeted operations
@@ -558,6 +558,8 @@ class ActionExecutor:
             return self._force_remove_node(service_name, dry_run)
         elif action_type == "upgrade":
             return self._force_upgrade_node(service_name, metrics, dry_run)
+        elif action_type == "start":
+            return self._force_start_node(service_name, metrics, dry_run)
         elif action_type == "stop":
             return self._force_stop_node(service_name, dry_run)
         elif action_type == "disable":
@@ -695,6 +697,75 @@ class ActionExecutor:
                 manager.stop_node(node)
                 self._set_node_status(node.id, STOPPED)
             return {"status": "stopped-node", "node": node.node_name}
+
+    def _force_start_node(
+        self, service_name: Optional[str], metrics: Dict[str, Any], dry_run: bool
+    ) -> Dict[str, Any]:
+        """Force start a node (specific or oldest stopped)."""
+        if service_name:
+            # Start specific node
+            node = self._get_node_by_name(service_name)
+            if not node:
+                return {"status": "error", "message": f"Node not found: {service_name}"}
+
+            if node.status == RUNNING:
+                return {"status": "error", "message": f"Node {service_name} is already running"}
+
+            logging.info(f"Forced action: Starting node {service_name}")
+            if dry_run:
+                logging.warning(f"DRYRUN: Start node {service_name}")
+            else:
+                # Check if node needs upgrade
+                if not node.version:
+                    node.version = get_antnode_version(node.binary)
+
+                # If the stopped version is old, upgrade it (which also starts it)
+                if Version(metrics["antnode_version"]) > Version(node.version):
+                    if not self._upgrade_node_binary(node, metrics["antnode_version"]):
+                        return {"status": "failed-upgrade", "node": service_name}
+                    return {"status": "upgrading-node", "node": service_name}
+                else:
+                    manager = self._get_process_manager(node)
+                    if manager.start_node(node):
+                        self._set_node_status(node.id, RESTARTING)
+                        return {"status": "started-node", "node": service_name}
+                    else:
+                        return {"status": "failed-start-node", "node": service_name}
+            return {"status": "started-node", "node": service_name}
+        else:
+            # Start oldest stopped node (default behavior)
+            logging.info("Forced action: Starting oldest stopped node")
+            with self.S() as session:
+                oldest = session.execute(
+                    select(Node)
+                    .where(Node.status == STOPPED)
+                    .order_by(Node.age.asc())
+                ).first()
+
+            if not oldest:
+                return {"status": "error", "message": "No stopped nodes to start"}
+
+            node = oldest[0]
+            if dry_run:
+                logging.warning(f"DRYRUN: Start oldest stopped node {node.node_name}")
+            else:
+                # Check if node needs upgrade
+                if not node.version:
+                    node.version = get_antnode_version(node.binary)
+
+                # If the stopped version is old, upgrade it (which also starts it)
+                if Version(metrics["antnode_version"]) > Version(node.version):
+                    if not self._upgrade_node_binary(node, metrics["antnode_version"]):
+                        return {"status": "failed-upgrade", "node": node.node_name}
+                    return {"status": "upgrading-node", "node": node.node_name}
+                else:
+                    manager = self._get_process_manager(node)
+                    if manager.start_node(node):
+                        self._set_node_status(node.id, RESTARTING)
+                        return {"status": "started-node", "node": node.node_name}
+                    else:
+                        return {"status": "failed-start-node", "node": node.node_name}
+            return {"status": "started-node", "node": node.node_name}
 
     def _force_disable_node(
         self, service_name: Optional[str], dry_run: bool

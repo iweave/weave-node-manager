@@ -336,6 +336,171 @@ class TestForcedStopAction:
         assert result["node"] == "test005"
 
 
+class TestForcedStartAction:
+    """Test forced start node action"""
+
+    @patch("wnm.executor.ActionExecutor._get_process_manager")
+    @patch("wnm.executor.get_antnode_version")
+    def test_force_start_specific_stopped_node(
+        self, mock_version, mock_get_manager, db_session, node
+    ):
+        """Test forced start of specific stopped node"""
+        node.id = 1
+        node.node_name = "0001"
+        node.status = STOPPED
+        node.version = "0.4.6"
+        db_session.commit()
+
+        mock_version.return_value = "0.4.6"
+        mock_manager = MagicMock()
+        mock_manager.start_node.return_value = True
+        mock_get_manager.return_value = mock_manager
+
+        executor = ActionExecutor(lambda: db_session)
+        metrics = {"antnode_version": "0.4.6"}
+
+        result = executor._force_start_node("antnode0001", metrics, dry_run=False)
+
+        assert result["status"] == "started-node"
+        assert result["node"] == "antnode0001"
+        mock_manager.start_node.assert_called_once()
+
+    @patch("wnm.executor.ActionExecutor._get_process_manager")
+    @patch("wnm.executor.get_antnode_version")
+    def test_force_start_specific_disabled_node(
+        self, mock_version, mock_get_manager, db_session, node
+    ):
+        """Test forced start works on disabled nodes"""
+        node.id = 1
+        node.node_name = "0001"
+        node.status = DISABLED
+        node.version = "0.4.6"
+        db_session.commit()
+
+        mock_version.return_value = "0.4.6"
+        mock_manager = MagicMock()
+        mock_manager.start_node.return_value = True
+        mock_get_manager.return_value = mock_manager
+
+        executor = ActionExecutor(lambda: db_session)
+        metrics = {"antnode_version": "0.4.6"}
+
+        result = executor._force_start_node("antnode0001", metrics, dry_run=False)
+
+        assert result["status"] == "started-node"
+        assert result["node"] == "antnode0001"
+
+    def test_force_start_already_running_node(self, db_session, node):
+        """Test forced start of already running node returns error"""
+        node.id = 1
+        node.node_name = "0001"
+        node.status = RUNNING
+        db_session.commit()
+
+        executor = ActionExecutor(lambda: db_session)
+        metrics = {"antnode_version": "0.4.6"}
+
+        result = executor._force_start_node("antnode0001", metrics, dry_run=False)
+
+        assert result["status"] == "error"
+        assert "already running" in result["message"].lower()
+
+    @patch("wnm.executor.ActionExecutor._upgrade_node_binary")
+    @patch("wnm.executor.get_antnode_version")
+    def test_force_start_with_upgrade(
+        self, mock_version, mock_upgrade, db_session, node
+    ):
+        """Test forced start upgrades node if version is old"""
+        node.id = 1
+        node.node_name = "0001"
+        node.status = STOPPED
+        node.version = "0.4.5"
+        db_session.commit()
+
+        mock_version.return_value = "0.4.5"
+        mock_upgrade.return_value = True
+
+        executor = ActionExecutor(lambda: db_session)
+        metrics = {"antnode_version": "0.4.6"}
+
+        result = executor._force_start_node("antnode0001", metrics, dry_run=False)
+
+        assert result["status"] == "upgrading-node"
+        assert result["node"] == "antnode0001"
+        mock_upgrade.assert_called_once()
+
+    @patch("wnm.executor.ActionExecutor._get_process_manager")
+    @patch("wnm.executor.get_antnode_version")
+    def test_force_start_oldest_stopped_node(
+        self, mock_version, mock_get_manager, db_session, multiple_nodes
+    ):
+        """Test forced start without service_name starts oldest stopped node (lowest age)"""
+        # Stop some nodes and set their versions to match metrics
+        multiple_nodes[0].status = STOPPED  # test001, age=1000000
+        multiple_nodes[0].version = "0.4.6"
+        multiple_nodes[2].status = STOPPED  # test003, age=1003000
+        multiple_nodes[2].version = "0.4.6"
+        db_session.commit()
+
+        mock_version.return_value = "0.4.6"
+        mock_manager = MagicMock()
+        mock_manager.start_node.return_value = True
+        mock_get_manager.return_value = mock_manager
+
+        executor = ActionExecutor(lambda: db_session)
+        metrics = {"antnode_version": "0.4.6"}
+
+        result = executor._force_start_node(None, metrics, dry_run=False)
+
+        assert result["status"] == "started-node"
+        # Oldest stopped node (lowest age) should be started
+        assert result["node"] == "test001"
+
+    def test_force_start_no_stopped_nodes(self, db_session, multiple_nodes):
+        """Test forced start without service_name when no stopped nodes exist"""
+        # All nodes running
+        for node in multiple_nodes:
+            node.status = RUNNING
+        db_session.commit()
+
+        executor = ActionExecutor(lambda: db_session)
+        metrics = {"antnode_version": "0.4.6"}
+
+        result = executor._force_start_node(None, metrics, dry_run=False)
+
+        assert result["status"] == "error"
+        assert "no stopped nodes" in result["message"].lower()
+
+    def test_force_start_node_not_found(self, db_session):
+        """Test forced start of non-existent node"""
+        executor = ActionExecutor(lambda: db_session)
+        metrics = {"antnode_version": "0.4.6"}
+
+        result = executor._force_start_node("antnode9999", metrics, dry_run=False)
+
+        assert result["status"] == "error"
+        assert "not found" in result["message"].lower()
+
+    @patch("wnm.executor.get_antnode_version")
+    def test_force_start_dry_run(self, mock_version, db_session, node):
+        """Test forced start in dry-run mode"""
+        node.id = 1
+        node.node_name = "0001"
+        node.status = STOPPED
+        node.version = "0.4.6"
+        db_session.commit()
+
+        mock_version.return_value = "0.4.6"
+
+        executor = ActionExecutor(lambda: db_session)
+        metrics = {"antnode_version": "0.4.6"}
+
+        result = executor._force_start_node("antnode0001", metrics, dry_run=True)
+
+        assert result["status"] == "started-node"
+        assert result["node"] == "antnode0001"
+
+
 class TestForcedDisableAction:
     """Test forced disable node action"""
 
@@ -527,6 +692,19 @@ class TestForcedActionRouter:
 
         assert result["status"] == "upgraded-node"
         mock_upgrade.assert_called_once_with("antnode0002", {}, False)
+
+    @patch("wnm.executor.ActionExecutor._force_start_node")
+    def test_route_start_action(self, mock_start, db_session):
+        """Test routing to start action"""
+        mock_start.return_value = {"status": "started-node"}
+        executor = ActionExecutor(lambda: db_session)
+
+        result = executor.execute_forced_action(
+            "start", {}, {}, service_name="antnode0003", dry_run=False
+        )
+
+        assert result["status"] == "started-node"
+        mock_start.assert_called_once_with("antnode0003", {}, False)
 
     @patch("wnm.executor.ActionExecutor._force_stop_node")
     def test_route_stop_action(self, mock_stop, db_session):
