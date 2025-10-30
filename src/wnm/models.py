@@ -345,6 +345,8 @@ class Node(Base):
     uptime: Mapped[int] = mapped_column(Integer)
     # Number of shuns
     shunned: Mapped[int] = mapped_column(Integer)
+    # Number of connected peers as reported by node
+    connected_peers: Mapped[int] = mapped_column(Integer, default=0)
     # Timestamp of node first launch
     age: Mapped[int] = mapped_column(Integer)
     # Host ip for data
@@ -379,11 +381,12 @@ class Node(Base):
         records,
         uptime,
         shunned,
-        age,
-        host,
-        method,
-        layout,
-        environment,
+        connected_peers=0,
+        age=None,
+        host=None,
+        method=None,
+        layout=None,
+        environment=None,
         machine_id=1,
         container_id=None,
         manager_type="systemd",
@@ -405,6 +408,7 @@ class Node(Base):
         self.records = records
         self.uptime = uptime
         self.shunned = shunned
+        self.connected_peers = connected_peers
         self.age = age
         self.host = host
         self.method = method
@@ -419,7 +423,7 @@ class Node(Base):
             f'Node({self.id},"{self.node_name}","{self.service}","{self.user},"{self.binary}"'
             + f',"{self.version}","{self.root_dir}",{self.port},{self.metrics_port}'
             + f',"{self.network}","{self.wallet}","{self.peer_id}","{self.status}",{self.timestamp}'
-            + f',{self.records},{self.uptime},{self.shunned},{self.age},"{self.host}"'
+            + f',{self.records},{self.uptime},{self.shunned},{self.connected_peers},{self.age},"{self.host}"'
             + f',{self.method},{self.layout},"{self.environment}"'
             + f',{self.machine_id},{self.container_id},"{self.manager_type}")'
         )
@@ -443,6 +447,7 @@ class Node(Base):
             "records": self.records,
             "uptime": self.uptime,
             "shunned": self.shunned,
+            "connected_peers": self.connected_peers,
             "age": self.age,
             "host": f"{self.host}",
             "method": f"{self.method}",

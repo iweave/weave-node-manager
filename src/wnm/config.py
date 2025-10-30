@@ -188,13 +188,26 @@ def load_config():
     c.add(
         "--force_action",
         env_var="FORCE_ACTION",
-        help="Force an action: add, remove, upgrade, start, stop, disable, teardown",
-        choices=["add", "remove", "upgrade", "start", "stop", "disable", "teardown"],
+        help="Force an action: add, remove, upgrade, start, stop, disable, teardown, survey",
+        choices=["add", "remove", "upgrade", "start", "stop", "disable", "teardown", "survey"],
     )
     c.add(
         "--service_name",
         env_var="SERVICE_NAME",
-        help="Node name for targeted operations (e.g., antnode0001)",
+        help="Node name for targeted operations or comma-separated list for reports (e.g., antnode0001,antnode0003)",
+    )
+    c.add(
+        "--report",
+        env_var="REPORT",
+        help="Generate a report: node-status, node-status-details",
+        choices=["node-status", "node-status-details"],
+    )
+    c.add(
+        "--report_format",
+        env_var="REPORT_FORMAT",
+        help="Report output format: text or json (default: text)",
+        choices=["text", "json"],
+        default="text",
     )
 
     options = c.parse_known_args()[0] or []

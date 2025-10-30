@@ -85,12 +85,19 @@ def read_node_metrics(host, port):
                 or [0]
             )[0]
         )
+        metrics["connected_peers"] = int(
+            (
+                re.findall(r"ant_networking_connected_peers ([\d]+)", response.text)
+                or [0]
+            )[0]
+        )
     except requests.exceptions.ConnectionError:
         logging.debug("Connection Refused on port: {0}:{1}".format(host, str(port)))
         metrics["status"] = STOPPED
         metrics["uptime"] = 0
         metrics["records"] = 0
         metrics["shunned"] = 0
+        metrics["connected_peers"] = 0
     except Exception as error:
         template = "in:RNM - An exception of type {0} occurred. Arguments:\n{1!r}"
         message = template.format(type(error).__name__, error.args)
@@ -99,6 +106,7 @@ def read_node_metrics(host, port):
         metrics["uptime"] = 0
         metrics["records"] = 0
         metrics["shunned"] = 0
+        metrics["connected_peers"] = 0
     return metrics
 
 
@@ -267,6 +275,7 @@ def update_node_from_metrics(S, id, metrics, metadata):
             "uptime": metrics["uptime"],
             "records": metrics["records"],
             "shunned": metrics["shunned"],
+            "connected_peers": metrics["connected_peers"],
             "peer_id": metadata["peer_id"],
         }
         if "version" in metadata:

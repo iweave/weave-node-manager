@@ -175,6 +175,38 @@ def main():
             "Found {counter} nodes configured".format(counter=metrics["total_nodes"])
         )
 
+    # Check for reports
+    if options.report:
+        from wnm.reports import generate_node_status_report, generate_node_status_details_report
+
+        # If survey action is specified, run it first
+        if options.force_action == "survey":
+            logging.info("Running survey before generating report")
+            executor = ActionExecutor(S)
+            survey_result = executor.execute_forced_action(
+                "survey",
+                local_config,
+                metrics,
+                dry_run=options.dry_run,
+            )
+            logging.info(f"Survey result: {survey_result}")
+
+        # Generate the report
+        if options.report == "node-status":
+            report_output = generate_node_status_report(
+                S, options.service_name, options.report_format
+            )
+        elif options.report == "node-status-details":
+            report_output = generate_node_status_details_report(
+                S, options.service_name, options.report_format
+            )
+        else:
+            report_output = f"Unknown report type: {options.report}"
+
+        print(report_output)
+        os.remove(LOCK_FILE)
+        sys.exit(0)
+
     # Check for forced actions
     if options.force_action:
         logging.info(f"Executing forced action: {options.force_action}")

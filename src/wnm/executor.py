@@ -12,7 +12,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from packaging.version import Version
-from sqlalchemy import insert, select, text
+from sqlalchemy import func, insert, select, text
 from sqlalchemy.orm import scoped_session
 
 from wnm.actions import Action, ActionType
@@ -566,6 +566,8 @@ class ActionExecutor:
             return self._force_disable_node(service_name, dry_run)
         elif action_type == "teardown":
             return self._force_teardown_cluster(machine_config, dry_run)
+        elif action_type == "survey":
+            return self._force_survey_nodes(dry_run)
         else:
             return {"status": "error", "message": f"Unknown action type: {action_type}"}
 
@@ -849,3 +851,29 @@ class ActionExecutor:
             "method": "individual-remove",
             "removed_count": removed_count,
         }
+
+    def _force_survey_nodes(self, dry_run: bool) -> Dict[str, Any]:
+        """Force a survey of all nodes to update their status and metrics."""
+        logging.info("Forced action: Surveying all nodes")
+
+        if dry_run:
+            logging.warning("DRYRUN: Survey all nodes")
+            # Get count of non-disabled nodes
+            with self.S() as session:
+                from wnm.common import DISABLED
+                node_count = session.execute(
+                    select(func.count(Node.id)).where(Node.status != DISABLED)
+                ).scalar()
+            return {"status": "survey-dryrun", "node_count": node_count}
+
+        # Update all nodes
+        update_nodes(self.S)
+
+        # Get updated count
+        with self.S() as session:
+            from wnm.common import DISABLED
+            node_count = session.execute(
+                select(func.count(Node.id)).where(Node.status != DISABLED)
+            ).scalar()
+
+        return {"status": "survey-complete", "node_count": node_count}
