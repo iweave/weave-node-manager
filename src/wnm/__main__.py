@@ -175,7 +175,20 @@ def main():
             "Found {counter} nodes configured".format(counter=metrics["total_nodes"])
         )
 
-    this_action = choose_action(local_config, metrics, options.dry_run)
+    # Check for forced actions
+    if options.force_action:
+        logging.info(f"Executing forced action: {options.force_action}")
+        executor = ActionExecutor(S)
+        this_action = executor.execute_forced_action(
+            options.force_action,
+            local_config,
+            metrics,
+            service_name=options.service_name,
+            dry_run=options.dry_run,
+        )
+    else:
+        this_action = choose_action(local_config, metrics, options.dry_run)
+
     print("Action:", json.dumps(this_action, indent=2))
 
     os.remove(LOCK_FILE)

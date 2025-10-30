@@ -183,3 +183,21 @@ class ProcessManager(ABC):
             True if port was closed successfully
         """
         return self.firewall.disable_port(port, protocol)
+
+    def teardown_cluster(self) -> bool:
+        """
+        Teardown the entire cluster using manager-specific commands.
+
+        This is an optional method that managers can override to provide
+        efficient bulk teardown operations. If not overridden, returns False
+        to indicate that individual node removal should be used instead.
+
+        Examples:
+            - AntctlManager: Uses 'antctl reset' command
+            - Other managers: Return False to use default individual removal
+
+        Returns:
+            True if cluster was torn down successfully using manager-specific method,
+            False to indicate fallback to individual node removal
+        """
+        return False

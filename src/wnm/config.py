@@ -185,6 +185,17 @@ def load_config():
         env_var="START_ARGS",
         help="Arguments to pass to antnode",
     )
+    c.add(
+        "--force_action",
+        env_var="FORCE_ACTION",
+        help="Force an action: add, remove, upgrade, stop, teardown",
+        choices=["add", "remove", "upgrade", "stop", "teardown"],
+    )
+    c.add(
+        "--service_name",
+        env_var="SERVICE_NAME",
+        help="Node name for targeted operations (e.g., antnode0001)",
+    )
 
     options = c.parse_known_args()[0] or []
     # Return the first result from parse_known_args, ignore unknown options

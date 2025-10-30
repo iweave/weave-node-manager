@@ -9,7 +9,7 @@ import os
 import shutil
 import subprocess
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from packaging.version import Version
 from sqlalchemy import insert, select, text
@@ -18,6 +18,7 @@ from sqlalchemy.orm import scoped_session
 from wnm.actions import Action, ActionType
 from wnm.common import (
     DEAD,
+    DISABLED,
     METRICS_PORT_BASE,
     PORT_MULTIPLIER,
     REMOVING,
@@ -490,3 +491,268 @@ class ActionExecutor:
         else:
             update_nodes(self.S)
         return {"status": "idle"}
+
+    def _parse_node_name(self, service_name: str) -> Optional[int]:
+        """Parse node ID from service name like 'antnode0001'.
+
+        Args:
+            service_name: Node name (e.g., 'antnode0001')
+
+        Returns:
+            Node ID as integer, or None if parsing fails
+        """
+        import re
+        match = re.match(r"antnode(\d+)", service_name)
+        if match:
+            return int(match.group(1))
+        return None
+
+    def _get_node_by_name(self, service_name: str) -> Optional[Node]:
+        """Get node by service name.
+
+        Args:
+            service_name: Node name (e.g., 'antnode0001')
+
+        Returns:
+            Node object or None if not found
+        """
+        node_id = self._parse_node_name(service_name)
+        if node_id is None:
+            logging.error(f"Invalid node name format: {service_name}")
+            return None
+
+        with self.S() as session:
+            result = session.execute(
+                select(Node).where(Node.id == node_id)
+            ).first()
+
+        if result:
+            return result[0]
+        else:
+            logging.error(f"Node not found: {service_name} (id={node_id})")
+            return None
+
+    def execute_forced_action(
+        self,
+        action_type: str,
+        machine_config: Dict[str, Any],
+        metrics: Dict[str, Any],
+        service_name: Optional[str] = None,
+        dry_run: bool = False,
+    ) -> Dict[str, Any]:
+        """Execute a forced action bypassing the decision engine.
+
+        Args:
+            action_type: Type of action ('add', 'remove', 'upgrade', 'stop', 'teardown')
+            machine_config: Machine configuration
+            metrics: Current system metrics
+            service_name: Optional node name for targeted operations
+            dry_run: If True, log without executing
+
+        Returns:
+            Dictionary with execution result
+        """
+        if action_type == "add":
+            return self._force_add_node(machine_config, metrics, dry_run)
+        elif action_type == "remove":
+            return self._force_remove_node(service_name, dry_run)
+        elif action_type == "upgrade":
+            return self._force_upgrade_node(service_name, metrics, dry_run)
+        elif action_type == "stop":
+            return self._force_stop_node(service_name, dry_run)
+        elif action_type == "teardown":
+            return self._force_teardown_cluster(machine_config, dry_run)
+        else:
+            return {"status": "error", "message": f"Unknown action type: {action_type}"}
+
+    def _force_add_node(
+        self, machine_config: Dict[str, Any], metrics: Dict[str, Any], dry_run: bool
+    ) -> Dict[str, Any]:
+        """Force add a new node."""
+        logging.info("Forced action: Adding node")
+        return self._execute_add_node(machine_config, metrics, dry_run)
+
+    def _force_remove_node(
+        self, service_name: Optional[str], dry_run: bool
+    ) -> Dict[str, Any]:
+        """Force remove a node (specific or youngest)."""
+        if service_name:
+            # Remove specific node
+            node = self._get_node_by_name(service_name)
+            if not node:
+                return {"status": "error", "message": f"Node not found: {service_name}"}
+
+            logging.info(f"Forced action: Removing node {service_name}")
+            if dry_run:
+                logging.warning(f"DRYRUN: Remove node {service_name}")
+            else:
+                manager = self._get_process_manager(node)
+                manager.remove_node(node)
+                # Remove from database immediately
+                with self.S() as session:
+                    session.delete(node)
+                    session.commit()
+            return {"status": "removed-node", "node": service_name}
+        else:
+            # Remove youngest node (default behavior)
+            logging.info("Forced action: Removing youngest node")
+            with self.S() as session:
+                youngest = session.execute(
+                    select(Node)
+                    .where(Node.status != DISABLED)
+                    .order_by(Node.age.desc())
+                ).first()
+
+            if not youngest:
+                return {"status": "error", "message": "No nodes to remove"}
+
+            node = youngest[0]
+            if dry_run:
+                logging.warning(f"DRYRUN: Remove youngest node {node.node_name}")
+            else:
+                manager = self._get_process_manager(node)
+                manager.remove_node(node)
+                # Remove from database immediately
+                with self.S() as session:
+                    session.delete(node)
+                    session.commit()
+            return {"status": "removed-node", "node": node.node_name}
+
+    def _force_upgrade_node(
+        self, service_name: Optional[str], metrics: Dict[str, Any], dry_run: bool
+    ) -> Dict[str, Any]:
+        """Force upgrade a node (specific or oldest)."""
+        if service_name:
+            # Upgrade specific node
+            node = self._get_node_by_name(service_name)
+            if not node:
+                return {"status": "error", "message": f"Node not found: {service_name}"}
+
+            logging.info(f"Forced action: Upgrading node {service_name}")
+            if dry_run:
+                logging.warning(f"DRYRUN: Upgrade node {service_name}")
+            else:
+                if not self._upgrade_node_binary(node, metrics["antnode_version"]):
+                    return {"status": "error", "message": "Upgrade failed"}
+            return {"status": "upgraded-node", "node": service_name}
+        else:
+            # Upgrade oldest running node (default behavior)
+            logging.info("Forced action: Upgrading oldest node")
+            with self.S() as session:
+                oldest = session.execute(
+                    select(Node)
+                    .where(Node.status == RUNNING)
+                    .order_by(Node.age.asc())
+                ).first()
+
+            if not oldest:
+                return {"status": "error", "message": "No running nodes to upgrade"}
+
+            node = oldest[0]
+            if dry_run:
+                logging.warning(f"DRYRUN: Upgrade oldest node {node.node_name}")
+            else:
+                if not self._upgrade_node_binary(node, metrics["antnode_version"]):
+                    return {"status": "error", "message": "Upgrade failed"}
+            return {"status": "upgraded-node", "node": node.node_name}
+
+    def _force_stop_node(
+        self, service_name: Optional[str], dry_run: bool
+    ) -> Dict[str, Any]:
+        """Force stop a node (specific or youngest)."""
+        if service_name:
+            # Stop specific node
+            node = self._get_node_by_name(service_name)
+            if not node:
+                return {"status": "error", "message": f"Node not found: {service_name}"}
+
+            logging.info(f"Forced action: Stopping node {service_name}")
+            if dry_run:
+                logging.warning(f"DRYRUN: Stop node {service_name}")
+            else:
+                manager = self._get_process_manager(node)
+                manager.stop_node(node)
+                self._set_node_status(node.id, STOPPED)
+            return {"status": "stopped-node", "node": service_name}
+        else:
+            # Stop youngest running node (default behavior)
+            logging.info("Forced action: Stopping youngest node")
+            with self.S() as session:
+                youngest = session.execute(
+                    select(Node)
+                    .where(Node.status == RUNNING)
+                    .order_by(Node.age.desc())
+                ).first()
+
+            if not youngest:
+                return {"status": "error", "message": "No running nodes to stop"}
+
+            node = youngest[0]
+            if dry_run:
+                logging.warning(f"DRYRUN: Stop youngest node {node.node_name}")
+            else:
+                manager = self._get_process_manager(node)
+                manager.stop_node(node)
+                self._set_node_status(node.id, STOPPED)
+            return {"status": "stopped-node", "node": node.node_name}
+
+    def _force_teardown_cluster(
+        self, machine_config: Dict[str, Any], dry_run: bool
+    ) -> Dict[str, Any]:
+        """Force teardown the entire cluster."""
+        logging.info("Forced action: Tearing down cluster")
+
+        # Get all nodes
+        with self.S() as session:
+            all_nodes = session.execute(
+                select(Node).order_by(Node.id.asc())
+            ).all()
+
+        if not all_nodes:
+            return {"status": "no-nodes", "message": "No nodes to teardown"}
+
+        # Get the process manager (use the first node's manager or default)
+        if all_nodes:
+            sample_node = all_nodes[0][0]
+            manager = self._get_process_manager(sample_node)
+        else:
+            manager = get_process_manager()
+
+        # Try manager-specific teardown first
+        if hasattr(manager, 'teardown_cluster'):
+            logging.info(f"Using {manager.__class__.__name__} teardown_cluster method")
+            if dry_run:
+                logging.warning("DRYRUN: Teardown cluster via manager")
+            else:
+                if manager.teardown_cluster():
+                    # Remove all nodes from database
+                    with self.S() as session:
+                        session.query(Node).delete()
+                        session.commit()
+                    return {"status": "cluster-teardown", "method": "manager-specific"}
+
+        # Fall back to removing each node individually (without delay)
+        logging.info("Using default teardown (remove all nodes)")
+        removed_count = 0
+        for row in all_nodes:
+            node = row[0]
+            if dry_run:
+                logging.warning(f"DRYRUN: Remove node {node.node_name}")
+                removed_count += 1
+            else:
+                try:
+                    manager = self._get_process_manager(node)
+                    manager.remove_node(node)
+                    with self.S() as session:
+                        session.delete(node)
+                        session.commit()
+                    removed_count += 1
+                    logging.info(f"Removed node {node.node_name}")
+                except Exception as e:
+                    logging.error(f"Failed to remove node {node.node_name}: {e}")
+
+        return {
+            "status": "cluster-teardown",
+            "method": "individual-remove",
+            "removed_count": removed_count,
+        }
