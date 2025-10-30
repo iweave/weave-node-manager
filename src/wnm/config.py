@@ -188,8 +188,8 @@ def load_config():
     c.add(
         "--force_action",
         env_var="FORCE_ACTION",
-        help="Force an action: add, remove, upgrade, stop, teardown",
-        choices=["add", "remove", "upgrade", "stop", "teardown"],
+        help="Force an action: add, remove, upgrade, stop, disable, teardown",
+        choices=["add", "remove", "upgrade", "stop", "disable", "teardown"],
     )
     c.add(
         "--service_name",

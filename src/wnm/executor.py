@@ -543,7 +543,7 @@ class ActionExecutor:
         """Execute a forced action bypassing the decision engine.
 
         Args:
-            action_type: Type of action ('add', 'remove', 'upgrade', 'stop', 'teardown')
+            action_type: Type of action ('add', 'remove', 'upgrade', 'stop', 'disable', 'teardown')
             machine_config: Machine configuration
             metrics: Current system metrics
             service_name: Optional node name for targeted operations
@@ -560,6 +560,8 @@ class ActionExecutor:
             return self._force_upgrade_node(service_name, metrics, dry_run)
         elif action_type == "stop":
             return self._force_stop_node(service_name, dry_run)
+        elif action_type == "disable":
+            return self._force_disable_node(service_name, dry_run)
         elif action_type == "teardown":
             return self._force_teardown_cluster(machine_config, dry_run)
         else:
@@ -594,13 +596,11 @@ class ActionExecutor:
                     session.commit()
             return {"status": "removed-node", "node": service_name}
         else:
-            # Remove youngest node (default behavior)
+            # Remove youngest node (default behavior - highest age value)
             logging.info("Forced action: Removing youngest node")
             with self.S() as session:
                 youngest = session.execute(
-                    select(Node)
-                    .where(Node.status != DISABLED)
-                    .order_by(Node.age.desc())
+                    select(Node).order_by(Node.age.desc())
                 ).first()
 
             if not youngest:
@@ -695,6 +695,28 @@ class ActionExecutor:
                 manager.stop_node(node)
                 self._set_node_status(node.id, STOPPED)
             return {"status": "stopped-node", "node": node.node_name}
+
+    def _force_disable_node(
+        self, service_name: Optional[str], dry_run: bool
+    ) -> Dict[str, Any]:
+        """Force disable a specific node (service_name required)."""
+        if not service_name:
+            return {"status": "error", "message": "service_name required for disable action"}
+
+        node = self._get_node_by_name(service_name)
+        if not node:
+            return {"status": "error", "message": f"Node not found: {service_name}"}
+
+        logging.info(f"Forced action: Disabling node {service_name}")
+        if dry_run:
+            logging.warning(f"DRYRUN: Disable node {service_name}")
+        else:
+            # Stop the node if it's running
+            if node.status == RUNNING:
+                manager = self._get_process_manager(node)
+                manager.stop_node(node)
+            self._set_node_status(node.id, DISABLED)
+        return {"status": "disabled-node", "node": service_name}
 
     def _force_teardown_cluster(
         self, machine_config: Dict[str, Any], dry_run: bool
