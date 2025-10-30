@@ -28,7 +28,7 @@ from wnm.common import (
 )
 from wnm.config import LOG_DIR
 from wnm.models import Machine, Node
-from wnm.process_managers.factory import get_process_manager
+from wnm.process_managers.factory import get_default_manager_type, get_process_manager
 from wnm.utils import (
     get_antnode_version,
     update_nodes,
@@ -403,25 +403,39 @@ class ActionExecutor:
             return {"status": "add-node"}
 
         # Find next available node ID (look for holes first)
-        sql = text(
-            "select n1.id + 1 as id from node n1 "
-            + "left join node n2 on n2.id = n1.id + 1 "
-            + "where n2.id is null "
-            + "and n1.id <> (select max(id) from node) "
-            + "order by n1.id;"
-        )
+        # First check if node 1 exists
         with self.S() as session:
-            result = session.execute(sql).first()
+            node_1_exists = session.execute(
+                select(Node.id).where(Node.id == 1)
+            ).first()
 
-        if result:
-            node_id = result[0]
+        if not node_1_exists:
+            # Node 1 is available, use it
+            node_id = 1
         else:
-            # No holes, use max + 1
+            # Look for holes in the sequence
+            sql = text(
+                "select n1.id + 1 as id from node n1 "
+                + "left join node n2 on n2.id = n1.id + 1 "
+                + "where n2.id is null "
+                + "and n1.id <> (select max(id) from node) "
+                + "order by n1.id;"
+            )
             with self.S() as session:
-                result = session.execute(
-                    select(Node.id).order_by(Node.id.desc())
-                ).first()
-            node_id = result[0] + 1 if result else 1
+                result = session.execute(sql).first()
+
+            if result:
+                node_id = result[0]
+            else:
+                # No holes, use max + 1
+                with self.S() as session:
+                    result = session.execute(
+                        select(Node.id).order_by(Node.id.desc())
+                    ).first()
+                node_id = result[0] + 1 if result else 1
+
+        # Determine the appropriate manager type for this system
+        manager_type = get_default_manager_type()
 
         # Create node object
         node = Node(
@@ -444,7 +458,10 @@ class ActionExecutor:
             shunned=0,
             age=int(time.time()),
             host=machine_config["host"],
+            method=manager_type,
+            layout="1",
             environment=machine_config.get("environment", ""),
+            manager_type=manager_type,
         )
 
         # Insert into database

@@ -76,6 +76,7 @@ class LaunchctlManager(ProcessManager):
         # Build program arguments array
         args = [
             binary_path,
+            "--no-upnp",  # Disable UPnP (not needed/available on macOS in many cases)
             "--bootstrap-cache-dir",
             BOOTSTRAP_CACHE_DIR,
             "--root-dir",
