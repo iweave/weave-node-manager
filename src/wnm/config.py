@@ -194,7 +194,7 @@ def load_config():
     c.add(
         "--service_name",
         env_var="SERVICE_NAME",
-        help="Node name for targeted operations or comma-separated list for reports (e.g., antnode0001,antnode0003)",
+        help="Node name for targeted operations or comma-separated list for reports and survey (e.g., antnode0001,antnode0003)",
     )
     c.add(
         "--report",

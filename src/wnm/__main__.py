@@ -187,6 +187,7 @@ def main():
                 "survey",
                 local_config,
                 metrics,
+                service_name=options.service_name,
                 dry_run=options.dry_run,
             )
             logging.info(f"Survey result: {survey_result}")

@@ -32,6 +32,7 @@ from wnm.models import Machine, Node
 from wnm.process_managers.factory import get_default_manager_type, get_process_manager
 from wnm.utils import (
     get_antnode_version,
+    parse_service_names,
     update_nodes,
 )
 
@@ -567,7 +568,7 @@ class ActionExecutor:
         elif action_type == "teardown":
             return self._force_teardown_cluster(machine_config, dry_run)
         elif action_type == "survey":
-            return self._force_survey_nodes(dry_run)
+            return self._force_survey_nodes(service_name, dry_run)
         else:
             return {"status": "error", "message": f"Unknown action type: {action_type}"}
 
@@ -852,28 +853,108 @@ class ActionExecutor:
             "removed_count": removed_count,
         }
 
-    def _force_survey_nodes(self, dry_run: bool) -> Dict[str, Any]:
-        """Force a survey of all nodes to update their status and metrics."""
-        logging.info("Forced action: Surveying all nodes")
+    def _survey_specific_nodes(self, service_names: List[str], dry_run: bool) -> Dict[str, Any]:
+        """Survey specific nodes by service name.
 
-        if dry_run:
-            logging.warning("DRYRUN: Survey all nodes")
-            # Get count of non-disabled nodes
+        Args:
+            service_names: List of service names to survey
+            dry_run: If True, log without executing
+
+        Returns:
+            Dictionary with survey results
+        """
+        from wnm.utils import read_node_metrics, read_node_metadata, update_node_from_metrics
+
+        surveyed_nodes = []
+        failed_nodes = []
+
+        for service_name in service_names:
+            node = self._get_node_by_name(service_name)
+            if not node:
+                failed_nodes.append({"service": service_name, "error": "not found"})
+                continue
+
+            if node.status == DISABLED:
+                failed_nodes.append({"service": service_name, "error": "disabled"})
+                continue
+
+            if dry_run:
+                logging.warning(f"DRYRUN: Survey node {service_name}")
+                surveyed_nodes.append(service_name)
+            else:
+                logging.info(f"Surveying node {service_name}")
+
+                # Check metadata first
+                node_metadata = read_node_metadata(node.host, node.metrics_port)
+
+                # If metadata fails, fake metrics with 0's
+                if node_metadata["status"] == STOPPED:
+                    node_metrics = {
+                        "status": STOPPED,
+                        "uptime": 0,
+                        "records": 0,
+                        "shunned": 0,
+                        "connected_peers": 0
+                    }
+                else:
+                    # Metadata succeeded, now get metrics
+                    node_metrics = read_node_metrics(node.host, node.metrics_port)
+
+                # Skip update if node is stopped and already marked as stopped
+                if node_metadata["status"] == STOPPED and node.status == STOPPED:
+                    surveyed_nodes.append(service_name)
+                    continue
+
+                update_node_from_metrics(self.S, node.id, node_metrics, node_metadata)
+                surveyed_nodes.append(service_name)
+
+        return {
+            "status": "survey-complete" if not dry_run else "survey-dryrun",
+            "surveyed_count": len(surveyed_nodes),
+            "surveyed_nodes": surveyed_nodes,
+            "failed_count": len(failed_nodes),
+            "failed_nodes": failed_nodes if failed_nodes else None,
+        }
+
+    def _force_survey_nodes(self, service_name: Optional[str] = None, dry_run: bool = False) -> Dict[str, Any]:
+        """Force a survey of all nodes or specific nodes to update their status and metrics.
+
+        Args:
+            service_name: Optional comma-separated list of service names to survey
+            dry_run: If True, log without executing
+
+        Returns:
+            Dictionary with survey results
+        """
+        # Parse service names if provided
+        service_names = parse_service_names(service_name)
+
+        if service_names:
+            # Survey specific nodes
+            logging.info(f"Forced action: Surveying {len(service_names)} specific nodes")
+            return self._survey_specific_nodes(service_names, dry_run)
+        else:
+            # Survey all nodes
+            logging.info("Forced action: Surveying all nodes")
+
+            if dry_run:
+                logging.warning("DRYRUN: Survey all nodes")
+                # Get count of non-disabled nodes
+                with self.S() as session:
+                    from wnm.common import DISABLED
+                    node_count = session.execute(
+                        select(func.count(Node.id)).where(Node.status != DISABLED)
+                    ).scalar()
+                return {"status": "survey-dryrun", "node_count": node_count}
+
+            # Update all nodes
+            update_nodes(self.S)
+
+            # Get updated count
             with self.S() as session:
                 from wnm.common import DISABLED
                 node_count = session.execute(
                     select(func.count(Node.id)).where(Node.status != DISABLED)
                 ).scalar()
-            return {"status": "survey-dryrun", "node_count": node_count}
 
-        # Update all nodes
-        update_nodes(self.S)
-
-        # Get updated count
-        with self.S() as session:
-            from wnm.common import DISABLED
-            node_count = session.execute(
-                select(func.count(Node.id)).where(Node.status != DISABLED)
-            ).scalar()
-
-        return {"status": "survey-complete", "node_count": node_count}
+            return {"status": "survey-complete", "node_count": node_count}

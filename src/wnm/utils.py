@@ -6,6 +6,7 @@ import subprocess
 import sys
 import time
 from collections import Counter
+from typing import List, Optional
 
 import psutil
 import requests
@@ -29,6 +30,24 @@ from wnm.common import (
 )
 from wnm.config import BOOTSTRAP_CACHE_DIR, LOG_DIR, PLATFORM
 from wnm.models import Base, Machine, Node
+
+
+def parse_service_names(service_name_str: Optional[str]) -> Optional[List[str]]:
+    """Parse comma-separated service names.
+
+    Args:
+        service_name_str: Comma-separated service names (e.g., "antnode0001,antnode0003")
+
+    Returns:
+        List of service names, or None if input is None/empty
+    """
+    if not service_name_str:
+        return None
+
+    # Split by comma and strip whitespace
+    names = [name.strip() for name in service_name_str.split(',')]
+    # Filter out empty strings
+    return [name for name in names if name]
 
 
 # Read config from systemd service file

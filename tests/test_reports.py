@@ -159,34 +159,34 @@ def sample_nodes(db_session):
 class TestNodeReporter:
     """Test the NodeReporter class."""
 
-    def test_parse_service_names_single(self, db_session):
+    def test_parse_service_names_single(self):
         """Test parsing a single service name."""
-        reporter = NodeReporter(db_session)
-        result = reporter._parse_service_names("antnode0001")
+        from wnm.utils import parse_service_names
+        result = parse_service_names("antnode0001")
         assert result == ["antnode0001"]
 
-    def test_parse_service_names_multiple(self, db_session):
+    def test_parse_service_names_multiple(self):
         """Test parsing comma-separated service names."""
-        reporter = NodeReporter(db_session)
-        result = reporter._parse_service_names("antnode0001,antnode0002,antnode0003")
+        from wnm.utils import parse_service_names
+        result = parse_service_names("antnode0001,antnode0002,antnode0003")
         assert result == ["antnode0001", "antnode0002", "antnode0003"]
 
-    def test_parse_service_names_with_spaces(self, db_session):
+    def test_parse_service_names_with_spaces(self):
         """Test parsing service names with whitespace."""
-        reporter = NodeReporter(db_session)
-        result = reporter._parse_service_names("antnode0001 , antnode0002 , antnode0003")
+        from wnm.utils import parse_service_names
+        result = parse_service_names("antnode0001 , antnode0002 , antnode0003")
         assert result == ["antnode0001", "antnode0002", "antnode0003"]
 
-    def test_parse_service_names_none(self, db_session):
+    def test_parse_service_names_none(self):
         """Test parsing None input."""
-        reporter = NodeReporter(db_session)
-        result = reporter._parse_service_names(None)
+        from wnm.utils import parse_service_names
+        result = parse_service_names(None)
         assert result is None
 
-    def test_parse_service_names_empty(self, db_session):
+    def test_parse_service_names_empty(self):
         """Test parsing empty string."""
-        reporter = NodeReporter(db_session)
-        result = reporter._parse_service_names("")
+        from wnm.utils import parse_service_names
+        result = parse_service_names("")
         assert result is None
 
     def test_get_nodes_all(self, db_session, sample_nodes):

@@ -12,6 +12,7 @@ from sqlalchemy import select
 
 from wnm.models import Node
 from wnm.common import RUNNING, STOPPED, UPGRADING, RESTARTING, REMOVING, DISABLED, DEAD
+from wnm.utils import parse_service_names
 
 
 class NodeReporter:
@@ -32,24 +33,6 @@ class NodeReporter:
         """
         self.S = session_factory
         self.logger = logging.getLogger(__name__)
-
-    def _parse_service_names(self, service_name_str: Optional[str]) -> Optional[List[str]]:
-        """
-        Parse comma-separated service names.
-
-        Args:
-            service_name_str: Comma-separated service names (e.g., "antnode0001,antnode0003")
-
-        Returns:
-            List of service names, or None if input is None/empty
-        """
-        if not service_name_str:
-            return None
-
-        # Split by comma and strip whitespace
-        names = [name.strip() for name in service_name_str.split(',')]
-        # Filter out empty strings
-        return [name for name in names if name]
 
     def _get_nodes(self, service_names: Optional[List[str]] = None) -> List[Node]:
         """
@@ -104,7 +87,7 @@ class NodeReporter:
         Returns:
             Formatted string report
         """
-        service_names = self._parse_service_names(service_name)
+        service_names = parse_service_names(service_name)
         nodes = self._get_nodes(service_names)
 
         if not nodes:
@@ -169,7 +152,7 @@ class NodeReporter:
         Returns:
             Formatted string report
         """
-        service_names = self._parse_service_names(service_name)
+        service_names = parse_service_names(service_name)
         nodes = self._get_nodes(service_names)
 
         if not nodes:
