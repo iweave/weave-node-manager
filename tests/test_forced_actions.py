@@ -141,7 +141,7 @@ class TestForcedRemoveAction:
 
         assert result["status"] == "removed-node"
         # Youngest node (highest age value) should be removed
-        assert result["node"] == "test005"
+        assert result["node"] == "0005"
         mock_manager.remove_node.assert_called_once()
 
     @patch("wnm.executor.ActionExecutor._get_process_manager")
@@ -162,9 +162,9 @@ class TestForcedRemoveAction:
 
         result = executor._force_remove_node(None, dry_run=False)
 
-        # Should still remove test005 even though it's DISABLED
+        # Should still remove 0005 even though it's DISABLED
         assert result["status"] == "removed-node"
-        assert result["node"] == "test005"
+        assert result["node"] == "0005"
 
     def test_force_remove_node_not_found(self, db_session):
         """Test forced remove of non-existent node"""
@@ -261,7 +261,7 @@ class TestForcedUpgradeAction:
 
         assert result["status"] == "upgraded-node"
         # Oldest node (lowest age value) should be upgraded
-        assert result["node"] == "test001"
+        assert result["node"] == "0001"
 
     def test_force_upgrade_no_running_nodes(self, db_session, multiple_nodes):
         """Test forced upgrade without service_name when no running nodes exist"""
@@ -342,7 +342,7 @@ class TestForcedStopAction:
 
         assert result["status"] == "stopped-node"
         # Youngest running node (highest age) should be stopped
-        assert result["node"] == "test005"
+        assert result["node"] == "0005"
 
 
 class TestForcedStartAction:
@@ -469,7 +469,7 @@ class TestForcedStartAction:
 
         assert result["status"] == "started-node"
         # Oldest stopped node (lowest age) should be started
-        assert result["node"] == "test001"
+        assert result["node"] == "0001"
 
     def test_force_start_no_stopped_nodes(self, db_session, multiple_nodes):
         """Test forced start without service_name when no stopped nodes exist"""
@@ -807,6 +807,144 @@ class TestForcedTeardownAction:
         assert result["removed_count"] == 4
 
 
+class TestCountParameter:
+    """Test count parameter functionality across actions"""
+
+    @patch("wnm.executor.get_process_manager")
+    @patch("wnm.executor.os.path.expanduser")
+    def test_force_add_multiple_nodes(
+        self, mock_expanduser, mock_get_manager, db_session, sample_machine_config
+    ):
+        """Test adding multiple nodes with count parameter"""
+        mock_expanduser.return_value = "/tmp/antnode"
+        mock_manager = MagicMock()
+        mock_manager.create_node.return_value = True
+        mock_get_manager.return_value = mock_manager
+
+        executor = ActionExecutor(lambda: db_session)
+        metrics = {"antnode_version": "0.4.6"}
+
+        result = executor._force_add_node(sample_machine_config, metrics, dry_run=False, count=3)
+
+        assert result["status"] == "added-nodes"
+        assert result["added_count"] == 3
+        assert len(result["added_nodes"]) == 3
+        # Verify create_node was called 3 times
+        assert mock_manager.create_node.call_count == 3
+
+    @patch("wnm.executor.ActionExecutor._get_process_manager")
+    def test_force_remove_multiple_nodes(self, mock_get_manager, db_session, multiple_nodes):
+        """Test removing multiple nodes with count parameter"""
+        mock_manager = MagicMock()
+        mock_manager.remove_node.return_value = True
+        mock_get_manager.return_value = mock_manager
+
+        executor = ActionExecutor(lambda: db_session)
+
+        result = executor._force_remove_node(None, dry_run=False, count=3)
+
+        assert result["status"] == "removed-nodes"
+        assert result["removed_count"] == 3
+        # Should remove 3 youngest nodes (highest age values)
+        assert "antnode0005" in result["removed_nodes"]
+        assert "antnode0004" in result["removed_nodes"]
+        assert "antnode0003" in result["removed_nodes"]
+
+    @patch("wnm.executor.ActionExecutor._upgrade_node_binary")
+    def test_force_upgrade_multiple_nodes(self, mock_upgrade, db_session, multiple_nodes):
+        """Test upgrading multiple nodes with count parameter"""
+        mock_upgrade.return_value = True
+
+        executor = ActionExecutor(lambda: db_session)
+        metrics = {"antnode_version": "0.5.0"}
+
+        result = executor._force_upgrade_node(None, metrics, dry_run=False, count=3)
+
+        assert result["status"] == "upgraded-nodes"
+        assert result["upgraded_count"] == 3
+        # Should upgrade 3 oldest running nodes (lowest age values)
+        assert "antnode0001" in result["upgraded_nodes"]
+        assert "antnode0002" in result["upgraded_nodes"]
+        assert "antnode0003" in result["upgraded_nodes"]
+
+    @patch("wnm.executor.ActionExecutor._get_process_manager")
+    def test_force_stop_multiple_nodes(self, mock_get_manager, db_session, multiple_nodes):
+        """Test stopping multiple nodes with count parameter"""
+        mock_manager = MagicMock()
+        mock_manager.stop_node.return_value = True
+        mock_get_manager.return_value = mock_manager
+
+        executor = ActionExecutor(lambda: db_session)
+
+        result = executor._force_stop_node(None, dry_run=False, count=2)
+
+        assert result["status"] == "stopped-nodes"
+        assert result["stopped_count"] == 2
+        # Should stop 2 youngest running nodes (highest age values)
+        assert "antnode0005" in result["stopped_nodes"]
+        assert "antnode0004" in result["stopped_nodes"]
+
+    @patch("wnm.executor.ActionExecutor._get_process_manager")
+    @patch("wnm.executor.get_antnode_version")
+    def test_force_start_multiple_nodes(self, mock_version, mock_get_manager, db_session, multiple_nodes):
+        """Test starting multiple nodes with count parameter"""
+        # Stop some nodes first
+        multiple_nodes[0].status = STOPPED
+        multiple_nodes[0].version = "0.4.6"
+        multiple_nodes[1].status = STOPPED
+        multiple_nodes[1].version = "0.4.6"
+        multiple_nodes[2].status = STOPPED
+        multiple_nodes[2].version = "0.4.6"
+        db_session.commit()
+
+        mock_version.return_value = "0.4.6"
+        mock_manager = MagicMock()
+        mock_manager.start_node.return_value = True
+        mock_get_manager.return_value = mock_manager
+
+        executor = ActionExecutor(lambda: db_session)
+        metrics = {"antnode_version": "0.4.6"}
+
+        result = executor._force_start_node(None, metrics, dry_run=False, count=2)
+
+        assert result["status"] == "started-nodes"
+        assert result["started_count"] == 2
+        # Should start 2 oldest stopped nodes (lowest age values)
+        assert "antnode0001" in result["started_nodes"]
+        assert "antnode0002" in result["started_nodes"]
+
+    @patch("wnm.executor.ActionExecutor._get_process_manager")
+    def test_count_exceeds_available_nodes(self, mock_get_manager, db_session, multiple_nodes):
+        """Test count parameter when it exceeds available nodes"""
+        mock_manager = MagicMock()
+        mock_manager.remove_node.return_value = True
+        mock_get_manager.return_value = mock_manager
+
+        executor = ActionExecutor(lambda: db_session)
+
+        # Try to remove 10 nodes when only 5 exist
+        result = executor._force_remove_node(None, dry_run=False, count=10)
+
+        assert result["status"] == "removed-nodes"
+        assert result["removed_count"] == 5  # Should remove all 5 available nodes
+        assert len(result["removed_nodes"]) == 5
+
+    def test_count_parameter_validation(self, db_session, sample_machine_config):
+        """Test count parameter validation (must be >= 1)"""
+        executor = ActionExecutor(lambda: db_session)
+        metrics = {"antnode_version": "0.4.6"}
+
+        # Test with count = 0
+        result = executor._force_add_node(sample_machine_config, metrics, dry_run=False, count=0)
+        assert result["status"] == "error"
+        assert "count must be at least 1" in result["message"]
+
+        # Test with negative count
+        result = executor._force_remove_node(None, dry_run=False, count=-1)
+        assert result["status"] == "error"
+        assert "count must be at least 1" in result["message"]
+
+
 class TestForcedActionRouter:
     """Test the main execute_forced_action router"""
 
@@ -817,7 +955,7 @@ class TestForcedActionRouter:
         executor = ActionExecutor(lambda: db_session)
 
         result = executor.execute_forced_action(
-            "add", {}, {}, service_name=None, dry_run=False
+            "add", {}, {}, service_name=None, dry_run=False, count=1
         )
 
         assert result["status"] == "added-node"
@@ -830,11 +968,11 @@ class TestForcedActionRouter:
         executor = ActionExecutor(lambda: db_session)
 
         result = executor.execute_forced_action(
-            "remove", {}, {}, service_name="antnode0001", dry_run=False
+            "remove", {}, {}, service_name="antnode0001", dry_run=False, count=1
         )
 
         assert result["status"] == "removed-node"
-        mock_remove.assert_called_once_with("antnode0001", False)
+        mock_remove.assert_called_once_with("antnode0001", False, 1)
 
     @patch("wnm.executor.ActionExecutor._force_upgrade_node")
     def test_route_upgrade_action(self, mock_upgrade, db_session):
@@ -843,11 +981,11 @@ class TestForcedActionRouter:
         executor = ActionExecutor(lambda: db_session)
 
         result = executor.execute_forced_action(
-            "upgrade", {}, {}, service_name="antnode0002", dry_run=False
+            "upgrade", {}, {}, service_name="antnode0002", dry_run=False, count=1
         )
 
         assert result["status"] == "upgraded-node"
-        mock_upgrade.assert_called_once_with("antnode0002", {}, False)
+        mock_upgrade.assert_called_once_with("antnode0002", {}, False, 1)
 
     @patch("wnm.executor.ActionExecutor._force_start_node")
     def test_route_start_action(self, mock_start, db_session):
@@ -856,11 +994,11 @@ class TestForcedActionRouter:
         executor = ActionExecutor(lambda: db_session)
 
         result = executor.execute_forced_action(
-            "start", {}, {}, service_name="antnode0003", dry_run=False
+            "start", {}, {}, service_name="antnode0003", dry_run=False, count=1
         )
 
         assert result["status"] == "started-node"
-        mock_start.assert_called_once_with("antnode0003", {}, False)
+        mock_start.assert_called_once_with("antnode0003", {}, False, 1)
 
     @patch("wnm.executor.ActionExecutor._force_stop_node")
     def test_route_stop_action(self, mock_stop, db_session):
@@ -869,11 +1007,11 @@ class TestForcedActionRouter:
         executor = ActionExecutor(lambda: db_session)
 
         result = executor.execute_forced_action(
-            "stop", {}, {}, service_name="antnode0003", dry_run=False
+            "stop", {}, {}, service_name="antnode0003", dry_run=False, count=1
         )
 
         assert result["status"] == "stopped-node"
-        mock_stop.assert_called_once_with("antnode0003", False)
+        mock_stop.assert_called_once_with("antnode0003", False, 1)
 
     @patch("wnm.executor.ActionExecutor._force_disable_node")
     def test_route_disable_action(self, mock_disable, db_session):

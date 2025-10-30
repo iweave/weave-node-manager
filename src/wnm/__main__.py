@@ -218,6 +218,7 @@ def main():
             metrics,
             service_name=options.service_name,
             dry_run=options.dry_run,
+            count=options.count if hasattr(options, 'count') else 1,
         )
     else:
         this_action = choose_action(local_config, metrics, options.dry_run)

@@ -96,12 +96,12 @@ def sample_node_config():
     """Sample node configuration for testing"""
     return {
         "id": 1,
-        "node_name": "test001",
-        "service": "antnode-test001",
+        "node_name": "0001",
+        "service": "antnode0001.service",
         "user": "testuser",
         "binary": "/usr/local/bin/antnode",
         "version": "0.1.0",
-        "root_dir": "/tmp/test_nodes/test001",
+        "root_dir": "/tmp/test_nodes/antnode0001",
         "port": 55001,
         "metrics_port": 13001,
         "network": "evm-arbitrum-one",
@@ -139,9 +139,9 @@ def multiple_nodes(db_session, sample_node_config):
     for i in range(1, 6):
         config = sample_node_config.copy()
         config["id"] = i
-        config["node_name"] = f"test{i:03d}"
-        config["service"] = f"antnode-test{i:03d}"
-        config["root_dir"] = f"/tmp/test_nodes/test{i:03d}"
+        config["node_name"] = f"{i:04d}"
+        config["service"] = f"antnode{i:04d}.service"
+        config["root_dir"] = f"/tmp/test_nodes/antnode{i:04d}"
         config["port"] = 55000 + i
         config["metrics_port"] = 13000 + i
         config["age"] = 1000000 + (i * 1000)

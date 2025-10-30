@@ -540,6 +540,7 @@ class ActionExecutor:
         metrics: Dict[str, Any],
         service_name: Optional[str] = None,
         dry_run: bool = False,
+        count: int = 1,
     ) -> Dict[str, Any]:
         """Execute a forced action bypassing the decision engine.
 
@@ -549,20 +550,21 @@ class ActionExecutor:
             metrics: Current system metrics
             service_name: Optional node name for targeted operations
             dry_run: If True, log without executing
+            count: Number of nodes to affect (for add, remove, start, stop, upgrade actions)
 
         Returns:
             Dictionary with execution result
         """
         if action_type == "add":
-            return self._force_add_node(machine_config, metrics, dry_run)
+            return self._force_add_node(machine_config, metrics, dry_run, count)
         elif action_type == "remove":
-            return self._force_remove_node(service_name, dry_run)
+            return self._force_remove_node(service_name, dry_run, count)
         elif action_type == "upgrade":
-            return self._force_upgrade_node(service_name, metrics, dry_run)
+            return self._force_upgrade_node(service_name, metrics, dry_run, count)
         elif action_type == "start":
-            return self._force_start_node(service_name, metrics, dry_run)
+            return self._force_start_node(service_name, metrics, dry_run, count)
         elif action_type == "stop":
-            return self._force_stop_node(service_name, dry_run)
+            return self._force_stop_node(service_name, dry_run, count)
         elif action_type == "disable":
             return self._force_disable_node(service_name, dry_run)
         elif action_type == "teardown":
@@ -573,16 +575,71 @@ class ActionExecutor:
             return {"status": "error", "message": f"Unknown action type: {action_type}"}
 
     def _force_add_node(
-        self, machine_config: Dict[str, Any], metrics: Dict[str, Any], dry_run: bool
+        self, machine_config: Dict[str, Any], metrics: Dict[str, Any], dry_run: bool, count: int = 1
     ) -> Dict[str, Any]:
-        """Force add a new node."""
-        logging.info("Forced action: Adding node")
-        return self._execute_add_node(machine_config, metrics, dry_run)
+        """Force add new nodes.
+
+        Args:
+            machine_config: Machine configuration
+            metrics: Current system metrics
+            dry_run: If True, log without executing
+            count: Number of nodes to add (default: 1)
+
+        Returns:
+            Dictionary with execution result
+        """
+        logging.info(f"Forced action: Adding {count} node(s)")
+
+        if count < 1:
+            return {"status": "error", "message": "count must be at least 1"}
+
+        added_nodes = []
+        failed_nodes = []
+
+        # Track the start time to identify newly created nodes
+        start_time = int(time.time())
+
+        for i in range(count):
+            result = self._execute_add_node(machine_config, metrics, dry_run)
+            if result["status"] in ["added-node", "add-node"]:
+                # Get the node that was just added (youngest by age >= start_time)
+                if not dry_run:
+                    with self.S() as session:
+                        newest = session.execute(
+                            select(Node).where(Node.age >= start_time).order_by(Node.age.desc())
+                        ).first()
+                        if newest:
+                            added_nodes.append(newest[0].service.replace(".service", ""))
+                else:
+                    added_nodes.append(f"node-{i+1}")
+            else:
+                failed_nodes.append({"index": i+1, "error": result.get("status", "unknown error")})
+
+        if count == 1:
+            # Keep backward compatibility for single node
+            return result
+
+        return {
+            "status": "added-nodes" if not dry_run else "add-nodes-dryrun",
+            "added_count": len(added_nodes),
+            "added_nodes": added_nodes if added_nodes else None,
+            "failed_count": len(failed_nodes),
+            "failed_nodes": failed_nodes if failed_nodes else None,
+        }
 
     def _force_remove_node(
-        self, service_name: Optional[str], dry_run: bool
+        self, service_name: Optional[str], dry_run: bool, count: int = 1
     ) -> Dict[str, Any]:
-        """Force remove a node (specific or youngest)."""
+        """Force remove nodes (specific or youngest by age).
+
+        Args:
+            service_name: Optional comma-separated list of service names
+            dry_run: If True, log without executing
+            count: Number of nodes to remove when service_name is not specified (default: 1)
+
+        Returns:
+            Dictionary with execution result
+        """
         # Parse comma-separated service names
         service_names = parse_service_names(service_name)
 
@@ -622,32 +679,73 @@ class ActionExecutor:
                 "failed_nodes": failed_nodes if failed_nodes else None,
             }
         else:
-            # Remove youngest node (default behavior - highest age value)
-            logging.info("Forced action: Removing youngest node")
-            with self.S() as session:
-                youngest = session.execute(
-                    select(Node).order_by(Node.age.desc())
-                ).first()
+            # Remove youngest nodes (default behavior - highest age value)
+            if count < 1:
+                return {"status": "error", "message": "count must be at least 1"}
 
-            if not youngest:
+            logging.info(f"Forced action: Removing {count} youngest node(s)")
+
+            # Get youngest nodes (highest age values)
+            with self.S() as session:
+                youngest_nodes = session.execute(
+                    select(Node).order_by(Node.age.desc()).limit(count)
+                ).all()
+
+            if not youngest_nodes:
                 return {"status": "error", "message": "No nodes to remove"}
 
-            node = youngest[0]
-            if dry_run:
-                logging.warning(f"DRYRUN: Remove youngest node {node.node_name}")
-            else:
-                manager = self._get_process_manager(node)
-                manager.remove_node(node)
-                # Remove from database immediately
-                with self.S() as session:
-                    session.delete(node)
-                    session.commit()
-            return {"status": "removed-node", "node": node.node_name}
+            if len(youngest_nodes) < count:
+                logging.warning(f"Only {len(youngest_nodes)} nodes available, removing all of them")
+
+            removed_nodes = []
+            failed_nodes = []
+
+            for row in youngest_nodes:
+                node = row[0]
+                if dry_run:
+                    logging.warning(f"DRYRUN: Remove youngest node {node.node_name}")
+                    removed_nodes.append(node.service.replace(".service", ""))
+                else:
+                    try:
+                        manager = self._get_process_manager(node)
+                        manager.remove_node(node)
+                        # Remove from database immediately
+                        with self.S() as session:
+                            session.delete(node)
+                            session.commit()
+                        removed_nodes.append(node.service.replace(".service", ""))
+                    except Exception as e:
+                        logging.error(f"Failed to remove node {node.node_name}: {e}")
+                        failed_nodes.append({"service": node.service.replace(".service", ""), "error": str(e)})
+
+            if count == 1 and len(removed_nodes) == 1:
+                # Keep backward compatibility for single node
+                # Extract node name from service name (e.g., "antnode0001" -> "0001")
+                node_name = removed_nodes[0].replace("antnode", "")
+                return {"status": "removed-node", "node": node_name}
+
+            return {
+                "status": "removed-nodes" if not dry_run else "remove-dryrun",
+                "removed_count": len(removed_nodes),
+                "removed_nodes": removed_nodes if removed_nodes else None,
+                "failed_count": len(failed_nodes),
+                "failed_nodes": failed_nodes if failed_nodes else None,
+            }
 
     def _force_upgrade_node(
-        self, service_name: Optional[str], metrics: Dict[str, Any], dry_run: bool
+        self, service_name: Optional[str], metrics: Dict[str, Any], dry_run: bool, count: int = 1
     ) -> Dict[str, Any]:
-        """Force upgrade a node (specific or oldest)."""
+        """Force upgrade nodes (specific or oldest running nodes by age).
+
+        Args:
+            service_name: Optional comma-separated list of service names
+            metrics: Current system metrics
+            dry_run: If True, log without executing
+            count: Number of nodes to upgrade when service_name is not specified (default: 1)
+
+        Returns:
+            Dictionary with execution result
+        """
         # Parse comma-separated service names
         service_names = parse_service_names(service_name)
 
@@ -684,30 +782,72 @@ class ActionExecutor:
                 "failed_nodes": failed_nodes if failed_nodes else None,
             }
         else:
-            # Upgrade oldest running node (default behavior)
-            logging.info("Forced action: Upgrading oldest node")
+            # Upgrade oldest running nodes (default behavior - lowest age values)
+            if count < 1:
+                return {"status": "error", "message": "count must be at least 1"}
+
+            logging.info(f"Forced action: Upgrading {count} oldest running node(s)")
+
+            # Get oldest running nodes (lowest age values)
             with self.S() as session:
-                oldest = session.execute(
+                oldest_nodes = session.execute(
                     select(Node)
                     .where(Node.status == RUNNING)
                     .order_by(Node.age.asc())
-                ).first()
+                    .limit(count)
+                ).all()
 
-            if not oldest:
+            if not oldest_nodes:
                 return {"status": "error", "message": "No running nodes to upgrade"}
 
-            node = oldest[0]
-            if dry_run:
-                logging.warning(f"DRYRUN: Upgrade oldest node {node.node_name}")
-            else:
-                if not self._upgrade_node_binary(node, metrics["antnode_version"]):
-                    return {"status": "error", "message": "Upgrade failed"}
-            return {"status": "upgraded-node", "node": node.node_name}
+            if len(oldest_nodes) < count:
+                logging.warning(f"Only {len(oldest_nodes)} running nodes available, upgrading all of them")
+
+            upgraded_nodes = []
+            failed_nodes = []
+
+            for row in oldest_nodes:
+                node = row[0]
+                if dry_run:
+                    logging.warning(f"DRYRUN: Upgrade oldest node {node.node_name}")
+                    upgraded_nodes.append(node.service.replace(".service", ""))
+                else:
+                    try:
+                        if not self._upgrade_node_binary(node, metrics["antnode_version"]):
+                            failed_nodes.append({"service": node.service.replace(".service", ""), "error": "upgrade failed"})
+                        else:
+                            upgraded_nodes.append(node.service.replace(".service", ""))
+                    except Exception as e:
+                        logging.error(f"Failed to upgrade node {node.node_name}: {e}")
+                        failed_nodes.append({"service": node.service.replace(".service", ""), "error": str(e)})
+
+            if count == 1 and len(upgraded_nodes) == 1:
+                # Keep backward compatibility for single node
+                # Extract node name from service name (e.g., "antnode0001" -> "0001")
+                node_name = upgraded_nodes[0].replace("antnode", "")
+                return {"status": "upgraded-node", "node": node_name}
+
+            return {
+                "status": "upgraded-nodes" if not dry_run else "upgrade-dryrun",
+                "upgraded_count": len(upgraded_nodes),
+                "upgraded_nodes": upgraded_nodes if upgraded_nodes else None,
+                "failed_count": len(failed_nodes),
+                "failed_nodes": failed_nodes if failed_nodes else None,
+            }
 
     def _force_stop_node(
-        self, service_name: Optional[str], dry_run: bool
+        self, service_name: Optional[str], dry_run: bool, count: int = 1
     ) -> Dict[str, Any]:
-        """Force stop a node (specific or youngest)."""
+        """Force stop nodes (specific or youngest running nodes by age).
+
+        Args:
+            service_name: Optional comma-separated list of service names
+            dry_run: If True, log without executing
+            count: Number of nodes to stop when service_name is not specified (default: 1)
+
+        Returns:
+            Dictionary with execution result
+        """
         # Parse comma-separated service names
         service_names = parse_service_names(service_name)
 
@@ -744,31 +884,73 @@ class ActionExecutor:
                 "failed_nodes": failed_nodes if failed_nodes else None,
             }
         else:
-            # Stop youngest running node (default behavior)
-            logging.info("Forced action: Stopping youngest node")
+            # Stop youngest running nodes (default behavior - highest age values)
+            if count < 1:
+                return {"status": "error", "message": "count must be at least 1"}
+
+            logging.info(f"Forced action: Stopping {count} youngest running node(s)")
+
+            # Get youngest running nodes (highest age values)
             with self.S() as session:
-                youngest = session.execute(
+                youngest_nodes = session.execute(
                     select(Node)
                     .where(Node.status == RUNNING)
                     .order_by(Node.age.desc())
-                ).first()
+                    .limit(count)
+                ).all()
 
-            if not youngest:
+            if not youngest_nodes:
                 return {"status": "error", "message": "No running nodes to stop"}
 
-            node = youngest[0]
-            if dry_run:
-                logging.warning(f"DRYRUN: Stop youngest node {node.node_name}")
-            else:
-                manager = self._get_process_manager(node)
-                manager.stop_node(node)
-                self._set_node_status(node.id, STOPPED)
-            return {"status": "stopped-node", "node": node.node_name}
+            if len(youngest_nodes) < count:
+                logging.warning(f"Only {len(youngest_nodes)} running nodes available, stopping all of them")
+
+            stopped_nodes = []
+            failed_nodes = []
+
+            for row in youngest_nodes:
+                node = row[0]
+                if dry_run:
+                    logging.warning(f"DRYRUN: Stop youngest node {node.node_name}")
+                    stopped_nodes.append(node.service.replace(".service", ""))
+                else:
+                    try:
+                        manager = self._get_process_manager(node)
+                        manager.stop_node(node)
+                        self._set_node_status(node.id, STOPPED)
+                        stopped_nodes.append(node.service.replace(".service", ""))
+                    except Exception as e:
+                        logging.error(f"Failed to stop node {node.node_name}: {e}")
+                        failed_nodes.append({"service": node.service.replace(".service", ""), "error": str(e)})
+
+            if count == 1 and len(stopped_nodes) == 1:
+                # Keep backward compatibility for single node
+                # Extract node name from service name (e.g., "antnode0001" -> "0001")
+                node_name = stopped_nodes[0].replace("antnode", "")
+                return {"status": "stopped-node", "node": node_name}
+
+            return {
+                "status": "stopped-nodes" if not dry_run else "stop-dryrun",
+                "stopped_count": len(stopped_nodes),
+                "stopped_nodes": stopped_nodes if stopped_nodes else None,
+                "failed_count": len(failed_nodes),
+                "failed_nodes": failed_nodes if failed_nodes else None,
+            }
 
     def _force_start_node(
-        self, service_name: Optional[str], metrics: Dict[str, Any], dry_run: bool
+        self, service_name: Optional[str], metrics: Dict[str, Any], dry_run: bool, count: int = 1
     ) -> Dict[str, Any]:
-        """Force start a node (specific or oldest stopped)."""
+        """Force start nodes (specific or oldest stopped nodes by age).
+
+        Args:
+            service_name: Optional comma-separated list of service names
+            metrics: Current system metrics
+            dry_run: If True, log without executing
+            count: Number of nodes to start when service_name is not specified (default: 1)
+
+        Returns:
+            Dictionary with execution result
+        """
         # Parse comma-separated service names
         service_names = parse_service_names(service_name)
 
@@ -825,39 +1007,79 @@ class ActionExecutor:
                 "failed_nodes": failed_nodes if failed_nodes else None,
             }
         else:
-            # Start oldest stopped node (default behavior)
-            logging.info("Forced action: Starting oldest stopped node")
+            # Start oldest stopped nodes (default behavior - lowest age values)
+            if count < 1:
+                return {"status": "error", "message": "count must be at least 1"}
+
+            logging.info(f"Forced action: Starting {count} oldest stopped node(s)")
+
+            # Get oldest stopped nodes (lowest age values)
             with self.S() as session:
-                oldest = session.execute(
+                oldest_nodes = session.execute(
                     select(Node)
                     .where(Node.status == STOPPED)
                     .order_by(Node.age.asc())
-                ).first()
+                    .limit(count)
+                ).all()
 
-            if not oldest:
+            if not oldest_nodes:
                 return {"status": "error", "message": "No stopped nodes to start"}
 
-            node = oldest[0]
-            if dry_run:
-                logging.warning(f"DRYRUN: Start oldest stopped node {node.node_name}")
-            else:
-                # Check if node needs upgrade
-                if not node.version:
-                    node.version = get_antnode_version(node.binary)
+            if len(oldest_nodes) < count:
+                logging.warning(f"Only {len(oldest_nodes)} stopped nodes available, starting all of them")
 
-                # If the stopped version is old, upgrade it (which also starts it)
-                if Version(metrics["antnode_version"]) > Version(node.version):
-                    if not self._upgrade_node_binary(node, metrics["antnode_version"]):
-                        return {"status": "failed-upgrade", "node": node.node_name}
-                    return {"status": "upgrading-node", "node": node.node_name}
+            started_nodes = []
+            upgraded_nodes = []
+            failed_nodes = []
+
+            for row in oldest_nodes:
+                node = row[0]
+                if dry_run:
+                    logging.warning(f"DRYRUN: Start oldest stopped node {node.node_name}")
+                    started_nodes.append(node.service.replace(".service", ""))
                 else:
-                    manager = self._get_process_manager(node)
-                    if manager.start_node(node):
-                        self._set_node_status(node.id, RESTARTING)
-                        return {"status": "started-node", "node": node.node_name}
-                    else:
-                        return {"status": "failed-start-node", "node": node.node_name}
-            return {"status": "started-node", "node": node.node_name}
+                    try:
+                        # Check if node needs upgrade
+                        if not node.version:
+                            node.version = get_antnode_version(node.binary)
+
+                        # If the stopped version is old, upgrade it (which also starts it)
+                        if Version(metrics["antnode_version"]) > Version(node.version):
+                            if not self._upgrade_node_binary(node, metrics["antnode_version"]):
+                                failed_nodes.append({"service": node.service.replace(".service", ""), "error": "upgrade failed"})
+                            else:
+                                upgraded_nodes.append(node.service.replace(".service", ""))
+                        else:
+                            manager = self._get_process_manager(node)
+                            if manager.start_node(node):
+                                self._set_node_status(node.id, RESTARTING)
+                                started_nodes.append(node.service.replace(".service", ""))
+                            else:
+                                failed_nodes.append({"service": node.service.replace(".service", ""), "error": "start failed"})
+                    except Exception as e:
+                        logging.error(f"Failed to start node {node.node_name}: {e}")
+                        failed_nodes.append({"service": node.service.replace(".service", ""), "error": str(e)})
+
+            if count == 1 and len(started_nodes) == 1:
+                # Keep backward compatibility for single node
+                # Extract node name from service name (e.g., "antnode0001" -> "0001")
+                node_name = started_nodes[0].replace("antnode", "")
+                return {"status": "started-node", "node": node_name}
+            elif count == 1 and len(upgraded_nodes) == 1:
+                # Keep backward compatibility for single node upgrade
+                # Extract node name from service name (e.g., "antnode0001" -> "0001")
+                node_name = upgraded_nodes[0].replace("antnode", "")
+                return {"status": "upgrading-node", "node": node_name}
+
+            return {
+                "status": "started-nodes" if not dry_run else "start-dryrun",
+                "started_count": len(started_nodes),
+                "started_nodes": started_nodes if started_nodes else None,
+                "upgraded_count": len(upgraded_nodes),
+                "upgraded_nodes": upgraded_nodes if upgraded_nodes else None,
+                "failed_count": len(failed_nodes),
+                "failed_nodes": failed_nodes if failed_nodes else None,
+            }
 
     def _force_disable_node(
         self, service_name: Optional[str], dry_run: bool

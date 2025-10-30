@@ -209,6 +209,13 @@ def load_config():
         choices=["text", "json"],
         default="text",
     )
+    c.add(
+        "--count",
+        env_var="COUNT",
+        help="Number of nodes to affect when using --force_action (default: 1). Works with add, remove, start, stop, upgrade actions.",
+        type=int,
+        default=1,
+    )
 
     options = c.parse_known_args()[0] or []
     # Return the first result from parse_known_args, ignore unknown options
