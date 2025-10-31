@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.0.11] - 2025-01-30
+
+### Fixed
+- **SystemdManager non-root support**: SystemdManager now properly supports non-root users
+  - User services stored in `~/.config/systemd/user/` instead of `/etc/systemd/system/`
+  - No sudo required for mkdir, cp, rm, or systemctl operations
+  - Uses `systemctl --user` commands for user services
+  - Automatically uses null firewall for non-root users (no sudo needed)
+  - No chown operations for user services (files owned by current user)
+  - User= field omitted in service files for user services (runs as invoking user)
+
 ## [0.0.10] - 2025-01-30
 
 ### Added

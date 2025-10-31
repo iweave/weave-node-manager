@@ -117,13 +117,13 @@ class NodeReporter:
         lines = []
 
         # Header
-        header = f"{'Service Name':<20}{'Peer ID':<50}{'Status':<15}{'Connected Peers':>15}"
+        header = f"{'Service Name':<20}{'Peer ID':<55}{'Status':<15}{'Connected Peers':>15}"
         lines.append(header)
 
         # Node rows
         for node in nodes:
             service_col = f"{node.service:<20}"
-            peer_id_col = f"{(node.peer_id or '-'):<50}"
+            peer_id_col = f"{(node.peer_id or '-'):<55}"
             status_col = f"{node.status:<15}"
             # Connected peers from connected_peers field
             peers = node.connected_peers if node.connected_peers is not None else 0
