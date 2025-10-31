@@ -249,6 +249,10 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
     data = psutil.disk_io_counters()
     # This only checks the drive mapped to the first node and will need to be updated
     # when we eventually support multiple drives
+    # Ensure the node_storage directory exists before checking disk usage
+    if not os.path.exists(node_storage):
+        logging.warning(f"node_storage path does not exist: {node_storage}. Creating it.")
+        os.makedirs(node_storage, exist_ok=True)
     data = psutil.disk_usage(node_storage)
     metrics["used_hd_percent"] = data.percent
     metrics["total_hd_bytes"] = data.total

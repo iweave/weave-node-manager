@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+- **node_storage path validation**: `get_machine_metrics()` now creates missing node_storage directory before checking disk usage
+  - Prevents `FileNotFoundError` crash when node_storage path doesn't exist
+  - Logs warning when directory is auto-created to alert misconfiguration
+  - Fixes issue where database initialized with wrong platform path causes startup failure
+
 ## [0.0.11] - 2025-01-30
 
 ### Fixed
