@@ -43,7 +43,7 @@ class TestSystemStartTime:
                                     # Setup mocks
                                     mock_cpu.return_value = 25.0
                                     mock_mem.return_value = Mock(percent=50.0)
-                                    mock_disk.return_value = Mock(percent=60.0)
+                                    mock_disk.return_value = Mock(percent=60.0, total=1000000000000)
                                     mock_io.return_value = Mock(read_bytes=1000, write_bytes=2000)
                                     mock_net_io.return_value = Mock(bytes_sent=1000, bytes_recv=2000)
                                     mock_load.return_value = (1.0, 1.5, 2.0)
@@ -55,9 +55,9 @@ class TestSystemStartTime:
                                     # Verify system_start was parsed correctly
                                     assert metrics["system_start"] == 1234567890
                                     assert mock_run.called
-                                    # Verify it called sysctl, not uptime
-                                    args = mock_run.call_args[0][0]
-                                    assert "sysctl" in args
+                                    # Verify it called sysctl, not uptime (check first call)
+                                    first_call_args = mock_run.call_args_list[0][0][0]
+                                    assert "sysctl" in first_call_args
 
     @pytest.mark.skipif(platform.system() != "Linux", reason="Linux only")
     @patch("subprocess.run")
@@ -89,7 +89,7 @@ class TestSystemStartTime:
                                     # Setup mocks
                                     mock_cpu.return_value = 25.0
                                     mock_mem.return_value = Mock(percent=50.0)
-                                    mock_disk.return_value = Mock(percent=60.0)
+                                    mock_disk.return_value = Mock(percent=60.0, total=1000000000000)
                                     mock_io.return_value = Mock(read_bytes=1000, write_bytes=2000)
                                     mock_net_io.return_value = Mock(bytes_sent=1000, bytes_recv=2000)
                                     mock_load.return_value = (1.0, 1.5, 2.0)
@@ -101,9 +101,9 @@ class TestSystemStartTime:
                                     # Verify system_start was parsed correctly
                                     assert metrics["system_start"] > 0
                                     assert mock_run.called
-                                    # Verify it called uptime, not sysctl
-                                    args = mock_run.call_args[0][0]
-                                    assert "uptime" in args
+                                    # Verify it called uptime, not sysctl (check first call)
+                                    first_call_args = mock_run.call_args_list[0][0][0]
+                                    assert "uptime" in first_call_args
 
 
 class TestCPUCount:
@@ -158,7 +158,8 @@ class TestCPUCount:
     @pytest.mark.skipif(platform.system() != "Darwin", reason="macOS only")
     def test_macos_define_machine_cpu_count(self):
         """Test CPU count in define_machine on macOS"""
-        from wnm.config import define_machine
+        from wnm import config
+        import os
 
         # Create mock options with required rewards_address
         mock_options = Mock()
@@ -178,21 +179,35 @@ class TestCPUCount:
         mock_options.network = "evm-arbitrum-one"
         mock_options.relay = False
 
-        # Call the function
-        machine = define_machine(mock_options)
+        # Mock the database session to capture the machine dict
+        captured_machine = {}
+        with patch.object(config, 'S') as mock_S:
+            mock_session = Mock()
+            mock_S.return_value.__enter__.return_value = mock_session
+            mock_S.return_value.__exit__.return_value = None
 
-        # Verify CPU count is set and positive
-        assert machine is not False
-        assert "cpu_count" in machine
-        assert machine["cpu_count"] > 0
+            def capture_machine(insert_obj, values):
+                captured_machine.update(values[0])
+                return Mock()
+
+            mock_session.execute.side_effect = capture_machine
+            mock_session.commit = Mock()
+
+            # Call the function
+            result = config.define_machine(mock_options)
+
+        # Verify function returned True
+        assert result is True
+
+        # Verify CPU count in captured machine dict
+        assert captured_machine["cpu_count"] > 0
         # On macOS, should use os.cpu_count()
-        import os
-        assert machine["cpu_count"] == (os.cpu_count() or 1)
+        assert captured_machine["cpu_count"] == (os.cpu_count() or 1)
 
     @pytest.mark.skipif(platform.system() != "Linux", reason="Linux only")
     def test_linux_define_machine_cpu_count(self):
         """Test CPU count in define_machine on Linux"""
-        from wnm.config import define_machine
+        from wnm import config
         import os
 
         # Create mock options with required rewards_address
@@ -213,15 +228,30 @@ class TestCPUCount:
         mock_options.network = "evm-arbitrum-one"
         mock_options.relay = False
 
-        # Call the function
-        machine = define_machine(mock_options)
+        # Mock the database session to capture the machine dict
+        captured_machine = {}
+        with patch.object(config, 'S') as mock_S:
+            mock_session = Mock()
+            mock_S.return_value.__enter__.return_value = mock_session
+            mock_S.return_value.__exit__.return_value = None
 
-        # Verify CPU count is set and positive
-        assert machine is not False
-        assert "cpu_count" in machine
-        assert machine["cpu_count"] > 0
+            def capture_machine(insert_obj, values):
+                captured_machine.update(values[0])
+                return Mock()
+
+            mock_session.execute.side_effect = capture_machine
+            mock_session.commit = Mock()
+
+            # Call the function
+            result = config.define_machine(mock_options)
+
+        # Verify function returned True
+        assert result is True
+
+        # Verify CPU count in captured machine dict
+        assert captured_machine["cpu_count"] > 0
         # On Linux, should use sched_getaffinity
-        assert machine["cpu_count"] == len(os.sched_getaffinity(0))
+        assert captured_machine["cpu_count"] == len(os.sched_getaffinity(0))
 
 
 class TestSystemMetricsIntegration:
@@ -248,9 +278,9 @@ class TestSystemMetricsIntegration:
             # Verify all expected metrics are present
             assert "system_start" in metrics
             assert metrics["system_start"] >= 0
-            assert "cpu_percent" in metrics
-            assert "mem_percent" in metrics
-            assert "hd_percent" in metrics
+            assert "used_cpu_percent" in metrics
+            assert "used_mem_percent" in metrics
+            assert "used_hd_percent" in metrics
 
     def test_cpu_count_detection(self):
         """Test that CPU count detection works on current platform"""

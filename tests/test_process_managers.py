@@ -131,14 +131,17 @@ class TestSystemdManager:
         # Verify cleanup commands were called
         assert mock_run.call_count >= 2  # stop + rm + daemon-reload
 
-    @patch("subprocess.run")
-    def test_enable_firewall_port(self, mock_run):
-        """Test enabling firewall port"""
-        mock_run.return_value = Mock(returncode=0)
+    def test_enable_firewall_port(self):
+        """Test enabling firewall port delegates to firewall manager"""
         manager = SystemdManager()
+        # Mock the firewall manager
+        manager.firewall = Mock()
+        manager.firewall.enable_port = Mock(return_value=True)
+
         result = manager.enable_firewall_port(55001)
+
         assert result is True
-        assert any("ufw" in str(call) for call in mock_run.call_args_list)
+        manager.firewall.enable_port.assert_called_once_with(55001, "udp", None)
 
     @patch("subprocess.run")
     def test_disable_firewall_port(self, mock_run):

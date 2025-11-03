@@ -65,7 +65,7 @@ class TestNode:
         db_session.commit()
 
         assert node.id == 1
-        assert node.node_name == "test001"
+        assert node.node_name == "0001"
         assert node.status == "RUNNING"
         assert node.port == 55001
         assert node.metrics_port == 13001
@@ -80,7 +80,7 @@ class TestNode:
         """Test Node JSON serialization"""
         json_data = node.__json__()
         assert json_data["id"] == 1
-        assert json_data["node_name"] == "test001"
+        assert json_data["node_name"] == "0001"
         assert json_data["status"] == "RUNNING"
         assert json_data["port"] == 55001
         assert json_data["method"] == "systemd"
@@ -120,7 +120,7 @@ class TestNode:
         # Check they're ordered by ID
         for i, node in enumerate(all_nodes, 1):
             assert node.id == i
-            assert node.node_name == f"test{i:03d}"
+            assert node.node_name == f"{i:04d}"
 
     def test_query_by_status(self, db_session, multiple_nodes):
         """Test querying nodes by status"""
