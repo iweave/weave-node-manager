@@ -16,6 +16,7 @@ from wnm.common import (
     DEFAULT_CRISIS_BYTES,
     DISABLED,
     DONATE,
+    FAUCET,
     MIGRATING,
     QUEEN,
     REMOVING,
@@ -338,6 +339,16 @@ def merge_config_changes(options, machine_config):
     return cfg
 
 
+# Helper function to safely get option values (handles Mock objects in tests)
+def _get_option(options, attr_name, default=None):
+    """Safely get an attribute from options, handling Mock objects in tests."""
+    value = getattr(options, attr_name, default)
+    # If it's a Mock object (has _mock_name attribute), treat as None
+    if hasattr(value, "_mock_name"):
+        return default
+    return value if value is not None else default
+
+
 # Get anm configuration
 def load_anm_config(options):
     anm_config = {}
@@ -353,29 +364,29 @@ def load_anm_config(options):
     # What can we save from /var/antctl/config
     if os.path.exists("/var/antctl/config"):
         load_dotenv("/var/antctl/config")
-    anm_config["node_cap"] = int(os.getenv("NodeCap") or options.node_cap or 20)
+    anm_config["node_cap"] = int(os.getenv("NodeCap") or _get_option(options, "node_cap") or 20)
     anm_config["cpu_less_than"] = int(
-        os.getenv("CpuLessThan") or options.cpu_less_than or 50
+        os.getenv("CpuLessThan") or _get_option(options, "cpu_less_than") or 50
     )
-    anm_config["cpu_remove"] = int(os.getenv("CpuRemove") or options.cpu_remove or 70)
+    anm_config["cpu_remove"] = int(os.getenv("CpuRemove") or _get_option(options, "cpu_remove") or 70)
     anm_config["mem_less_than"] = int(
-        os.getenv("MemLessThan") or options.mem_less_than or 70
+        os.getenv("MemLessThan") or _get_option(options, "mem_less_than") or 70
     )
-    anm_config["mem_remove"] = int(os.getenv("MemRemove") or options.mem_remove or 90)
-    anm_config["hd_less_than"] = int(os.getenv("HDLessThan") or options.hd_less_than or 70)
-    anm_config["hd_remove"] = int(os.getenv("HDRemove") or options.hd_remove or 90)
-    anm_config["delay_start"] = int(os.getenv("DelayStart") or options.delay_start or 300)
+    anm_config["mem_remove"] = int(os.getenv("MemRemove") or _get_option(options, "mem_remove") or 90)
+    anm_config["hd_less_than"] = int(os.getenv("HDLessThan") or _get_option(options, "hd_less_than") or 70)
+    anm_config["hd_remove"] = int(os.getenv("HDRemove") or _get_option(options, "hd_remove") or 90)
+    anm_config["delay_start"] = int(os.getenv("DelayStart") or _get_option(options, "delay_start") or 300)
     anm_config["delay_upgrade"] = int(
-        os.getenv("DelayUpgrade") or options.delay_upgrade or 300
+        os.getenv("DelayUpgrade") or _get_option(options, "delay_upgrade") or 300
     )
     anm_config["delay_restart"] = int(
-        os.getenv("DelayRestart") or options.delay_restart or 600
+        os.getenv("DelayRestart") or _get_option(options, "delay_restart") or 600
     )
     anm_config["delay_remove"] = int(
-        os.getenv("DelayRemove") or options.delay_remove or 300
+        os.getenv("DelayRemove") or _get_option(options, "delay_remove") or 300
     )
     anm_config["node_storage"] = (
-        os.getenv("NodeStorage") or options.node_storage or NODE_STORAGE
+        os.getenv("NodeStorage") or _get_option(options, "node_storage") or NODE_STORAGE
     )
     # Default to the faucet donation address
     try:
@@ -389,12 +400,12 @@ def load_anm_config(options):
             )[0]
         except (IndexError, TypeError) as e:
             logging.debug(f"Unable to parse RewardsAddress from env: {e}")
-            anm_config["rewards_address"] = options.rewards_address
+            anm_config["rewards_address"] = _get_option(options, "rewards_address")
             if not anm_config["rewards_address"]:
                 logging.warning("Unable to detect RewardsAddress")
                 sys.exit(1)
     anm_config["donate_address"] = (
-        os.getenv("DonateAddress") or options.donate_address or DONATE
+        os.getenv("DonateAddress") or _get_option(options, "donate_address") or DONATE
     )
     anm_config["max_load_average_allowed"] = float(
         os.getenv("MaxLoadAverageAllowed") or anm_config["cpu_count"]
@@ -409,10 +420,10 @@ def load_anm_config(options):
         anm_config["port_start"] = int(re.findall(r"ntpr\=(\d+)", data)[0])
     except (FileNotFoundError, IndexError, ValueError) as e:
         logging.debug(f"Unable to read PortStart from anms.sh: {e}")
-        anm_config["port_start"] = options.port_start or 55
+        anm_config["port_start"] = _get_option(options, "port_start") or 55
 
     anm_config["metrics_port_start"] = (
-        options.metrics_port_start or 13
+        _get_option(options, "metrics_port_start") or 13
     )  # This is hardcoded in the anm.sh script
 
     anm_config["hdio_read_less_than"] = int(os.getenv("HDIOReadLessThan") or 0)
@@ -425,10 +436,10 @@ def load_anm_config(options):
     anm_config["netio_write_remove"] = int(os.getenv("NetIOWriteRemove") or 0)
     # Timer for last stopped nodes
     anm_config["last_stopped_at"] = 0
-    anm_config["host"] = os.getenv("Host") or options.host or "127.0.0.1"
-    anm_config["crisis_bytes"] = options.host or DEFAULT_CRISIS_BYTES
-    anm_config["environment"] = options.environment or ""
-    anm_config["start_args"] = options.start_args or ""
+    anm_config["host"] = os.getenv("Host") or _get_option(options, "host") or "127.0.0.1"
+    anm_config["crisis_bytes"] = _get_option(options, "crisis_bytes") or DEFAULT_CRISIS_BYTES
+    anm_config["environment"] = _get_option(options, "environment") or ""
+    anm_config["start_args"] = _get_option(options, "start_args") or ""
 
     return anm_config
 
@@ -492,63 +503,36 @@ def define_machine(options):
     machine = {
         "id": 1,
         "cpu_count": cpucount,
-        "node_cap": int(options.node_cap) if options.node_cap else 20,
-        "cpu_less_than": int(options.cpu_less_than) if options.cpu_less_than else 50,
-        "cpu_remove": int(options.cpu_remove) if options.cpu_remove else 70,
-        "mem_less_than": int(options.mem_less_than) if options.mem_less_than else 70,
-        "mem_remove": int(options.mem_remove) if options.mem_remove else 90,
-        "hd_less_than": int(options.hd_less_than) if options.hd_less_than else 70,
-        "hd_remove": int(options.hd_remove) if options.hd_remove else 90,
-        "delay_start": int(options.delay_start) if options.delay_start else 300,
-        "delay_upgrade": int(options.delay_upgrade) if options.delay_upgrade else 300,
-        "delay_remove": int(options.delay_remove) if options.delay_remove else 300,
-        "node_storage": options.node_storage or NODE_STORAGE,
-        "rewards_address": options.rewards_address,
-        "donate_address": options.donate_address
-        or "0x00455d78f850b0358E8cea5be24d415E01E107CF",
-        "max_load_average_allowed": (
-            float(options.max_load_average_allowed)
-            if options.max_load_average_allowed
-            else cpucount
-        ),
-        "desired_load_average": (
-            float(options.desired_load_average)
-            if options.desired_load_average
-            else cpucount * 0.6
-        ),
-        "port_start": int(options.port_start) if options.port_start else 55,
-        "hdio_read_less_than": (
-            int(options.hdio_read_less_than) if options.hdio_read_less_than else 0
-        ),
-        "hdio_read_remove": int(options.hdio_read_remove) if options.hdio_read_remove else 0,
-        "hdio_write_less_than": (
-            int(options.hdio_write_less_than) if options.hdio_write_less_than else 0
-        ),
-        "hdio_write_remove": (
-            int(options.hdio_write_remove) if options.hdio_write_remove else 0
-        ),
-        "netio_read_less_than": (
-            int(options.netio_read_less_than) if options.netio_read_less_than else 0
-        ),
-        "netio_read_remove": (
-            int(options.netio_read_remove) if options.netio_read_remove else 0
-        ),
-        "netio_write_less_than": (
-            int(options.netio_write_less_than) if options.netio_write_less_than else 0
-        ),
-        "netio_write_remove": (
-            int(options.netio_write_remove) if options.netio_write_remove else 0
-        ),
+        "node_cap": int(_get_option(options, "node_cap") or 20),
+        "cpu_less_than": int(_get_option(options, "cpu_less_than") or 50),
+        "cpu_remove": int(_get_option(options, "cpu_remove") or 70),
+        "mem_less_than": int(_get_option(options, "mem_less_than") or 70),
+        "mem_remove": int(_get_option(options, "mem_remove") or 90),
+        "hd_less_than": int(_get_option(options, "hd_less_than") or 70),
+        "hd_remove": int(_get_option(options, "hd_remove") or 90),
+        "delay_start": int(_get_option(options, "delay_start") or 300),
+        "delay_upgrade": int(_get_option(options, "delay_upgrade") or 300),
+        "delay_remove": int(_get_option(options, "delay_remove") or 300),
+        "node_storage": _get_option(options, "node_storage") or NODE_STORAGE,
+        "rewards_address": _get_option(options, "rewards_address"),
+        "donate_address": _get_option(options, "donate_address") or FAUCET,
+        "max_load_average_allowed": float(_get_option(options, "max_load_average_allowed") or cpucount),
+        "desired_load_average": float(_get_option(options, "desired_load_average") or cpucount * 0.6),
+        "port_start": int(_get_option(options, "port_start") or 55),
+        "hdio_read_less_than": int(_get_option(options, "hdio_read_less_than") or 0),
+        "hdio_read_remove": int(_get_option(options, "hdio_read_remove") or 0),
+        "hdio_write_less_than": int(_get_option(options, "hdio_write_less_than") or 0),
+        "hdio_write_remove": int(_get_option(options, "hdio_write_remove") or 0),
+        "netio_read_less_than": int(_get_option(options, "netio_read_less_than") or 0),
+        "netio_read_remove": int(_get_option(options, "netio_read_remove") or 0),
+        "netio_write_less_than": int(_get_option(options, "netio_write_less_than") or 0),
+        "netio_write_remove": int(_get_option(options, "netio_write_remove") or 0),
         "last_stopped_at": 0,
-        "host": options.host or "127.0.0.1",
-        "crisis_bytes": (
-            int(options.crisis_bytes) if options.crisis_bytes else DEFAULT_CRISIS_BYTES
-        ),
-        "metrics_port_start": (
-            int(options.metrics_port_start) if options.metrics_port_start else 13
-        ),
-        "environment": options.environment if options.environment else "",
-        "start_args": options.start_args if options.start_args else "",
+        "host": _get_option(options, "host") or "127.0.0.1",
+        "crisis_bytes": int(_get_option(options, "crisis_bytes") or DEFAULT_CRISIS_BYTES),
+        "metrics_port_start": int(_get_option(options, "metrics_port_start") or 13),
+        "environment": _get_option(options, "environment") or "",
+        "start_args": _get_option(options, "start_args") or "",
     }
     with S() as session:
         session.execute(insert(Machine), [machine])

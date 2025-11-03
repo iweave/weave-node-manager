@@ -114,8 +114,9 @@ class TestCPUCount:
         """Test CPU count detection on macOS using os.cpu_count()"""
         from wnm.config import load_anm_config
 
-        # Create mock options
+        # Create mock options with required attributes
         mock_options = Mock()
+        mock_options.rewards_address = "0x1234567890123456789012345678901234567890"
 
         # Mock the config file not existing
         with patch("os.path.exists") as mock_exists:
@@ -137,8 +138,9 @@ class TestCPUCount:
         from wnm.config import load_anm_config
         import os
 
-        # Create mock options
+        # Create mock options with required attributes
         mock_options = Mock()
+        mock_options.rewards_address = "0x1234567890123456789012345678901234567890"
 
         # Mock the config file not existing
         with patch("os.path.exists") as mock_exists:
@@ -254,8 +256,9 @@ class TestSystemMetricsIntegration:
         """Test that CPU count detection works on current platform"""
         from wnm.config import load_anm_config
 
-        # Create mock options
+        # Create mock options with required attributes
         mock_options = Mock()
+        mock_options.rewards_address = "0x1234567890123456789012345678901234567890"
 
         # Mock the config file not existing
         with patch("os.path.exists") as mock_exists:
