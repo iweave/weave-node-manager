@@ -35,6 +35,7 @@ from wnm.utils import (
     parse_service_names,
     update_nodes,
 )
+from wnm.wallets import select_wallet_for_node
 
 
 class ActionExecutor:
@@ -439,6 +440,12 @@ class ActionExecutor:
         # Determine the appropriate manager type for this system
         manager_type = get_default_manager_type()
 
+        # Select wallet for this node from weighted distribution
+        selected_wallet = select_wallet_for_node(
+            machine_config["rewards_address"],
+            machine_config["donate_address"]
+        )
+
         # Create node object
         node = Node(
             id=node_id,
@@ -451,7 +458,7 @@ class ActionExecutor:
             port=machine_config["port_start"] * PORT_MULTIPLIER + node_id,
             metrics_port=METRICS_PORT_BASE + node_id,
             network="evm-arbitrum-one",
-            wallet=machine_config["rewards_address"],
+            wallet=selected_wallet,
             peer_id="",
             status=STOPPED,
             timestamp=int(time.time()),

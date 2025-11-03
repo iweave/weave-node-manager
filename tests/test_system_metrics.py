@@ -160,7 +160,8 @@ class TestCPUCount:
 
         # Create mock options with required rewards_address
         mock_options = Mock()
-        mock_options.rewards_address = "0x1234567890abcdef"
+        mock_options.rewards_address = "0x1234567890abcdef1234567890abcdef12345678"
+        mock_options.donate_address = "0x00455d78f850b0358E8cea5be24d415E01E107CF"
         mock_options.node_cap = 20
         mock_options.cpu_less_than = 80
         mock_options.mem_less_than = 80
@@ -194,7 +195,8 @@ class TestCPUCount:
 
         # Create mock options with required rewards_address
         mock_options = Mock()
-        mock_options.rewards_address = "0x1234567890abcdef"
+        mock_options.rewards_address = "0x1234567890abcdef1234567890abcdef12345678"
+        mock_options.donate_address = "0x00455d78f850b0358E8cea5be24d415E01E107CF"
         mock_options.node_cap = 20
         mock_options.cpu_less_than = 80
         mock_options.mem_less_than = 80

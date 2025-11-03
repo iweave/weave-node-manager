@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+## [0.0.12] - 2025-11-02
+
+### Added
+- **Named wallet support**: `--rewards_address` now accepts named wallets "faucet" and "donate" (case-insensitive)
+  - `faucet` always resolves to the Autonomi community faucet address (constant)
+  - `donate` resolves to `donate_address` from machine config (user-configurable)
+  - Enables easy donation to the project faucet or custom donation addresses
+- **Weighted wallet distribution**: Support for comma-separated wallet lists with optional weights
+  - Format: `wallet1:weight1,wallet2:weight2,...`
+  - Random weighted selection per node creation
+  - Mix Ethereum addresses with named wallets
+  - Example: `--rewards_address "0xYourAddress:100,faucet:1,donate:10"`
+  - Allows flexible reward distribution across multiple wallets
+- **New `FAUCET` constant**: Added to `common.py` for the Autonomi community faucet address
+- **Wallet validation**: Comprehensive validation of rewards_address during init and updates
+- **New `wallets.py` module**: Core wallet resolution and weighted distribution logic
+  - `resolve_wallet_name()`: Resolve named wallets to addresses
+  - `parse_weighted_wallets()`: Parse comma-separated weighted wallet lists
+  - `select_wallet_for_node()`: Random weighted wallet selection
+  - `validate_rewards_address()`: Validate wallet string format
+- **Comprehensive test suite**: 38 tests for wallet resolution and weighted distribution
+
+### Changed
+- **rewards_address configuration**: Now supports single addresses, named wallets, and weighted lists
+- **Node creation**: Nodes now randomly select wallet from weighted distribution on creation
+- **Documentation**: Updated README.md with wallet configuration examples and usage
+
 ### Fixed
 - **node_storage path validation**: `get_machine_metrics()` now creates missing node_storage directory before checking disk usage
   - Prevents `FileNotFoundError` crash when node_storage path doesn't exist

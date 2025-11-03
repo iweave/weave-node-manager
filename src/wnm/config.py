@@ -25,6 +25,7 @@ from wnm.common import (
     UPGRADING,
 )
 from wnm.models import Base, Machine, Node
+from wnm.wallets import validate_rewards_address
 
 logging.getLogger("sqlalchemy.engine.Engine").disabled = True
 
@@ -260,6 +261,13 @@ def merge_config_changes(options, machine_config):
         options.rewards_address
         and options.rewards_address != machine_config.rewards_address
     ):
+        # Validate the new rewards_address
+        is_valid, error_msg = validate_rewards_address(
+            options.rewards_address, machine_config.donate_address
+        )
+        if not is_valid:
+            logging.error(f"Invalid rewards_address: {error_msg}")
+            sys.exit(1)
         cfg["rewards_address"] = options.rewards_address
     if options.donate_address and options.donate_address != machine_config.donate_address:
         cfg["donate_address"] = options.donate_address
@@ -465,6 +473,16 @@ def define_machine(options):
     if not options.rewards_address:
         logging.warning("Rewards Address is required")
         return False
+
+    # Determine donate_address that will be used for validation
+    donate_address = options.donate_address or DONATE
+
+    # Validate rewards_address format
+    is_valid, error_msg = validate_rewards_address(options.rewards_address, donate_address)
+    if not is_valid:
+        logging.error(f"Invalid rewards_address: {error_msg}")
+        return False
+
     if PLATFORM == "Linux":
         # Linux: use sched_getaffinity for accurate count (respects cgroups/taskset)
         cpucount = len(os.sched_getaffinity(0))

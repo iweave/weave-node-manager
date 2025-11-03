@@ -194,8 +194,59 @@ Resource thresholds control when nodes are added or removed:
 - `--hd_less_than` / `--hd_remove`: Disk usage percentage thresholds (default: 70% / 80%)
 - `--desired_load_average` / `--max_load_average_allowed`: Load average thresholds
 - `--node_cap`: Maximum number of nodes (default: 50)
-- `--rewards_address`: Ethereum address for node rewards (required)
+- `--rewards_address`: Wallet address(es) for node rewards (required) - see Wallet Configuration below
 - `--node_storage`: Root directory for node data (auto-detected per platform)
+
+### Wallet Configuration
+
+The `--rewards_address` parameter supports multiple formats for flexible reward distribution:
+
+#### Single Wallet
+Use a single Ethereum address or named wallet:
+```bash
+# Ethereum address
+wnm --init --rewards_address 0xYourEthereumAddress
+
+# Named wallet: "donate" (uses your custom donate_address or the community foucet if not deefined)
+wnm --init --rewards_address donate
+
+# Named wallet: "faucet" (always uses the autonomi community faucet address)
+wnm --init --rewards_address faucet
+```
+
+#### Weighted Distribution
+Distribute rewards across multiple wallets using weighted random selection:
+```bash
+# Format: wallet1:weight1,wallet2:weight2,...
+wnm --init --rewards_address "0xYourAddress:100,faucet:1,donate:10"
+```
+
+In this example:
+- Your address receives ~90% of nodes (100 out of 111 weight)
+- Faucet receives ~1% of nodes (1 out of 111 weight)
+- Donate address receives ~9% of nodes (10 out of 111 weight)
+
+**Key Features:**
+- **Random per node**: Each new node randomly selects a wallet based on weights
+- **Named wallets**: Use `faucet` (project faucet) or `donate` (your custom donation address)
+- **Case-insensitive**: `faucet`, `FAUCET`, and `Faucet` all work
+- **Mix addresses and names**: Combine Ethereum addresses with named wallets
+- **Changeable**: Update `--rewards_address` anytime to change distribution for new nodes
+
+**Examples:**
+```bash
+# 50/50 split between your address and faucet
+wnm --rewards_address "0xYourAddress:1,faucet:1"
+
+# Your address only
+wnm --rewards_address 0xYourAddress
+
+# Mostly yours, small donation to faucet
+wnm --rewards_address "0xYourAddress:99,faucet:1"
+
+# Multiple addresses with custom weights
+wnm --rewards_address "0xAddress1:100,0xAddress2:50,faucet:10"
+```
 
 ### anm Migration (Linux Only)
 
