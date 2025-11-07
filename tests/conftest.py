@@ -43,6 +43,15 @@ def db_session(db_engine):
 @pytest.fixture
 def sample_machine_config():
     """Sample machine configuration for testing"""
+    system = platform.system()
+    # Use appropriate process manager for platform
+    if system == "Darwin":
+        process_manager = "launchd+user"
+    elif system == "Linux":
+        process_manager = "systemd+user"
+    else:
+        process_manager = "setsid+user"
+
     return {
         "cpu_count": 8,
         "node_cap": 10,
@@ -79,6 +88,7 @@ def sample_machine_config():
         "max_concurrent_starts": 2,
         "max_concurrent_removals": 1,
         "node_removal_strategy": "youngest",
+        "process_manager": process_manager,
     }
 
 
@@ -94,6 +104,15 @@ def machine(db_session, sample_machine_config):
 @pytest.fixture
 def sample_node_config():
     """Sample node configuration for testing"""
+    system = platform.system()
+    # Use appropriate manager type with mode for platform
+    if system == "Darwin":
+        manager_type = "launchd+user"
+    elif system == "Linux":
+        manager_type = "systemd+user"
+    else:
+        manager_type = "setsid+user"
+
     return {
         "id": 1,
         "node_name": "0001",
@@ -114,12 +133,12 @@ def sample_node_config():
         "shunned": 0,
         "age": 1000000,
         "host": "test-host",
-        "method": "systemd",
+        "method": manager_type,
         "layout": "single",
         "environment": None,
         "machine_id": 1,
         "container_id": None,
-        "manager_type": "systemd",
+        "manager_type": manager_type,
     }
 
 

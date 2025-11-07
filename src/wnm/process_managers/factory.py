@@ -21,7 +21,7 @@ def get_process_manager(
     Get a process manager instance for the specified type.
 
     Args:
-        manager_type: Type of process manager ("systemd", "docker", "setsid", etc.)
+        manager_type: Type of process manager (e.g., "systemd+sudo", "systemd+user", "setsid", etc.)
         session_factory: SQLAlchemy session factory for database operations
         **kwargs: Additional arguments to pass to the manager constructor
 
@@ -31,6 +31,13 @@ def get_process_manager(
     Raises:
         ValueError: If manager_type is not supported
     """
+    # Parse manager type (e.g., "systemd+sudo" -> ("systemd", "sudo"))
+    if "+" in manager_type:
+        base_type, mode = manager_type.split("+", 1)
+    else:
+        base_type = manager_type
+        mode = None
+
     managers = {
         "systemd": SystemdManager,
         "docker": DockerManager,
@@ -40,13 +47,17 @@ def get_process_manager(
         # "antctl": AntctlManager,
     }
 
-    manager_class = managers.get(manager_type)
+    manager_class = managers.get(base_type)
     if not manager_class:
         supported = ", ".join(managers.keys())
         raise ValueError(
-            f"Unsupported manager type: {manager_type}. "
+            f"Unsupported manager type: {base_type}. "
             f"Supported types: {supported}"
         )
+
+    # Pass the mode to the manager constructor
+    if mode:
+        kwargs["mode"] = mode
 
     logging.debug(f"Creating {manager_type} process manager")
     return manager_class(session_factory=session_factory, **kwargs)

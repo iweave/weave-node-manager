@@ -96,6 +96,9 @@ class Machine(Base):
         UnicodeText, default="youngest"
     )
 
+    # Process manager type
+    process_manager: Mapped[Optional[str]] = mapped_column(UnicodeText, default=None)
+
     # Relationships
     containers: Mapped[list["Container"]] = relationship(
         back_populates="machine", cascade="all, delete-orphan"
@@ -141,6 +144,7 @@ class Machine(Base):
         max_concurrent_starts=2,
         max_concurrent_removals=1,
         node_removal_strategy="youngest",
+        process_manager=None,
     ):
         self.cpu_count = cpu_count
         self.node_cap = node_cap
@@ -177,6 +181,7 @@ class Machine(Base):
         self.max_concurrent_starts = max_concurrent_starts
         self.max_concurrent_removals = max_concurrent_removals
         self.node_removal_strategy = node_removal_strategy
+        self.process_manager = process_manager
 
     def __repr__(self):
         return (
@@ -231,6 +236,7 @@ class Machine(Base):
             "max_concurrent_starts": self.max_concurrent_starts,
             "max_concurrent_removals": self.max_concurrent_removals,
             "node_removal_strategy": f"{self.node_removal_strategy}",
+            "process_manager": f"{self.process_manager}" if self.process_manager else None,
         }
 
 

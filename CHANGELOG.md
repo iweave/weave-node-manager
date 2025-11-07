@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.0.13] - 2025-11-06
+
+### Fixed
+- **systemd+sudo path configuration**: Fixed path selection to use system-wide paths (`/var/antctl/`) when using `systemd+sudo` mode instead of user paths
+  - Added `_detect_process_manager_mode()` function to detect mode from command line args, environment variables, or existing database
+  - Path selection now based on process manager mode (sudo vs user) instead of IS_ROOT check
+  - Supports custom database paths via `--dbpath` or `DBPATH` environment variable with proper mode detection
+  - Fixed database default path from relative `sqlite:///colony.db` to absolute `DEFAULT_DB_PATH`
+- **Node manager_type preservation**: Fixed `executor.py` to use `machine_config["process_manager"]` instead of `get_default_manager_type()` to preserve mode suffix (+sudo, +user)
+  - Service files now correctly created in `/etc/systemd/system/` for systemd+sudo mode
+  - Nodes inherit correct `manager_type` from machine config in database
+
+### Added
+- **Test coverage**: Added comprehensive tests for mode detection, path selection, and manager type preservation in `tests/test_config.py`
+- Updated fixtures in `tests/conftest.py` to include `process_manager` field with mode suffix
+
 ## [0.0.12] - 2025-11-02
 
 ### Added

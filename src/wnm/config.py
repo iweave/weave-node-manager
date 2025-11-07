@@ -37,31 +37,150 @@ logging.getLogger("sqlalchemy.engine.Engine").disabled = True
 
 PLATFORM = platform.system()  # 'Linux', 'Darwin', 'Windows'
 
-# Determine if running as root on Linux
+# Determine if running as root on Linux (kept for backwards compatibility)
 IS_ROOT = PLATFORM == "Linux" and os.geteuid() == 0
 
-# Platform-specific base directories
-if PLATFORM == "Darwin":
-    # macOS: Use standard macOS application directories
-    BASE_DIR = os.path.expanduser("~/Library/Application Support/autonomi")
-    NODE_STORAGE = os.path.expanduser("~/Library/Application Support/autonomi/node")
-    LOG_DIR = os.path.expanduser("~/Library/Logs/autonomi")
-    BOOTSTRAP_CACHE_DIR = os.path.expanduser("~/Library/Caches/autonomi/bootstrap-cache")
-elif PLATFORM == "Linux":
+
+def _detect_process_manager_mode():
+    """
+    Detect the process manager mode early to determine path selection.
+
+    Checks (in priority order):
+    1. --process_manager command line argument
+    2. PROCESS_MANAGER environment variable
+    3. Existing database in either sudo or user paths
+    4. Fallback to IS_ROOT-based detection for backwards compatibility
+
+    Returns:
+        str: "sudo" or "user" indicating the mode
+    """
+    # Check command line args first (quick parse without configargparse)
+    for i, arg in enumerate(sys.argv):
+        if arg == "--process_manager" and i + 1 < len(sys.argv):
+            pm = sys.argv[i + 1]
+            if "+sudo" in pm:
+                return "sudo"
+            elif "+user" in pm:
+                return "user"
+
+    # Check environment variable
+    pm_env = os.getenv("PROCESS_MANAGER")
+    if pm_env:
+        if "+sudo" in pm_env:
+            return "sudo"
+        elif "+user" in pm_env:
+            return "user"
+
+    # Check if .env file exists and load it
+    env_file = os.path.expanduser("~/.local/share/wnm/.env")
+    if os.path.exists(env_file):
+        load_dotenv(env_file)
+        pm_env = os.getenv("PROCESS_MANAGER")
+        if pm_env:
+            if "+sudo" in pm_env:
+                return "sudo"
+            elif "+user" in pm_env:
+                return "user"
+
+    # Check for existing databases to auto-detect mode
+    # Try both potential locations and read process_manager from machine table
+    import sqlite3
+
+    db_locations = []
+
+    # Check for --dbpath command line argument first
+    for i, arg in enumerate(sys.argv):
+        if arg == "--dbpath" and i + 1 < len(sys.argv):
+            dbpath_arg = sys.argv[i + 1]
+            # Remove sqlite:/// prefix if present
+            if dbpath_arg.startswith("sqlite:///"):
+                dbpath_arg = dbpath_arg[10:]
+            db_locations.append(dbpath_arg)
+            break
+
+    # Check for DBPATH environment variable
+    dbpath_env = os.getenv("DBPATH")
+    if dbpath_env:
+        # Remove sqlite:/// prefix if present
+        if dbpath_env.startswith("sqlite:///"):
+            dbpath_env = dbpath_env[10:]
+        # Expand variables like $HOME
+        dbpath_env = os.path.expandvars(dbpath_env)
+        db_locations.append(dbpath_env)
+
+    # Add platform-specific default locations
+    if PLATFORM == "Linux":
+        db_locations.extend([
+            "/var/antctl/colony.db",  # sudo mode
+            os.path.expanduser("~/.local/share/autonomi/colony.db"),  # user mode
+        ])
+    elif PLATFORM == "Darwin":
+        db_locations.extend([
+            "/Library/Application Support/autonomi/colony.db",  # sudo mode
+            os.path.expanduser("~/Library/Application Support/autonomi/colony.db"),  # user mode
+        ])
+
+    for db_path in db_locations:
+        if os.path.exists(db_path):
+            try:
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                cursor.execute("SELECT process_manager FROM machine WHERE id = 1")
+                row = cursor.fetchone()
+                conn.close()
+
+                if row and row[0]:
+                    pm = row[0]
+                    if "+sudo" in pm:
+                        return "sudo"
+                    elif "+user" in pm:
+                        return "user"
+            except (sqlite3.Error, IndexError):
+                # Database exists but can't read it - try next location
+                continue
+
+    # Fallback to IS_ROOT for backwards compatibility
+    # If running as actual root, assume sudo mode (system-wide paths)
     if IS_ROOT:
-        # Linux root: Use legacy /var/antctl paths for backwards compatibility
+        return "sudo"
+
+    # Default to user mode
+    return "user"
+
+
+# Detect the process manager mode early
+_PM_MODE = _detect_process_manager_mode()
+
+# Platform-specific base directories based on process manager mode
+if PLATFORM == "Darwin":
+    # macOS paths
+    if _PM_MODE == "sudo":
+        # System-wide paths for launchd+sudo
+        BASE_DIR = "/Library/Application Support/autonomi"
+        NODE_STORAGE = "/Library/Application Support/autonomi/node"
+        LOG_DIR = "/Library/Logs/autonomi"
+        BOOTSTRAP_CACHE_DIR = "/Library/Caches/autonomi/bootstrap-cache"
+    else:
+        # User-level paths for launchd+user (default)
+        BASE_DIR = os.path.expanduser("~/Library/Application Support/autonomi")
+        NODE_STORAGE = os.path.expanduser("~/Library/Application Support/autonomi/node")
+        LOG_DIR = os.path.expanduser("~/Library/Logs/autonomi")
+        BOOTSTRAP_CACHE_DIR = os.path.expanduser("~/Library/Caches/autonomi/bootstrap-cache")
+elif PLATFORM == "Linux":
+    if _PM_MODE == "sudo":
+        # System-wide paths for systemd+sudo or setsid+sudo
         BASE_DIR = "/var/antctl"
         NODE_STORAGE = "/var/antctl/services"
         LOG_DIR = "/var/log/antnode"
         BOOTSTRAP_CACHE_DIR = "/var/antctl/bootstrap-cache"
     else:
-        # Linux user: Use XDG Base Directory specification
+        # User-level paths for systemd+user or setsid+user (default)
         BASE_DIR = os.path.expanduser("~/.local/share/autonomi")
         NODE_STORAGE = os.path.expanduser("~/.local/share/autonomi/node")
         LOG_DIR = os.path.expanduser("~/.local/share/autonomi/logs")
         BOOTSTRAP_CACHE_DIR = os.path.expanduser("~/.local/share/autonomi/bootstrap-cache")
 else:
-    # Windows or other platforms
+    # Windows or other platforms (user-level only)
     BASE_DIR = os.path.expanduser("~/autonomi")
     NODE_STORAGE = os.path.expanduser("~/autonomi/node")
     LOG_DIR = os.path.expanduser("~/autonomi/logs")
@@ -71,12 +190,30 @@ else:
 LOCK_FILE = os.path.join(BASE_DIR, "wnm_active")
 DEFAULT_DB_PATH = f"sqlite:///{os.path.join(BASE_DIR, 'colony.db')}"
 
-# Create directories if they don't exist (except in test mode)
+# Create minimal directories needed for config.py (except in test mode)
+# Note: NODE_STORAGE and LOG_DIR are created by ProcessManager when nodes are created
 if not os.getenv("WNM_TEST_MODE"):
-    os.makedirs(BASE_DIR, exist_ok=True)
-    os.makedirs(NODE_STORAGE, exist_ok=True)
-    os.makedirs(LOG_DIR, exist_ok=True)
-    os.makedirs(BOOTSTRAP_CACHE_DIR, exist_ok=True)
+    if _PM_MODE == "sudo":
+        # For sudo mode with system paths, use sudo to create directories
+        for directory in [BASE_DIR, BOOTSTRAP_CACHE_DIR]:
+            if not os.path.exists(directory):
+                try:
+                    subprocess.run(
+                        ["sudo", "mkdir", "-p", directory],
+                        check=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE
+                    )
+                except (subprocess.CalledProcessError, FileNotFoundError) as e:
+                    # If sudo fails or isn't available, warn but continue
+                    logging.warning(
+                        f"Could not create system directory {directory}: {e}. "
+                        f"You may need to run: sudo mkdir -p {directory}"
+                    )
+    else:
+        # For user mode, create directories normally (no sudo needed)
+        os.makedirs(BASE_DIR, exist_ok=True)
+        os.makedirs(BOOTSTRAP_CACHE_DIR, exist_ok=True)
 
 
 # Config file parser
@@ -94,7 +231,7 @@ def load_config():
         "--dbpath",
         env_var="DBPATH",
         help="Path to the database",
-        default="sqlite:///colony.db",
+        default=DEFAULT_DB_PATH,
     )
     c.add("--loglevel", env_var="LOGLEVEL", help="Log level")
     c.add(
@@ -218,6 +355,12 @@ def load_config():
         type=int,
         default=1,
     )
+    c.add(
+        "--process_manager",
+        env_var="PROCESS_MANAGER",
+        help="Process manager to use: systemd+sudo, systemd+user, setsid+sudo, setsid+user, launchd+sudo, launchd+user",
+        choices=["systemd+sudo", "systemd+user", "setsid+sudo", "setsid+user", "launchd+sudo", "launchd+user"],
+    )
 
     options = c.parse_known_args()[0] or []
     # Return the first result from parse_known_args, ignore unknown options
@@ -335,6 +478,8 @@ def merge_config_changes(options, machine_config):
         cfg["environment"] = options.environment
     if options.start_args and options.start_args != machine_config.start_args:
         cfg["start_args"] = options.start_args
+    if options.process_manager and options.process_manager != machine_config.process_manager:
+        cfg["process_manager"] = options.process_manager
 
     return cfg
 
@@ -441,6 +586,16 @@ def load_anm_config(options):
     anm_config["environment"] = _get_option(options, "environment") or ""
     anm_config["start_args"] = _get_option(options, "start_args") or ""
 
+    # Set default process manager based on platform if not specified
+    if _get_option(options, "process_manager"):
+        anm_config["process_manager"] = _get_option(options, "process_manager")
+    elif PLATFORM == "Darwin":
+        anm_config["process_manager"] = "launchd+user"
+    elif PLATFORM == "Linux":
+        anm_config["process_manager"] = "systemd+user"
+    else:
+        anm_config["process_manager"] = "systemd+user"
+
     return anm_config
 
 
@@ -534,6 +689,17 @@ def define_machine(options):
         "environment": _get_option(options, "environment") or "",
         "start_args": _get_option(options, "start_args") or "",
     }
+
+    # Set default process manager based on platform if not specified
+    if _get_option(options, "process_manager"):
+        machine["process_manager"] = _get_option(options, "process_manager")
+    elif PLATFORM == "Darwin":
+        machine["process_manager"] = "launchd+user"
+    elif PLATFORM == "Linux":
+        machine["process_manager"] = "systemd+user"
+    else:
+        machine["process_manager"] = "systemd+user"
+
     with S() as session:
         session.execute(insert(Machine), [machine])
         session.commit()
@@ -575,8 +741,14 @@ if os.getenv("WNM_TEST_MODE"):
     machine_config = None
 else:
     # Check if we have a defined machine
-    with S() as session:
-        machine_config = session.execute(select(Machine)).first()
+    try:
+        with S() as session:
+            machine_config = session.execute(select(Machine)).first()
+    except Exception as e:
+        # If there's an error loading the machine config (e.g., schema mismatch),
+        # set to None and let the init process handle it
+        logging.debug(f"Error loading machine config (may need schema upgrade): {e}")
+        machine_config = None
 
 # No machine configured
 if not machine_config and not os.getenv("WNM_TEST_MODE"):

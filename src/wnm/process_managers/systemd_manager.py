@@ -27,22 +27,35 @@ from wnm.utils import (
 class SystemdManager(ProcessManager):
     """Manage nodes as systemd services (system or user mode)"""
 
-    def __init__(self, session_factory=None, firewall_type: str = None):
+    def __init__(self, session_factory=None, firewall_type: str = None, mode: str = None):
         """
         Initialize SystemdManager.
 
         Args:
             session_factory: SQLAlchemy session factory (optional, for status updates)
             firewall_type: Type of firewall to use (defaults to auto-detect, null for non-root)
+            mode: Operation mode - "sudo" for system services with sudo, "user" for user services
         """
-        # Determine if we're using system or user services
-        # Root users use system services in /etc/systemd/system/
-        # Non-root users use user services in ~/.config/systemd/user/
-        self.use_system_services = IS_ROOT
+        # Determine if we're using system or user services based on mode parameter
+        # mode="sudo": Use system services in /etc/systemd/system/ with sudo (production)
+        # mode="user": Use user services in ~/.config/systemd/user/ without sudo (default)
+        if mode == "sudo":
+            self.use_system_services = True
+        elif mode == "user":
+            self.use_system_services = False
+        else:
+            # Fallback to IS_ROOT for backward compatibility
+            self.use_system_services = IS_ROOT
 
-        # Non-root users should use null firewall by default (to avoid sudo)
-        if not IS_ROOT and firewall_type is None:
-            firewall_type = "null"
+        # Configure firewall based on mode
+        if self.use_system_services:
+            # System services mode: use ufw firewall by default (requires sudo)
+            if firewall_type is None:
+                firewall_type = "ufw"
+        else:
+            # User services mode: use null firewall by default (no sudo)
+            if firewall_type is None:
+                firewall_type = "null"
 
         super().__init__(firewall_type)
         self.S = session_factory

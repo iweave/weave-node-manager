@@ -53,6 +53,7 @@ class ActionExecutor:
             session_factory: SQLAlchemy session factory for database operations
         """
         self.S = session_factory
+        self.machine_config = None  # Will be set in execute()
 
     def _get_process_manager(self, node: Node):
         """Get the appropriate process manager for a node.
@@ -65,7 +66,14 @@ class ActionExecutor:
         """
         # Get manager type from node, or use machine config default
         manager_type = getattr(node, "manager_type", None)
-        return get_process_manager(manager_type)
+        if not manager_type and self.machine_config:
+            manager_type = self.machine_config.get("process_manager")
+
+        # If still no manager type, use default
+        if not manager_type:
+            manager_type = get_default_manager_type()
+
+        return get_process_manager(manager_type, session_factory=self.S)
 
     def _set_node_status(self, node_id: int, status: str) -> bool:
         """Update node status in database.
@@ -147,6 +155,9 @@ class ActionExecutor:
         Returns:
             Dictionary with execution status and results
         """
+        # Store machine_config for use in _get_process_manager
+        self.machine_config = machine_config
+
         if not actions:
             return {"status": "no-actions", "results": []}
 
@@ -437,8 +448,8 @@ class ActionExecutor:
                     ).first()
                 node_id = result[0] + 1 if result else 1
 
-        # Determine the appropriate manager type for this system
-        manager_type = get_default_manager_type()
+        # Use the machine config's process manager (includes mode like "systemd+sudo")
+        manager_type = machine_config.get("process_manager") or get_default_manager_type()
 
         # Select wallet for this node from weighted distribution
         selected_wallet = select_wallet_for_node(

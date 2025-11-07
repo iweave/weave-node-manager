@@ -43,7 +43,7 @@ pip3 install weave-node-manager
 
 #### 4. Or install from source
 ```bash
-git clone https://github.com/dawn-code/weave-node-manager.git
+git clone https://github.com/ambled/weave-node-manager.git
 cd weave-node-manager
 pip3 install -e .
 ```
@@ -96,7 +96,7 @@ pip3 install weave-node-manager
 
 #### 4. Or install from source
 ```bash
-git clone https://github.com/dawn-code/weave-node-manager.git
+git clone https://github.com/ambled/weave-node-manager.git
 cd weave-node-manager
 pip3 install -e .
 ```
