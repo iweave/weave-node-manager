@@ -826,34 +826,48 @@ For wnm to work as designed, it should run every minute via cron.
 crontab -e
 ```
 
-**Add one of these lines based on your platform:**
+**IMPORTANT: Add PATH at the top of your crontab**
+
+Cron runs with a minimal environment that doesn't include standard system paths. Add this line at the top of your crontab to ensure wnm can find system utilities like `sysctl`:
+
+```cron
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+```
+
+**Then add one of these lines based on your platform:**
 
 *macOS (with pyenv):*
 ```cron
-*/1 * * * * /Users/username/.pyenv/versions/3.14.0/bin/python3 -m wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+*/1 * * * * /Users/username/.pyenv/versions/3.14.0/bin/wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
 ```
 
 *macOS (system Python):*
 ```cron
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 */1 * * * * /usr/local/bin/python3 -m wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
 ```
 
 *Linux (user with venv):*
 ```cron
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 */1 * * * * . ~/.venv/bin/activate && wnm >> ~/.local/share/autonomi/logs/wnm-cron.log 2>&1
 ```
 
 *Linux (root with system Python):*
 ```cron
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 */1 * * * * /usr/bin/python3 -m wnm >> /var/antctl/wnm-cron.log 2>&1
 ```
 
 *Linux (root with venv):*
 ```cron
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 */1 * * * * . /opt/venv/bin/activate && wnm >> /var/antctl/wnm-cron.log 2>&1
 ```
 
 **Explanation:**
+- `PATH=...` - Sets the search path for system commands (required for wnm to find `sysctl`, `uptime`, etc.)
 - `*/1 * * * *` - Run every 1 minute
 - `/path/to/python3 -m wnm` - Run wnm as a Python module when using full path to Python
 - `. /path/to/venv/bin/activate && wnm` - Activate venv first, then use short `wnm` command
