@@ -29,17 +29,27 @@ from wnm.utils import (
 class LaunchdManager(ProcessManager):
     """Manage nodes as launchd user agents on macOS"""
 
-    def __init__(self, session_factory=None, firewall_type: str = None):
+    def __init__(self, session_factory=None, firewall_type: str = None, mode: str = None):
         """
         Initialize LaunchdManager.
 
         Args:
             session_factory: SQLAlchemy session factory (optional, for status updates)
             firewall_type: Type of firewall to use (defaults to "null" on macOS)
+            mode: Operation mode - "sudo" for system daemons with sudo, "user" for user agents (default)
         """
         super().__init__(firewall_type)
         self.S = session_factory
-        self.plist_dir = os.path.expanduser("~/Library/LaunchAgents")
+
+        # Determine if we're using system daemons or user agents based on mode parameter
+        # mode="sudo": Use system daemons in /Library/LaunchDaemons/ with sudo (future)
+        # mode="user" or None: Use user agents in ~/Library/LaunchAgents/ without sudo (default)
+        if mode == "sudo":
+            self.use_system_daemons = True
+            self.plist_dir = "/Library/LaunchDaemons"
+        else:
+            self.use_system_daemons = False
+            self.plist_dir = os.path.expanduser("~/Library/LaunchAgents")
 
         # Ensure plist directory exists
         os.makedirs(self.plist_dir, exist_ok=True)
@@ -229,9 +239,27 @@ class LaunchdManager(ProcessManager):
         logging.info(f"Starting launchd node {node.id}")
 
         plist_path = self._get_plist_path(node)
+
+        # If plist doesn't exist, recreate it (node directory should exist)
         if not os.path.exists(plist_path):
-            logging.error(f"Plist file not found: {plist_path}")
-            return False
+            logging.info(f"Plist file not found, recreating: {plist_path}")
+
+            # Get the binary path from the node's root directory
+            node_binary_path = os.path.join(node.root_dir, "antnode")
+
+            if not os.path.exists(node_binary_path):
+                logging.error(f"Node binary not found: {node_binary_path}")
+                return False
+
+            # Generate and write the plist file
+            plist_content = self._generate_plist_content(node, node_binary_path)
+            try:
+                with open(plist_path, "w") as f:
+                    f.write(plist_content)
+                logging.info(f"Recreated plist file: {plist_path}")
+            except OSError as err:
+                logging.error(f"Failed to write plist file: {err}")
+                return False
 
         try:
             subprocess.run(

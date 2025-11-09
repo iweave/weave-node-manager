@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [0.0.15] - 2025-11-09
+
+### Fixed
+- **LaunchdManager factory compatibility**: Fixed `LaunchdManager.__init__()` to accept `mode` parameter
+  - Resolves `TypeError: LaunchdManager.__init__() got an unexpected keyword argument 'mode'` error
+  - Adds infrastructure for future `launchd+sudo` support (system daemons in `/Library/LaunchDaemons/`)
+  - Default mode remains user-level (`~/Library/LaunchAgents/`)
+  - Maintains compatibility with process manager factory pattern
+- **LaunchdManager plist recreation**: Fixed `start_node()` to recreate missing plist files
+  - Automatically regenerates plist file if missing when starting a stopped node
+  - Resolves "Plist file not found" errors when database and launchd are out of sync
+  - Handles cleanup scenarios where plist files were removed but node directories remain
+
+## [0.0.14] - 2025-11-09
+
 ### Added
 - **`--version` flag**: Display version and exit without database or lock file checks
   - Bypasses all initialization for reliability
