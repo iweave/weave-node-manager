@@ -6,6 +6,7 @@ import time
 
 from sqlalchemy import insert, select
 
+from wnm import __version__
 from wnm.config import (
     LOCK_FILE,
     S,
@@ -93,6 +94,24 @@ def choose_action(machine_config, metrics, dry_run):
 
 
 def main():
+    # Handle --version flag (before any lock file or database checks)
+    if options.version:
+        print(f"wnm version {__version__}")
+        sys.exit(0)
+
+    # Handle --remove_lockfile flag (before normal lock file check)
+    if options.remove_lockfile:
+        if os.path.exists(LOCK_FILE):
+            try:
+                os.remove(LOCK_FILE)
+                print(f"Lock file removed: {LOCK_FILE}")
+                sys.exit(0)
+            except (PermissionError, OSError) as e:
+                print(f"Error removing lock file: {e}")
+                sys.exit(1)
+        else:
+            print(f"Lock file does not exist: {LOCK_FILE}")
+            sys.exit(0)
 
     # Are we already running
     if os.path.exists(LOCK_FILE):

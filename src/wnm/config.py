@@ -227,6 +227,8 @@ def load_config():
 
     c.add("-c", "--config", is_config_file=True, help="config file path")
     c.add("-v", help="verbose", action="store_true")
+    c.add("--version", help="Show version and exit", action="store_true")
+    c.add("--remove_lockfile", help="Remove the lock file and exit", action="store_true")
     c.add(
         "--dbpath",
         env_var="DBPATH",
@@ -722,22 +724,29 @@ def apply_config_updates(config_updates):
 # Load options now so we know what database to load
 options = load_config()
 
-# Setup Database engine
-engine = create_engine(options.dbpath, echo=True)
+# Skip database initialization for --version and --remove_lockfile
+# These flags should work without any database or lock file checks
+_SKIP_DB_INIT = getattr(options, 'version', False) or getattr(options, 'remove_lockfile', False)
 
-# Generate ORM
-Base.metadata.create_all(engine)
-
-# Create a connection to the ORM
-session_factory = sessionmaker(bind=engine)
-S = scoped_session(session_factory)
+# Setup Database engine (skip if --version or --remove_lockfile)
+if not _SKIP_DB_INIT:
+    engine = create_engine(options.dbpath, echo=True)
+    # Generate ORM
+    Base.metadata.create_all(engine)
+    # Create a connection to the ORM
+    session_factory = sessionmaker(bind=engine)
+    S = scoped_session(session_factory)
+else:
+    # Create dummy objects for --version and --remove_lockfile
+    engine = None
+    S = None
 
 # Remember if we init a new machine
 did_we_init = False
 
-# Skip machine configuration check in test mode
-if os.getenv("WNM_TEST_MODE"):
-    # In test mode, use a minimal machine config or None
+# Skip machine configuration check in test mode or when using --version/--remove_lockfile
+if os.getenv("WNM_TEST_MODE") or _SKIP_DB_INIT:
+    # In test mode or with --version/--remove_lockfile, use a minimal machine config or None
     machine_config = None
 else:
     # Check if we have a defined machine
@@ -751,7 +760,7 @@ else:
         machine_config = None
 
 # No machine configured
-if not machine_config and not os.getenv("WNM_TEST_MODE"):
+if not machine_config and not os.getenv("WNM_TEST_MODE") and not _SKIP_DB_INIT:
     # Are we initializing a new machine?
     if options.init:
         # Init and dry-run are mutually exclusive
@@ -810,12 +819,12 @@ else:
         else:
             logging.warning("Please confirm the teardown with --confirm")
             sys.exit(1)
-    # Get Machine from Row (skip in test mode)
-    if not os.getenv("WNM_TEST_MODE"):
+    # Get Machine from Row (skip in test mode or when using --version/--remove_lockfile)
+    if not os.getenv("WNM_TEST_MODE") and not _SKIP_DB_INIT:
         machine_config = machine_config[0]
 
-# Collect the proposed changes unless we are initializing (skip in test mode)
-config_updates = merge_config_changes(options, machine_config) if not os.getenv("WNM_TEST_MODE") else {}
+# Collect the proposed changes unless we are initializing (skip in test mode or when using --version/--remove_lockfile)
+config_updates = merge_config_changes(options, machine_config) if not os.getenv("WNM_TEST_MODE") and not _SKIP_DB_INIT else {}
 # Failfirst on invalid config change
 if (
     "port_start" in config_updates or "metrics_port_start" in config_updates

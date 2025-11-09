@@ -334,10 +334,15 @@ For wnm to continuously manage your nodes, add it to your crontab:
 crontab -e
 ```
 
-Add this line (adjust path to wnm if needed):
+Add this line (adjust path to your Python installation):
 
 ```cron
-*/1 * * * * . /Users/username/.pyenv/versions/3.14.0/bin/python -m wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1 
+*/1 * * * * /Users/username/.pyenv/versions/3.14.0/bin/python3 -m wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
+```
+
+**Note:** Replace `/Users/username/.pyenv/versions/3.14.0` with your actual pyenv Python path. Find it with:
+```bash
+which python3
 ```
 
 **This will:**
@@ -460,6 +465,8 @@ Add:
 */1 * * * * . ~/.venv/bin/activate && wnm >> ~/.local/share/autonomi/logs/wnm-cron.log 2>&1
 ```
 
+**Note:** Adjust `~/.venv` to match your virtual environment path if different.
+
 **Monitor:**
 ```bash
 tail -f ~/.local/share/autonomi/logs/wnm-cron.log
@@ -564,14 +571,19 @@ tail -f /var/log/antnode/antnode-1.log
 sudo crontab -e
 ```
 
-Add:
+Add (adjust Python path as needed):
 ```cron
-*/1 * * * * /usr/local/bin/wnm >> /var/log/antnode/wnm-cron.log 2>&1
+*/1 * * * * /usr/bin/python3 -m wnm >> /var/antctl/wnm-cron.log 2>&1
+```
+
+**Note:** If you installed wnm in a virtual environment, activate it first:
+```cron
+*/1 * * * * . /opt/venv/bin/activate && wnm >> /var/antctl/wnm-cron.log 2>&1
 ```
 
 **Monitor:**
 ```bash
-sudo tail -f /var/log/antnode/wnm-cron.log
+sudo tail -f /var/antctl/wnm-cron.log
 ```
 
 ---
@@ -592,8 +604,8 @@ When you run `wnm --init --rewards_address 0xYourAddress`, several things happen
 2. **Default Configuration Applied**
    - Resource thresholds: 70% add, 80% remove for CPU, memory, disk
    - Node cap: 50 maximum nodes
-   - Delay timings: 1 minute for starts, 15 minutes for upgrades, 5 minutes for restarts
-   - Port ranges: 55000-55050 for nodes, 13000-13050 for metrics
+   - Delay timings: 2 minute for starts, 15 minutes for upgrades, 5 minutes for restarts
+   - Port ranges: 55001-55051 for nodes, 13001-13051 for metrics
    - Network: `evm-arbitrum-one` (current Autonomi network)
 
 3. **Platform Detection**
@@ -608,15 +620,17 @@ When you run `wnm --init --rewards_address 0xYourAddress`, several things happen
 
 **View the configuration:**
 ```bash
-# macOS
-sqlite3 ~/Library/Application\ Support/autonomi/colony.db "SELECT * FROM machine;"
+# macOS (shows column names and values in line format)
+sqlite3 -line ~/Library/Application\ Support/autonomi/colony.db "SELECT * FROM machine;"
 
 # Linux (user)
-sqlite3 ~/.local/share/autonomi/colony.db "SELECT * FROM machine;"
+sqlite3 -line ~/.local/share/autonomi/colony.db "SELECT * FROM machine;"
 
 # Linux (root)
-sudo sqlite3 /var/antctl/colony.db "SELECT * FROM machine;"
+sudo sqlite3 -line /var/antctl/colony.db "SELECT * FROM machine;"
 ```
+
+The `-line` flag displays each column name with its corresponding value on a separate line, making the configuration easy to read.
 
 ### Setting Up Your Rewards Address
 
@@ -686,7 +700,7 @@ Load: desired 8.00, max 10.00
 Action: ADD_NODE
 Reason: No nodes running, resources below add thresholds
 [DRY RUN] Would create node: antnode-1
-[DRY RUN] Would assign port: 55000, metrics port: 13000
+[DRY RUN] Would assign port: 55001, metrics port: 13001
 [DRY RUN] Would use rewards address: 0xYourAddress
 ```
 
@@ -814,24 +828,35 @@ crontab -e
 
 **Add one of these lines based on your platform:**
 
-*macOS:*
+*macOS (with pyenv):*
 ```cron
-*/1 * * * * . /Users/username/.pyenv/versions/3.14.0/bin/python -m wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
+*/1 * * * * /Users/username/.pyenv/versions/3.14.0/bin/python3 -m wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
 ```
 
-*Linux (user):*
+*macOS (system Python):*
+```cron
+*/1 * * * * /usr/local/bin/python3 -m wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
+```
+
+*Linux (user with venv):*
 ```cron
 */1 * * * * . ~/.venv/bin/activate && wnm >> ~/.local/share/autonomi/logs/wnm-cron.log 2>&1
 ```
 
-*Linux (root):*
+*Linux (root with system Python):*
 ```cron
-*/1 * * * * /usr/local/bin/wnm >> /var/log/antnode/wnm-cron.log 2>&1
+*/1 * * * * /usr/bin/python3 -m wnm >> /var/antctl/wnm-cron.log 2>&1
+```
+
+*Linux (root with venv):*
+```cron
+*/1 * * * * . /opt/venv/bin/activate && wnm >> /var/antctl/wnm-cron.log 2>&1
 ```
 
 **Explanation:**
 - `*/1 * * * *` - Run every 1 minute
-- `/path/to/wnm` - Full path to the wnm executable (use `which wnm` to find it)
+- `/path/to/python3 -m wnm` - Run wnm as a Python module when using full path to Python
+- `. /path/to/venv/bin/activate && wnm` - Activate venv first, then use short `wnm` command
 - `>>` - Append output to log file
 - `2>&1` - Redirect stderr to stdout (captures all output)
 
@@ -851,7 +876,7 @@ tail -f ~/Library/Logs/autonomi/wnm-cron.log
 tail -f ~/.local/share/autonomi/logs/wnm-cron.log
 
 # Linux (root)
-sudo tail -f /var/log/antnode/wnm-cron.log
+sudo tail -f /var/antctl/wnm-cron.log
 ```
 
 **You should see output every minute** showing wnm's execution.
