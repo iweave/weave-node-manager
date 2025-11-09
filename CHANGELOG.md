@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Added
+- **`--version` flag**: Display version and exit without database or lock file checks
+  - Bypasses all initialization for reliability
+  - Useful for quick version verification in scripts and automation
+- **`--remove_lockfile` flag**: Remove stale lock file and exit without database checks
+  - Bypasses all initialization for reliability
+  - Useful for recovery when lock file is stuck (e.g., after crash)
+
+### Changed
+- **Terminology consistency**: Renamed `LaunchctlManager` to `LaunchdManager` throughout codebase
+  - Factory key changed from `"launchctl"` to `"launchd"`
+  - Node survey method field changed from `"launchctl"` to `"launchd"`
+  - All documentation and tests updated
+  - Naming now consistently reflects the macOS daemon (launchd) rather than the CLI tool (launchctl)
+  - Matches naming pattern of other managers (SystemdManager, SetsidManager)
+
 ## [0.0.13] - 2025-11-06
 
 ### Fixed
