@@ -15,6 +15,12 @@
   - Resolves "Plist file not found" errors when database and launchd are out of sync
   - Handles cleanup scenarios where plist files were removed but node directories remain
 
+### Documentation
+- **Crontab PATH requirement**: Added prominent documentation about setting PATH in crontab
+  - All cron examples now include `PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`
+  - Prevents "FileNotFoundError: No such file or directory: 'sysctl'" when running from cron
+  - Updated USER-GUIDE-PART1.md with IMPORTANT section and explanation
+
 ## [0.0.14] - 2025-11-09
 
 ### Added
