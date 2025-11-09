@@ -61,7 +61,7 @@ Based on comprehensive codebase analysis, the following components need macOS al
 **Priority:** CRITICAL | **Effort:** High | **Duration:** 1 week
 
 ### Goal
-Implement `LaunchctlManager` for macOS to replace systemd functionality.
+Implement `LaunchdManager` for macOS to replace systemd functionality.
 
 ### Implementation
 
@@ -133,7 +133,7 @@ Implement `LaunchctlManager` for macOS to replace systemd functionality.
 Inherit from `ProcessManager` base class (base.py:15-67) and implement:
 
 ```python
-class LaunchctlManager(ProcessManager):
+class LaunchdManager(ProcessManager):
     def __init__(self, firewall=None):
         super().__init__(firewall)
         self.plist_dir = os.path.expanduser("~/Library/LaunchAgents")
@@ -146,20 +146,20 @@ class LaunchctlManager(ProcessManager):
            (Each node gets its own copy for independent upgrades)
         3. Generate .plist file from template
         4. Write plist to ~/Library/LaunchAgents/
-        5. Load plist: launchctl load <plist>
+        5. Load plist: launchctl bootstrap <plist>
         6. Enable firewall port (if firewall manager available)
         """
         pass
 
     def start_node(self, node: Node) -> bool:
         """
-        launchctl load ~/Library/LaunchAgents/com.autonomi.antnode-{id}.plist
+        launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.autonomi.antnode-{id}.plist
         """
         pass
 
     def stop_node(self, node: Node) -> bool:
         """
-        launchctl unload ~/Library/LaunchAgents/com.autonomi.antnode-{id}.plist
+        launchctl bootout gui/$UID ~/Library/LaunchAgents/com.autonomi.antnode-{id}.plist
         """
         pass
 
@@ -178,7 +178,7 @@ class LaunchctlManager(ProcessManager):
 
     def remove_node(self, node: Node) -> bool:
         """
-        1. Unload plist: launchctl unload <plist>
+        1. Unload plist: launchctl bootout gui/$UID <plist>
         2. Delete plist file
         3. Delete node directories
         4. Disable firewall port
@@ -222,10 +222,10 @@ curl -sSL https://raw.githubusercontent.com/maidsafe/antup/main/install.sh | bas
 ### Files to Modify
 
 1. **`src/wnm/process_managers/factory.py:73-75`**
-   - Change Darwin detection from "setsid" to "launchctl"
+   - Change Darwin detection from "setsid" to "launchd"
    ```python
    elif system == "Darwin":
-       return "launchctl"  # Changed from "setsid"
+       return "launchd"  # Changed from "setsid"
    ```
 
 ### Testing Strategy
@@ -882,8 +882,8 @@ Based on dependencies and risk:
    - **Duration:** 1 day (faster than 3-day estimate)
 
 3. ✅ **Phase 1 (Launchd Manager)** - COMPLETED 2025-10-27
-   - Implemented LaunchctlManager (416 lines)
-   - Updated factory to use "launchctl" for Darwin
+   - Implemented LaunchdManager (416 lines)
+   - Updated factory to use "launchd" for Darwin
    - Added 13 comprehensive tests (all passing)
    - Binary management with per-node copies
    - **Duration:** 1 day (faster than 1-week estimate)

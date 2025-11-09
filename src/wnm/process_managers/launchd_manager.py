@@ -1,5 +1,5 @@
 """
-LaunchctlManager: Manage nodes via macOS launchd services.
+LaunchdManager: Manage nodes via macOS launchd services.
 
 Handles node lifecycle operations using launchd plist files and launchctl commands.
 Designed for user-level node management (no sudo required).
@@ -26,12 +26,12 @@ from wnm.utils import (
 )
 
 
-class LaunchctlManager(ProcessManager):
+class LaunchdManager(ProcessManager):
     """Manage nodes as launchd user agents on macOS"""
 
     def __init__(self, session_factory=None, firewall_type: str = None):
         """
-        Initialize LaunchctlManager.
+        Initialize LaunchdManager.
 
         Args:
             session_factory: SQLAlchemy session factory (optional, for status updates)
@@ -474,7 +474,7 @@ class LaunchctlManager(ProcessManager):
                 "service": plist_name,
                 "timestamp": int(time.time()),
                 "host": machine_config.host or "127.0.0.1",
-                "method": "launchctl",
+                "method": "launchd",
                 "layout": "1",
             }
 

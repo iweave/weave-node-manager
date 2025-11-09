@@ -48,7 +48,7 @@ profile = "black"
 [tool.pytest.ini_options]
 markers = [
     "linux_only: tests that require Linux (systemd, ufw, etc.)",
-    "macos_only: tests that require macOS (launchctl, etc.)",
+    "macos_only: tests that require macOS (launchd, etc.)",
     "requires_docker: tests that require Docker",
     "integration: integration tests (slow)",
 ]

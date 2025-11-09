@@ -23,7 +23,7 @@ def survey_machine(machine_config, manager_type: str = None) -> list:
 
     Args:
         machine_config: Machine configuration object
-        manager_type: Type of process manager ("systemd", "launchctl", etc.)
+        manager_type: Type of process manager ("systemd", "launchd", etc.)
                      If None, auto-detects from platform
 
     Returns:

@@ -10,7 +10,7 @@ from wnm.common import DEAD, RUNNING, STOPPED
 from wnm.models import Node
 from wnm.process_managers import (
     DockerManager,
-    LaunchctlManager,
+    LaunchdManager,
     SetsidManager,
     SystemdManager,
     get_default_manager_type,
@@ -54,10 +54,10 @@ class TestProcessManagerFactory:
         manager = get_process_manager("setsid")
         assert isinstance(manager, SetsidManager)
 
-    def test_get_launchctl_manager(self):
-        """Test getting LaunchctlManager from factory"""
-        manager = get_process_manager("launchctl")
-        assert isinstance(manager, LaunchctlManager)
+    def test_get_launchd_manager(self):
+        """Test getting LaunchdManager from factory"""
+        manager = get_process_manager("launchd")
+        assert isinstance(manager, LaunchdManager)
 
     def test_unknown_manager_type(self):
         """Test error handling for unknown manager type"""
@@ -67,7 +67,7 @@ class TestProcessManagerFactory:
     def test_get_default_manager_type(self):
         """Test getting default manager type"""
         manager_type = get_default_manager_type()
-        assert manager_type in ["systemd", "setsid", "docker", "launchctl"]
+        assert manager_type in ["systemd", "setsid", "docker", "launchd"]
 
 
 class TestSystemdManager:
@@ -338,8 +338,8 @@ class TestSetsidManager:
         assert manager.disable_firewall_port(55001) is True
 
 
-class TestLaunchctlManager:
-    """Tests for LaunchctlManager (macOS launchd)"""
+class TestLaunchdManager:
+    """Tests for LaunchdManager (macOS launchd)"""
 
     @patch("subprocess.run")
     @patch("os.path.exists")
@@ -363,7 +363,7 @@ class TestLaunchctlManager:
         mock_open.return_value.__enter__ = Mock()
         mock_open.return_value.__exit__ = Mock()
 
-        manager = LaunchctlManager()
+        manager = LaunchdManager()
         result = manager.create_node(mock_node, "/usr/local/bin/antnode")
 
         assert result is True
@@ -382,7 +382,7 @@ class TestLaunchctlManager:
         mock_exists.return_value = True
         mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
 
-        manager = LaunchctlManager()
+        manager = LaunchdManager()
         result = manager.start_node(mock_node)
 
         assert result is True
@@ -399,7 +399,7 @@ class TestLaunchctlManager:
         mock_exists.return_value = True
         mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
 
-        manager = LaunchctlManager()
+        manager = LaunchdManager()
         result = manager.stop_node(mock_node)
 
         assert result is True
@@ -414,7 +414,7 @@ class TestLaunchctlManager:
         """Test restarting a launchd node"""
         mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
 
-        manager = LaunchctlManager()
+        manager = LaunchdManager()
         result = manager.restart_node(mock_node)
 
         assert result is True
@@ -433,7 +433,7 @@ class TestLaunchctlManager:
             returncode=0, stdout='"PID" = 12345;\n"LastExitStatus" = 0;\n', stderr=""
         )
 
-        manager = LaunchctlManager()
+        manager = LaunchdManager()
         status = manager.get_status(mock_node)
 
         assert isinstance(status, NodeProcess)
@@ -450,7 +450,7 @@ class TestLaunchctlManager:
             returncode=0, stdout='"LastExitStatus" = 0;\n', stderr=""
         )
 
-        manager = LaunchctlManager()
+        manager = LaunchdManager()
         status = manager.get_status(mock_node)
 
         assert status.status == STOPPED
@@ -465,7 +465,7 @@ class TestLaunchctlManager:
             returncode=1, stdout="", stderr="Could not find service"
         )
 
-        manager = LaunchctlManager()
+        manager = LaunchdManager()
         status = manager.get_status(mock_node)
 
         assert status.status == STOPPED
@@ -482,7 +482,7 @@ class TestLaunchctlManager:
         mock_exists.return_value = True
         mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
 
-        manager = LaunchctlManager()
+        manager = LaunchdManager()
         result = manager.remove_node(mock_node)
 
         assert result is True
@@ -497,7 +497,7 @@ class TestLaunchctlManager:
 
     def test_plist_generation(self, mock_node):
         """Test that plist XML is generated correctly"""
-        manager = LaunchctlManager()
+        manager = LaunchdManager()
         plist_content = manager._generate_plist_content(mock_node, "/path/to/antnode")
 
         # Verify plist contains required keys
@@ -514,7 +514,7 @@ class TestLaunchctlManager:
 
     def test_service_label_generation(self, mock_node):
         """Test service label generation"""
-        manager = LaunchctlManager()
+        manager = LaunchdManager()
         label = manager._get_service_label(mock_node)
         assert label == "com.autonomi.antnode-1"
 
@@ -522,19 +522,19 @@ class TestLaunchctlManager:
     def test_service_domain_generation(self, mock_getuid):
         """Test service domain generation"""
         mock_getuid.return_value = 501
-        manager = LaunchctlManager()
+        manager = LaunchdManager()
         domain = manager._get_service_domain()
         assert domain == "gui/501"
 
     def test_plist_path_generation(self, mock_node):
         """Test plist path generation"""
-        manager = LaunchctlManager()
+        manager = LaunchdManager()
         plist_path = manager._get_plist_path(mock_node)
         assert plist_path.endswith("/Library/LaunchAgents/com.autonomi.antnode-1.plist")
 
     def test_firewall_operations_best_effort(self):
         """Test that firewall operations work (use null firewall on macOS)"""
-        manager = LaunchctlManager()
+        manager = LaunchdManager()
         # Should not raise - macOS uses null firewall by default
         assert manager.enable_firewall_port(55001) is True
         assert manager.disable_firewall_port(55001) is True

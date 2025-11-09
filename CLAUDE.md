@@ -138,7 +138,7 @@ Configuration loading happens at module import, creating global `options`, `mach
 Platform-specific process managers handle node lifecycle via factory pattern:
 
 - **SystemdManager** (`systemd_manager.py`): Linux root-level, uses systemd services
-- **LaunchctlManager** (`launchd_manager.py`): macOS, uses launchd agents
+- **LaunchdManager** (`launchd_manager.py`): macOS, uses launchd agents
 - **SetsidManager** (`setsid_manager.py`): Linux user-level, background processes
 
 All managers implement the `ProcessManager` base class with these methods:

@@ -32,7 +32,7 @@ class ProcessManager(ABC):
     - DockerManager: Docker containers
     - SetsidManager: Background processes via setsid
     - AntctlManager: Wrapper around antctl CLI
-    - LaunchctlManager: macOS launchd services
+    - LaunchdManager: macOS launchd services
     """
 
     def __init__(self, firewall_type: str = None):

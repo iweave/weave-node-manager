@@ -177,7 +177,7 @@ def process_manager_type():
     """Return appropriate process manager for current platform"""
     system = platform.system()
     if system == "Darwin":
-        return "launchctl"
+        return "launchd"
     elif system == "Linux":
         return "systemd"
     else:
