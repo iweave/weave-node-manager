@@ -95,6 +95,8 @@ def _detect_process_manager_mode():
             # Remove sqlite:/// prefix if present
             if dbpath_arg.startswith("sqlite:///"):
                 dbpath_arg = dbpath_arg[10:]
+            # Expand ~ to home directory
+            dbpath_arg = os.path.expanduser(dbpath_arg)
             db_locations.append(dbpath_arg)
             break
 
@@ -104,8 +106,9 @@ def _detect_process_manager_mode():
         # Remove sqlite:/// prefix if present
         if dbpath_env.startswith("sqlite:///"):
             dbpath_env = dbpath_env[10:]
-        # Expand variables like $HOME
+        # Expand variables like $HOME and ~ for home directory
         dbpath_env = os.path.expandvars(dbpath_env)
+        dbpath_env = os.path.expanduser(dbpath_env)
         db_locations.append(dbpath_env)
 
     # Add platform-specific default locations
@@ -723,6 +726,23 @@ def apply_config_updates(config_updates):
 
 # Load options now so we know what database to load
 options = load_config()
+
+# Expand ~ and environment variables in dbpath if needed
+if hasattr(options, 'dbpath') and options.dbpath:
+    # Handle both bare paths and sqlite:/// URLs
+    if options.dbpath.startswith("sqlite:///"):
+        path_part = options.dbpath[10:]
+        path_part = os.path.expandvars(path_part)
+        path_part = os.path.expanduser(path_part)
+        options.dbpath = f"sqlite:///{path_part}"
+    else:
+        # If it's a bare path without sqlite:///, expand and re-add prefix
+        path_part = os.path.expandvars(options.dbpath)
+        path_part = os.path.expanduser(path_part)
+        if not path_part.startswith("sqlite:///"):
+            options.dbpath = f"sqlite:///{path_part}"
+        else:
+            options.dbpath = path_part
 
 # Skip database initialization for --version, --remove_lockfile, and test mode
 # These cases should work without any database or lock file checks

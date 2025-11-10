@@ -39,6 +39,7 @@ class TestProcessManagerModeDetection:
         # Clear environment variables
         os.environ.pop("PROCESS_MANAGER", None)
         os.environ.pop("DBPATH", None)
+        os.environ["WNM_TEST_MODE"] = "1"  # Prevent directory creation and DB init
 
         import wnm.config as config_module
 
@@ -54,6 +55,7 @@ class TestProcessManagerModeDetection:
 
         os.environ.pop("PROCESS_MANAGER", None)
         os.environ.pop("DBPATH", None)
+        os.environ["WNM_TEST_MODE"] = "1"  # Prevent directory creation and DB init
 
         import wnm.config as config_module
 
@@ -68,6 +70,7 @@ class TestProcessManagerModeDetection:
         sys.argv = ["wnm"]
         os.environ["PROCESS_MANAGER"] = "systemd+sudo"
         os.environ.pop("DBPATH", None)
+        os.environ["WNM_TEST_MODE"] = "1"  # Prevent directory creation and DB init
 
         import wnm.config as config_module
 
@@ -82,6 +85,7 @@ class TestProcessManagerModeDetection:
         sys.argv = ["wnm"]
         os.environ["PROCESS_MANAGER"] = "launchd+user"
         os.environ.pop("DBPATH", None)
+        os.environ["WNM_TEST_MODE"] = "1"  # Prevent directory creation and DB init
 
         import wnm.config as config_module
 
@@ -114,6 +118,7 @@ class TestProcessManagerModeDetection:
         sys.argv = ["wnm", "--dbpath", f"sqlite:///{db_path}"]
         os.environ.pop("PROCESS_MANAGER", None)
         os.environ.pop("DBPATH", None)
+        os.environ["WNM_TEST_MODE"] = "1"  # Prevent full DB initialization
 
         import wnm.config as config_module
 
@@ -146,6 +151,7 @@ class TestProcessManagerModeDetection:
         sys.argv = ["wnm"]
         os.environ.pop("PROCESS_MANAGER", None)
         os.environ["DBPATH"] = f"sqlite:///{db_path}"
+        os.environ["WNM_TEST_MODE"] = "1"  # Prevent full DB initialization
 
         import wnm.config as config_module
 

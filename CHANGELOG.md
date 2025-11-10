@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.0.17] - 2025-11-09
+
+### Fixed
+- **Path expansion for `--dbpath`**: Fixed tilde (`~`) and environment variable expansion in database path
+  - `--dbpath ~/colony.db` now correctly expands to full home directory path
+  - Works for both command-line `--dbpath` argument and `DBPATH` environment variable
+  - Supports both bare paths (`~/colony.db`) and sqlite URLs (`sqlite:///~/colony.db`)
+  - Handles both `os.path.expanduser()` for tilde and `os.path.expandvars()` for variables like `$HOME`
+  - Applied in three places: mode detection, DBPATH env var, and final options processing
+
 ## [0.0.16] - 2025-11-09
 
 ### Fixed
