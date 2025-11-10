@@ -724,11 +724,15 @@ def apply_config_updates(config_updates):
 # Load options now so we know what database to load
 options = load_config()
 
-# Skip database initialization for --version and --remove_lockfile
-# These flags should work without any database or lock file checks
-_SKIP_DB_INIT = getattr(options, 'version', False) or getattr(options, 'remove_lockfile', False)
+# Skip database initialization for --version, --remove_lockfile, and test mode
+# These cases should work without any database or lock file checks
+_SKIP_DB_INIT = (
+    getattr(options, 'version', False)
+    or getattr(options, 'remove_lockfile', False)
+    or os.getenv("WNM_TEST_MODE")
+)
 
-# Setup Database engine (skip if --version or --remove_lockfile)
+# Setup Database engine (skip if --version, --remove_lockfile, or test mode)
 if not _SKIP_DB_INIT:
     engine = create_engine(options.dbpath, echo=True)
     # Generate ORM
@@ -737,7 +741,7 @@ if not _SKIP_DB_INIT:
     session_factory = sessionmaker(bind=engine)
     S = scoped_session(session_factory)
 else:
-    # Create dummy objects for --version and --remove_lockfile
+    # Create dummy objects for --version, --remove_lockfile, or test mode
     engine = None
     S = None
 
