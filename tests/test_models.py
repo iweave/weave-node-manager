@@ -34,7 +34,9 @@ class TestMachine:
         assert json_data["node_cap"] == 10
         assert json_data["cpu_less_than"] == 70
         assert json_data["cpu_remove"] == 85
-        assert json_data["rewards_address"] == "0x1234567890123456789012345678901234567890"
+        assert (
+            json_data["rewards_address"] == "0x1234567890123456789012345678901234567890"
+        )
 
     def test_machine_update(self, db_session, machine):
         """Test updating Machine fields"""
@@ -83,7 +85,16 @@ class TestNode:
         assert json_data["node_name"] == "0001"
         assert json_data["status"] == "RUNNING"
         assert json_data["port"] == 55001
-        assert json_data["method"] == "systemd"
+        # Check that method matches the node's actual method (platform-specific)
+        assert json_data["method"] == node.method
+        assert json_data["method"] in [
+            "systemd+user",
+            "systemd+sudo",
+            "launchd+user",
+            "launchd+sudo",
+            "setsid+user",
+            "setsid+sudo",
+        ]
 
     def test_node_update_status(self, db_session, node):
         """Test updating Node status"""

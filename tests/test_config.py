@@ -41,6 +41,7 @@ class TestProcessManagerModeDetection:
         os.environ.pop("DBPATH", None)
 
         import wnm.config as config_module
+
         reload(config_module)
 
         assert config_module._PM_MODE == "sudo"
@@ -55,6 +56,7 @@ class TestProcessManagerModeDetection:
         os.environ.pop("DBPATH", None)
 
         import wnm.config as config_module
+
         reload(config_module)
 
         assert config_module._PM_MODE == "user"
@@ -68,6 +70,7 @@ class TestProcessManagerModeDetection:
         os.environ.pop("DBPATH", None)
 
         import wnm.config as config_module
+
         reload(config_module)
 
         assert config_module._PM_MODE == "sudo"
@@ -81,6 +84,7 @@ class TestProcessManagerModeDetection:
         os.environ.pop("DBPATH", None)
 
         import wnm.config as config_module
+
         reload(config_module)
 
         assert config_module._PM_MODE == "user"
@@ -93,13 +97,17 @@ class TestProcessManagerModeDetection:
         db_path = tmp_path / "test.db"
         conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE machine (
                 id INTEGER PRIMARY KEY,
                 process_manager TEXT
             )
-        """)
-        cursor.execute("INSERT INTO machine (id, process_manager) VALUES (1, 'systemd+sudo')")
+        """
+        )
+        cursor.execute(
+            "INSERT INTO machine (id, process_manager) VALUES (1, 'systemd+sudo')"
+        )
         conn.commit()
         conn.close()
 
@@ -108,6 +116,7 @@ class TestProcessManagerModeDetection:
         os.environ.pop("DBPATH", None)
 
         import wnm.config as config_module
+
         reload(config_module)
 
         assert config_module._PM_MODE == "sudo"
@@ -120,13 +129,17 @@ class TestProcessManagerModeDetection:
         db_path = tmp_path / "test.db"
         conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE machine (
                 id INTEGER PRIMARY KEY,
                 process_manager TEXT
             )
-        """)
-        cursor.execute("INSERT INTO machine (id, process_manager) VALUES (1, 'launchd+user')")
+        """
+        )
+        cursor.execute(
+            "INSERT INTO machine (id, process_manager) VALUES (1, 'launchd+user')"
+        )
         conn.commit()
         conn.close()
 
@@ -135,6 +148,7 @@ class TestProcessManagerModeDetection:
         os.environ["DBPATH"] = f"sqlite:///{db_path}"
 
         import wnm.config as config_module
+
         reload(config_module)
 
         assert config_module._PM_MODE == "user"
@@ -151,13 +165,17 @@ class TestProcessManagerModeDetection:
 
         conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE machine (
                 id INTEGER PRIMARY KEY,
                 process_manager TEXT
             )
-        """)
-        cursor.execute("INSERT INTO machine (id, process_manager) VALUES (1, 'systemd+sudo')")
+        """
+        )
+        cursor.execute(
+            "INSERT INTO machine (id, process_manager) VALUES (1, 'systemd+sudo')"
+        )
         conn.commit()
         conn.close()
 
@@ -180,6 +198,7 @@ class TestProcessManagerModeDetection:
                         mock_detect.return_value = "sudo"
 
                 import wnm.config as config_module
+
                 reload(config_module)
 
 
@@ -194,8 +213,9 @@ class TestPathSelection:
         os.environ.pop("PROCESS_MANAGER", None)
         os.environ["WNM_TEST_MODE"] = "1"  # Prevent directory creation
 
-        with patch("wnm.config.PLATFORM", "Linux"):
+        with patch("platform.system", return_value="Linux"):
             import wnm.config as config_module
+
             reload(config_module)
 
             assert config_module.BASE_DIR == "/var/antctl"
@@ -211,12 +231,15 @@ class TestPathSelection:
         os.environ.pop("PROCESS_MANAGER", None)
         os.environ["WNM_TEST_MODE"] = "1"
 
-        with patch("wnm.config.PLATFORM", "Linux"):
+        with patch("platform.system", return_value="Linux"):
             import wnm.config as config_module
+
             reload(config_module)
 
-            assert "~/.local/share/autonomi" in config_module.BASE_DIR or \
-                   ".local/share/autonomi" in config_module.BASE_DIR
+            assert (
+                "~/.local/share/autonomi" in config_module.BASE_DIR
+                or ".local/share/autonomi" in config_module.BASE_DIR
+            )
             assert "node" in config_module.NODE_STORAGE
             assert "logs" in config_module.LOG_DIR
 
@@ -228,12 +251,16 @@ class TestPathSelection:
         os.environ.pop("PROCESS_MANAGER", None)
         os.environ["WNM_TEST_MODE"] = "1"
 
-        with patch("wnm.config.PLATFORM", "Darwin"):
+        with patch("platform.system", return_value="Darwin"):
             import wnm.config as config_module
+
             reload(config_module)
 
             assert config_module.BASE_DIR == "/Library/Application Support/autonomi"
-            assert config_module.NODE_STORAGE == "/Library/Application Support/autonomi/node"
+            assert (
+                config_module.NODE_STORAGE
+                == "/Library/Application Support/autonomi/node"
+            )
             assert config_module.LOG_DIR == "/Library/Logs/autonomi"
 
     def test_macos_user_paths(self):
@@ -244,12 +271,15 @@ class TestPathSelection:
         os.environ.pop("PROCESS_MANAGER", None)
         os.environ["WNM_TEST_MODE"] = "1"
 
-        with patch("wnm.config.PLATFORM", "Darwin"):
+        with patch("platform.system", return_value="Darwin"):
             import wnm.config as config_module
+
             reload(config_module)
 
-            assert "~/Library/Application Support/autonomi" in config_module.BASE_DIR or \
-                   "Library/Application Support/autonomi" in config_module.BASE_DIR
+            assert (
+                "~/Library/Application Support/autonomi" in config_module.BASE_DIR
+                or "Library/Application Support/autonomi" in config_module.BASE_DIR
+            )
             assert "node" in config_module.NODE_STORAGE
             assert "Logs/autonomi" in config_module.LOG_DIR
 
@@ -257,64 +287,54 @@ class TestPathSelection:
 class TestExecutorManagerType:
     """Tests for executor.py using machine_config process_manager"""
 
-    def test_node_created_with_correct_manager_type_sudo(self, db_session):
+    def test_node_created_with_correct_manager_type_sudo(
+        self, db_session, sample_machine_config, sample_node_config
+    ):
         """Test that nodes are created with process_manager from machine config (sudo)"""
-        from wnm.executor import ActionExecutor
-        from wnm.models import Machine
+        from wnm.models import Machine, Node
 
-        # Create machine with systemd+sudo
-        machine_config = {
-            "cpu_count": 2,
-            "node_cap": 10,
-            "process_manager": "systemd+sudo",
-            "node_storage": "/var/antctl/services",
-            "rewards_address": "0x1234",
-            "donate_address": "0x1234",
-        }
+        # Update machine config to use systemd+sudo
+        sample_machine_config["process_manager"] = "systemd+sudo"
+        sample_machine_config["node_storage"] = "/var/antctl/services"
 
-        machine = Machine(**machine_config)
+        machine = Machine(**sample_machine_config)
         db_session.add(machine)
         db_session.commit()
 
-        # Mock the process manager and metrics
-        with patch("wnm.executor.get_process_manager") as mock_pm:
-            with patch("wnm.executor.read_node_metadata") as mock_metadata:
-                mock_pm.return_value = MagicMock()
-                mock_metadata.return_value = {"antnode_version": "0.4.6"}
+        # Create a node with the process_manager from machine config
+        sample_node_config["manager_type"] = "systemd+sudo"
+        sample_node_config["method"] = "systemd+sudo"
 
-                executor = ActionExecutor(db_session, machine_config, {})
+        node = Node(**sample_node_config)
+        db_session.add(node)
+        db_session.commit()
 
-                # Simulate add_node
-                from wnm.models import Node
-                node = Node(
-                    id=1,
-                    node_name="0001",
-                    manager_type=machine_config.get("process_manager"),
-                    method=machine_config.get("process_manager"),
-                )
+        assert node.manager_type == "systemd+sudo"
+        assert "+sudo" in node.manager_type
 
-                assert node.manager_type == "systemd+sudo"
-                assert "+sudo" in node.manager_type
-
-    def test_node_created_with_correct_manager_type_user(self, db_session):
+    def test_node_created_with_correct_manager_type_user(
+        self, db_session, sample_machine_config, sample_node_config
+    ):
         """Test that nodes are created with process_manager from machine config (user)"""
         from wnm.models import Machine, Node
 
-        machine_config = {
-            "cpu_count": 2,
-            "node_cap": 10,
-            "process_manager": "launchd+user",
-            "node_storage": "~/Library/Application Support/autonomi/node",
-            "rewards_address": "0x1234",
-            "donate_address": "0x1234",
-        }
-
-        node = Node(
-            id=1,
-            node_name="0001",
-            manager_type=machine_config.get("process_manager"),
-            method=machine_config.get("process_manager"),
+        # Update machine config to use launchd+user
+        sample_machine_config["process_manager"] = "launchd+user"
+        sample_machine_config["node_storage"] = (
+            "~/Library/Application Support/autonomi/node"
         )
+
+        machine = Machine(**sample_machine_config)
+        db_session.add(machine)
+        db_session.commit()
+
+        # Create a node with the process_manager from machine config
+        sample_node_config["manager_type"] = "launchd+user"
+        sample_node_config["method"] = "launchd+user"
+
+        node = Node(**sample_node_config)
+        db_session.add(node)
+        db_session.commit()
 
         assert node.manager_type == "launchd+user"
         assert "+user" in node.manager_type
