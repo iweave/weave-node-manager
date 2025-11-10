@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [0.0.16] - 2025-11-09
+
+### Fixed
+- **Test collection failure**: Fixed `config.py` to skip database initialization when `WNM_TEST_MODE` is set
+  - Resolves `sqlite3.OperationalError: unable to open database file` during test collection
+  - Tests now properly use isolated database fixtures from `conftest.py`
+  - Added `WNM_TEST_MODE` check to `_SKIP_DB_INIT` flag alongside `--version` and `--remove_lockfile`
+- **Platform detection in tests**: Fixed path selection tests to properly mock `platform.system()`
+  - Changed from patching `wnm.config.PLATFORM` to `platform.system()` for module reload compatibility
+  - Fixed `test_linux_sudo_paths`, `test_linux_user_paths`, and macOS path tests
+  - Platform-specific tests now work correctly on both Linux and macOS
+- **Test fixture compatibility**: Fixed executor manager type tests to use proper model fixtures
+  - Tests now use `sample_machine_config` and `sample_node_config` fixtures with all required fields
+  - Resolves `TypeError` from missing required Machine and Node model fields
+- **Platform-specific test assertions**: Fixed `test_node_json` to validate platform-specific manager types
+  - Changed from hardcoded "systemd" expectation to dynamic platform-specific validation
+  - Now correctly validates `launchd+user` on macOS, `systemd+user` on Linux
+
+### Testing
+- **235 tests passing** on both macOS and Linux (11 platform-specific tests skipped on each)
+- All test collection and execution issues resolved
+- GitHub Actions CI passing on both platforms
+
 ## [0.0.15] - 2025-11-09
 
 ### Fixed
