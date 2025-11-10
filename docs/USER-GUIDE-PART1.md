@@ -256,7 +256,7 @@ pip3 install wnm
 
 **Or from source (for development):**
 ```bash
-git clone https://github.com/ambled/weave-node-manager.git
+git clone https://github.com/iweave/weave-node-manager.git
 cd weave-node-manager
 pip3 install -e .
 ```
@@ -407,7 +407,7 @@ pip3 install wnm
 
 **Or from source:**
 ```bash
-git clone https://github.com/ambled/weave-node-manager.git
+git clone https://github.com/iweave/weave-node-manager.git
 cd weave-node-manager
 pip3 install -e .
 ```

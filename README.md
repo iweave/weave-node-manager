@@ -38,12 +38,12 @@ curl -sSL https://raw.githubusercontent.com/maidsafe/antup/main/install.sh | bas
 
 #### 3. Install WNM from PyPI
 ```bash
-pip3 install weave-node-manager
+pip3 install wnm
 ```
 
 #### 4. Or install from source
 ```bash
-git clone https://github.com/ambled/weave-node-manager.git
+git clone https://github.com/iweave/weave-node-manager.git
 cd weave-node-manager
 pip3 install -e .
 ```
@@ -91,12 +91,12 @@ curl -sSL https://raw.githubusercontent.com/maidsafe/antup/main/install.sh | bas
 
 #### 3. Install WNM from PyPI
 ```bash
-pip3 install weave-node-manager
+pip3 install wnm
 ```
 
 #### 4. Or install from source
 ```bash
-git clone https://github.com/ambled/weave-node-manager.git
+git clone https://github.com/iweave/weave-node-manager.git
 cd weave-node-manager
 pip3 install -e .
 ```
@@ -145,7 +145,7 @@ sudo cp ~/.local/bin/antnode /usr/local/bin/
 
 #### 3. Install WNM
 ```bash
-sudo pip3 install weave-node-manager
+sudo pip3 install wnm
 ```
 
 #### 4. Initialize as root

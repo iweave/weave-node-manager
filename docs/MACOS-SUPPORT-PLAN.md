@@ -693,10 +693,10 @@ curl -sSL https://raw.githubusercontent.com/maidsafe/antup/main/install.sh | bas
 ~/.local/bin/antup node
 
 # Install WNM from PyPI
-pip3 install weave-node-manager
+pip3 install wnm
 
 # Or install from source
-git clone https://github.com/yourusername/weave-node-manager.git
+git clone https://github.com/iweave/weave-node-manager.git
 cd weave-node-manager
 pip3 install -e .
 
@@ -708,10 +708,10 @@ wnm --init
 
 ```bash
 # Install from PyPI
-pip3 install weave-node-manager
+pip3 install wnm
 
 # Or install from source
-git clone https://github.com/yourusername/weave-node-manager.git
+git clone https://github.com/iweave/weave-node-manager.git
 cd weave-node-manager
 pip3 install -e .
 
