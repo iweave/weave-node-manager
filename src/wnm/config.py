@@ -520,10 +520,10 @@ def load_anm_config(options):
     )
     anm_config["cpu_remove"] = int(os.getenv("CpuRemove") or _get_option(options, "cpu_remove") or 70)
     anm_config["mem_less_than"] = int(
-        os.getenv("MemLessThan") or _get_option(options, "mem_less_than") or 70
+        os.getenv("MemLessThan") or _get_option(options, "mem_less_than") or 60
     )
-    anm_config["mem_remove"] = int(os.getenv("MemRemove") or _get_option(options, "mem_remove") or 90)
-    anm_config["hd_less_than"] = int(os.getenv("HDLessThan") or _get_option(options, "hd_less_than") or 70)
+    anm_config["mem_remove"] = int(os.getenv("MemRemove") or _get_option(options, "mem_remove") or 75)
+    anm_config["hd_less_than"] = int(os.getenv("HDLessThan") or _get_option(options, "hd_less_than") or 75)
     anm_config["hd_remove"] = int(os.getenv("HDRemove") or _get_option(options, "hd_remove") or 90)
     anm_config["delay_start"] = int(os.getenv("DelayStart") or _get_option(options, "delay_start") or 300)
     anm_config["delay_upgrade"] = int(
@@ -666,9 +666,9 @@ def define_machine(options):
         "node_cap": int(_get_option(options, "node_cap") or 20),
         "cpu_less_than": int(_get_option(options, "cpu_less_than") or 50),
         "cpu_remove": int(_get_option(options, "cpu_remove") or 70),
-        "mem_less_than": int(_get_option(options, "mem_less_than") or 70),
-        "mem_remove": int(_get_option(options, "mem_remove") or 90),
-        "hd_less_than": int(_get_option(options, "hd_less_than") or 70),
+        "mem_less_than": int(_get_option(options, "mem_less_than") or 60),
+        "mem_remove": int(_get_option(options, "mem_remove") or 75),
+        "hd_less_than": int(_get_option(options, "hd_less_than") or 75),
         "hd_remove": int(_get_option(options, "hd_remove") or 90),
         "delay_start": int(_get_option(options, "delay_start") or 300),
         "delay_upgrade": int(_get_option(options, "delay_upgrade") or 300),

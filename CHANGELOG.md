@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [0.0.18] - 2025-11-11
+
+### Added
+- **Documentation: User Guide Part 3 - Configuration** (`docs/USER-GUIDE-PART3.md`)
+  - Complete reference for all configuration options
+  - Configuration system overview with priority layers
+  - Detailed resource threshold documentation
+  - Wallet configuration including weighted distribution
+  - Network settings and port assignment
+  - Advanced configuration options
+  - Configuration examples and best practices
+
+### Changed
+- **Conservative default thresholds**: Updated resource threshold defaults for better stability
+  - `--mem_less_than`: 70% → 60% (more conservative memory add threshold)
+  - `--mem_remove`: 90% → 75% (earlier memory-based node removal)
+  - `--hd_less_than`: 70% → 75% (more conservative disk add threshold)
+  - Applied to both `load_anm_config()` and `define_machine()` functions
+  - Provides better safety margins for production deployments
+
 ## [0.0.17] - 2025-11-09
 
 ### Fixed
