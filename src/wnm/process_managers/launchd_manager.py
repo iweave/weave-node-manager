@@ -159,7 +159,7 @@ class LaunchdManager(ProcessManager):
 """
         return plist_content
 
-    def create_node(self, node: Node, binary_path: str) -> bool:
+    def create_node(self, node: Node, binary_path: str) -> NodeProcess:
         """
         Create and start a new node as a launchd user agent.
 
@@ -168,7 +168,7 @@ class LaunchdManager(ProcessManager):
             binary_path: Path to the antnode binary (typically ~/.local/bin/antnode)
 
         Returns:
-            True if node was created successfully
+            NodeProcess with metadata if successful, None if creation failed
         """
         logging.info(f"Creating launchd node {node.id}")
 
@@ -179,20 +179,20 @@ class LaunchdManager(ProcessManager):
             os.makedirs(log_dir, exist_ok=True)
         except OSError as err:
             logging.error(f"Failed to create directories: {err}")
-            return False
+            return None
 
         # Copy binary to node directory (each node gets its own copy)
         node_binary_path = os.path.join(node.root_dir, "antnode")
         try:
             if not os.path.exists(binary_path):
                 logging.error(f"Source binary not found: {binary_path}")
-                return False
+                return None
             shutil.copy2(binary_path, node_binary_path)
             # Make it executable
             os.chmod(node_binary_path, 0o755)
         except (OSError, shutil.Error) as err:
             logging.error(f"Failed to copy binary: {err}")
-            return False
+            return None
 
         # Generate plist file
         plist_path = self._get_plist_path(node)
@@ -203,7 +203,7 @@ class LaunchdManager(ProcessManager):
                 f.write(plist_content)
         except OSError as err:
             logging.error(f"Failed to write plist file: {err}")
-            return False
+            return None
 
         # Load the service with launchctl
         try:
@@ -216,7 +216,7 @@ class LaunchdManager(ProcessManager):
             logging.info(f"Loaded launchd service: {self._get_service_label(node)}")
         except subprocess.CalledProcessError as err:
             logging.error(f"Failed to load service: {err.stderr}")
-            return False
+            return None
 
         # Enable firewall port
         if not self.enable_firewall_port(
@@ -224,7 +224,11 @@ class LaunchdManager(ProcessManager):
         ):
             logging.warning(f"Failed to enable firewall for port {node.port}")
 
-        return True
+        # Return NodeProcess with basic info (launchd doesn't provide external IDs)
+        return NodeProcess(
+            node_id=node.id,
+            status=RESTARTING,  # Node is starting up
+        )
 
     def start_node(self, node: Node) -> bool:
         """

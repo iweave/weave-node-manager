@@ -366,7 +366,9 @@ class TestLaunchdManager:
         manager = LaunchdManager()
         result = manager.create_node(mock_node, "/usr/local/bin/antnode")
 
-        assert result is True
+        assert result is not None
+        assert isinstance(result, NodeProcess)
+        assert result.node_id == mock_node.id
         # Verify launchctl load was called
         assert any(
             "launchctl" in str(call) and "load" in str(call)

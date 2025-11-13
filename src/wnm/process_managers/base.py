@@ -21,6 +21,7 @@ class NodeProcess:
     pid: Optional[int] = None
     status: str = "UNKNOWN"  # RUNNING, STOPPED, UPGRADING, etc.
     container_id: Optional[str] = None  # For docker-managed nodes
+    external_node_id: Optional[str] = None  # For external IDs (e.g., antctl service_name)
 
 
 class ProcessManager(ABC):
@@ -46,7 +47,7 @@ class ProcessManager(ABC):
         self.firewall = get_firewall_manager(firewall_type)
 
     @abstractmethod
-    def create_node(self, node: Node, binary_path: str) -> bool:
+    def create_node(self, node: Node, binary_path: str) -> Optional[NodeProcess]:
         """
         Create and start a new node.
 
@@ -55,7 +56,8 @@ class ProcessManager(ABC):
             binary_path: Path to the node binary to execute
 
         Returns:
-            True if node was created successfully
+            NodeProcess with metadata (container_id, external_node_id, etc.) if successful
+            None if creation failed
         """
         pass
 

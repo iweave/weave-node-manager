@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.0.19] - 2025-11-13
+
+### Changed
+- **Process manager architecture**: Enhanced `create_node()` to return metadata for future manager support
+  - Changed `ProcessManager.create_node()` signature from `-> bool` to `-> Optional[NodeProcess]`
+  - All process managers now return `NodeProcess` with metadata (container_id, external_node_id, pid, status)
+  - Executor automatically persists returned metadata to database (Container records, node service field)
+  - Prepares infrastructure for upcoming antctl and s6overlay process managers
+
+### Added
+- **Database model enhancements** for s6overlay and antctl support:
+  - `NodeProcess.external_node_id` field for storing external identifiers (e.g., antctl service names)
+  - `Machine.max_node_per_container`, `Machine.min_container_count`, `Machine.docker_image` fields for s6overlay configuration
+  - `Container.port_range_start/end` and `Container.metrics_port_range_start/end` fields for block-based port allocation
+- **Executor integration**: Automatic persistence of process manager metadata
+  - Docker/s6overlay: Creates Container records and links nodes via foreign key
+  - Antctl: Stores external_node_id in node.service field
+
 ## [0.0.18] - 2025-11-11
 
 ### Added

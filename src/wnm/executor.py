@@ -494,9 +494,46 @@ class ActionExecutor:
         source_binary = os.path.expanduser("~/.local/bin/antnode")
         manager = self._get_process_manager(node)
 
-        if not manager.create_node(node, source_binary):
+        node_process = manager.create_node(node, source_binary)
+        if not node_process:
             logging.error(f"Failed to create node {node.id}")
             return {"status": "failed-create-node"}
+
+        # Persist metadata returned by process manager to database
+        with self.S() as session:
+            db_node = session.query(Node).filter_by(id=node.id).first()
+            if db_node:
+                # Store container_id if provided (for Docker/s6overlay managers)
+                if node_process.container_id:
+                    # Create or update Container record
+                    from wnm.models import Container
+                    import time
+
+                    container = session.query(Container).filter_by(
+                        container_id=node_process.container_id
+                    ).first()
+
+                    if not container:
+                        container = Container(
+                            container_id=node_process.container_id,
+                            name=f"antnode{node.node_name}",
+                            image=getattr(manager, 'image', 'unknown'),
+                            status="running",
+                            created_at=int(time.time()),
+                            machine_id=1,
+                        )
+                        session.add(container)
+                        session.flush()  # Get container.id
+
+                    # Link node to container
+                    db_node.container_id = container.id
+
+                # Store external_node_id if provided (for antctl manager)
+                if node_process.external_node_id:
+                    # Store in service field for now (antctl service name)
+                    db_node.service = node_process.external_node_id
+
+                session.commit()
 
         # Update status to RESTARTING (node is starting up)
         self._set_node_status(node.id, RESTARTING)

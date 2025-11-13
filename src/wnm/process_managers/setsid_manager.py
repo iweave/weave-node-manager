@@ -60,7 +60,7 @@ class SetsidManager(ProcessManager):
             logging.debug(f"Failed to read PID file {pid_file}: {e}")
         return None
 
-    def create_node(self, node: Node, binary_path: str) -> bool:
+    def create_node(self, node: Node, binary_path: str) -> NodeProcess:
         """
         Create and start a new node as a background process.
 
@@ -69,7 +69,7 @@ class SetsidManager(ProcessManager):
             binary_path: Path to the antnode binary
 
         Returns:
-            True if node was created successfully
+            NodeProcess with metadata if successful, None if creation failed
         """
         logging.info(f"Creating setsid node {node.id}")
 
@@ -82,7 +82,7 @@ class SetsidManager(ProcessManager):
             log_dir.mkdir(parents=True, exist_ok=True)
         except OSError as err:
             logging.error(f"Failed to create directories: {err}")
-            return False
+            return None
 
         # Copy binary to node directory
         binary_dest = node_dir / "antnode"
@@ -91,10 +91,21 @@ class SetsidManager(ProcessManager):
             binary_dest.chmod(0o755)
         except (OSError, shutil.Error) as err:
             logging.error(f"Failed to copy binary: {err}")
-            return False
+            return None
 
         # Start the node
-        return self.start_node(node)
+        if not self.start_node(node):
+            return None
+
+        # Get the PID that was just started
+        pid = self._read_pid_file(node)
+
+        # Return NodeProcess with basic info (setsid doesn't provide external IDs)
+        return NodeProcess(
+            node_id=node.id,
+            pid=pid,
+            status=RESTARTING,  # Node is starting up
+        )
 
     def start_node(self, node: Node) -> bool:
         """

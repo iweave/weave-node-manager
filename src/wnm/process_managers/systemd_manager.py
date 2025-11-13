@@ -69,7 +69,7 @@ class SystemdManager(ProcessManager):
             # Create user service directory if it doesn't exist
             os.makedirs(self.service_dir, exist_ok=True)
 
-    def create_node(self, node: Node, binary_path: str) -> bool:
+    def create_node(self, node: Node, binary_path: str) -> NodeProcess:
         """
         Create and start a new node as a systemd service.
 
@@ -78,7 +78,7 @@ class SystemdManager(ProcessManager):
             binary_path: Path to the antnode binary
 
         Returns:
-            True if node was created successfully
+            NodeProcess with metadata if successful, None if creation failed
         """
         logging.info(f"Creating systemd node {node.id}")
 
@@ -97,7 +97,7 @@ class SystemdManager(ProcessManager):
                 )
             except subprocess.CalledProcessError as err:
                 logging.error(f"Failed to create directories: {err}")
-                return False
+                return None
         else:
             # Non-root: create in user paths without sudo
             try:
@@ -105,7 +105,7 @@ class SystemdManager(ProcessManager):
                 os.makedirs(log_dir, exist_ok=True)
             except OSError as err:
                 logging.error(f"Failed to create directories: {err}")
-                return False
+                return None
 
         # Copy binary to node directory
         if self.use_system_services:
@@ -118,7 +118,7 @@ class SystemdManager(ProcessManager):
                 )
             except subprocess.CalledProcessError as err:
                 logging.error(f"Failed to copy binary: {err}")
-                return False
+                return None
         else:
             # Non-root: copy as current user
             try:
@@ -127,7 +127,7 @@ class SystemdManager(ProcessManager):
                 os.chmod(binary_dest, 0o755)
             except (OSError, shutil.Error) as err:
                 logging.error(f"Failed to copy binary: {err}")
-                return False
+                return None
 
         # Change ownership (only when running as root)
         # When running as non-root user, files remain owned by current user
@@ -141,7 +141,7 @@ class SystemdManager(ProcessManager):
                 )
             except subprocess.CalledProcessError as err:
                 logging.error(f"Failed to change ownership: {err}")
-                return False
+                return None
 
         # Build systemd service unit
         env_string = f'Environment="{node.environment}"' if node.environment else ""
@@ -180,7 +180,7 @@ Restart=always
                 )
             except subprocess.CalledProcessError as err:
                 logging.error(f"Failed to write service file: {err}")
-                return False
+                return None
         else:
             # User services: write directly to ~/.config/systemd/user
             try:
@@ -188,7 +188,7 @@ Restart=always
                     f.write(service_content)
             except OSError as err:
                 logging.error(f"Failed to write service file: {err}")
-                return False
+                return None
 
         # Reload systemd
         try:
@@ -199,10 +199,17 @@ Restart=always
             )
         except subprocess.CalledProcessError as err:
             logging.error(f"Failed to reload systemd: {err}")
-            return False
+            return None
 
         # Start the node
-        return self.start_node(node)
+        if not self.start_node(node):
+            return None
+
+        # Return NodeProcess with basic info (systemd doesn't provide external IDs)
+        return NodeProcess(
+            node_id=node.id,
+            status=RESTARTING,  # Node is starting up
+        )
 
     def start_node(self, node: Node) -> bool:
         """

@@ -67,7 +67,7 @@ class DockerManager(ProcessManager):
             logging.error(f"Failed to ensure Docker image: {err}")
             return False
 
-    def create_node(self, node: Node, binary_path: str) -> bool:
+    def create_node(self, node: Node, binary_path: str) -> NodeProcess:
         """
         Create and start a new node in a Docker container.
 
@@ -76,13 +76,13 @@ class DockerManager(ProcessManager):
             binary_path: Path to the antnode binary (will be mounted into container)
 
         Returns:
-            True if node was created successfully
+            NodeProcess with container_id if successful, None if creation failed
         """
         logging.info(f"Creating docker node {node.id}")
 
         # Ensure image is available
         if not self._ensure_image():
-            return False
+            return None
 
         # Prepare directories
         node_dir = Path(node.root_dir)
@@ -90,7 +90,7 @@ class DockerManager(ProcessManager):
             node_dir.mkdir(parents=True, exist_ok=True)
         except OSError as err:
             logging.error(f"Failed to create node directory: {err}")
-            return False
+            return None
 
         container_name = self._get_container_name(node)
 
@@ -159,15 +159,17 @@ class DockerManager(ProcessManager):
         except subprocess.CalledProcessError as err:
             logging.error(f"Failed to create container: {err}")
             logging.error(f"stderr: {err.stderr}")
-            return False
-
-        # Update database with container info if we have Container model support
-        # For now, we'll store container_id in node metadata if needed
+            return None
 
         # Wait a moment for container to start
         time.sleep(1)
 
-        return True
+        # Return NodeProcess with container_id for persistence by executor
+        return NodeProcess(
+            node_id=node.id,
+            status=RESTARTING,  # Container is starting up
+            container_id=container_id,
+        )
 
     def start_node(self, node: Node) -> bool:
         """

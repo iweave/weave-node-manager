@@ -99,6 +99,13 @@ class Machine(Base):
     # Process manager type
     process_manager: Mapped[Optional[str]] = mapped_column(UnicodeText, default=None)
 
+    # S6overlay / Docker configuration (for s6overlay process manager)
+    max_node_per_container: Mapped[int] = mapped_column(Integer, default=200)
+    min_container_count: Mapped[int] = mapped_column(Integer, default=1)
+    docker_image: Mapped[Optional[str]] = mapped_column(
+        UnicodeText, default="autonomi/node:latest"
+    )
+
     # Relationships
     containers: Mapped[list["Container"]] = relationship(
         back_populates="machine", cascade="all, delete-orphan"
@@ -257,6 +264,12 @@ class Container(Base):
     status: Mapped[str] = mapped_column(Unicode(32))  # running, stopped, etc.
     created_at: Mapped[int] = mapped_column(Integer)
 
+    # Port range tracking for s6overlay block-based allocation
+    port_range_start: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    port_range_end: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    metrics_port_range_start: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    metrics_port_range_end: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
     # Relationships
     machine: Mapped["Machine"] = relationship(back_populates="containers")
     nodes: Mapped[list["Node"]] = relationship(
@@ -271,6 +284,10 @@ class Container(Base):
         status,
         created_at,
         machine_id=1,
+        port_range_start=None,
+        port_range_end=None,
+        metrics_port_range_start=None,
+        metrics_port_range_end=None,
     ):
         self.container_id = container_id
         self.name = name
@@ -278,6 +295,10 @@ class Container(Base):
         self.status = status
         self.created_at = created_at
         self.machine_id = machine_id
+        self.port_range_start = port_range_start
+        self.port_range_end = port_range_end
+        self.metrics_port_range_start = metrics_port_range_start
+        self.metrics_port_range_end = metrics_port_range_end
 
     def __repr__(self):
         return (
