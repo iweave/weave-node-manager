@@ -507,7 +507,6 @@ class ActionExecutor:
                 if node_process.container_id:
                     # Create or update Container record
                     from wnm.models import Container
-                    import time
 
                     container = session.query(Container).filter_by(
                         container_id=node_process.container_id

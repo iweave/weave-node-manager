@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 from wnm.executor import ActionExecutor
 from wnm.models import Node
 from wnm.common import RUNNING, STOPPED, DISABLED, UPGRADING
+from wnm.process_managers.base import NodeProcess
 
 
 class TestNodeNameParsing:
@@ -66,7 +67,7 @@ class TestForcedAddAction:
         """Test forced add action creates a new node"""
         mock_expanduser.return_value = "/tmp/antnode"
         mock_manager = MagicMock()
-        mock_manager.create_node.return_value = True
+        mock_manager.create_node.return_value = NodeProcess(node_id=1, pid=12345, status="RUNNING")
         mock_get_manager.return_value = mock_manager
 
         executor = ActionExecutor(lambda: db_session)
@@ -834,7 +835,10 @@ class TestCountParameter:
         """Test adding multiple nodes with count parameter"""
         mock_expanduser.return_value = "/tmp/antnode"
         mock_manager = MagicMock()
-        mock_manager.create_node.return_value = True
+        # Return different NodeProcess objects for each call
+        mock_manager.create_node.side_effect = [
+            NodeProcess(node_id=i, pid=10000 + i, status="RUNNING") for i in range(1, 4)
+        ]
         mock_get_manager.return_value = mock_manager
 
         executor = ActionExecutor(lambda: db_session)
