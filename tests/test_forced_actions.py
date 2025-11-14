@@ -806,6 +806,22 @@ class TestForcedTeardownAction:
         # Should remove 4 out of 5 nodes
         assert result["removed_count"] == 4
 
+    @patch("wnm.executor.ActionExecutor._get_process_manager")
+    def test_force_teardown_dry_run(self, mock_get_manager, db_session, multiple_nodes):
+        """Test forced teardown in dry-run mode"""
+        mock_manager = MagicMock()
+        mock_manager.teardown_cluster.return_value = False
+        mock_get_manager.return_value = mock_manager
+
+        executor = ActionExecutor(lambda: db_session)
+
+        result = executor._force_teardown_cluster({}, dry_run=True)
+
+        assert result["status"] == "cluster-teardown"
+        # Should not actually remove nodes
+        remaining = db_session.query(Node).count()
+        assert remaining == 5
+
 
 class TestCountParameter:
     """Test count parameter functionality across actions"""
