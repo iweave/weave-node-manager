@@ -229,6 +229,13 @@ def main():
 
     # Check for forced actions
     if options.force_action:
+        # Teardown requires confirmation for safety
+        if options.force_action == "teardown" and not options.confirm:
+            logging.error("Teardown requires --confirm flag for safety")
+            print("Error: Teardown requires --confirm flag. This will remove all nodes.")
+            os.remove(LOCK_FILE)
+            sys.exit(1)
+
         logging.info(f"Executing forced action: {options.force_action}")
         executor = ActionExecutor(S)
         this_action = executor.execute_forced_action(

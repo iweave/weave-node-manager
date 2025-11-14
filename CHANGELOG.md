@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.0.20] - 2025-11-13
+
+### Changed
+- **BREAKING**: Removed `--teardown` flag (non-functional stub)
+  - Use `--force_action teardown --confirm` instead
+  - Eliminates needless duplication between two teardown paths
+  - Teardown methods now require `--confirm` flag for safety
+
+### Security
+- **Force action teardown now requires confirmation**: `--force_action teardown` must be used with `--confirm` flag
+  - Prevents accidental cluster destruction
+  - Aligns safety requirements across all teardown methods
+
 ## [0.0.19] - 2025-11-13
 
 ### Changed

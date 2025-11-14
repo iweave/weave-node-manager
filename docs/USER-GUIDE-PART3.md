@@ -636,14 +636,9 @@ These settings control how many nodes can be in transitional states simultaneous
 - Use with: `--init`
 - Linux only (reads from `/var/antctl/config` and `/etc/systemd/system/`)
 
-**`--teardown`**
-- Flag only
-- Description: Remove the wnm cluster and all managed nodes
-- Requires: `--confirm` flag for safety
-
 **`--confirm`**
 - Flag only
-- Description: Confirm destructive operations like `--teardown`
+- Description: Confirm destructive operations (required for `--force_action teardown`)
 
 **`--remove_lockfile`**
 - Flag only

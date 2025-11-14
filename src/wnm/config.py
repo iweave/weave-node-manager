@@ -244,8 +244,7 @@ def load_config():
     )
     c.add("--init", help="Initialize a cluster", action="store_true")
     c.add("--migrate_anm", help="Migrate a cluster from anm", action="store_true")
-    c.add("--teardown", help="Remove a cluster", action="store_true")
-    c.add("--confirm", help="Confirm teardown without ui", action="store_true")
+    c.add("--confirm", help="Confirm destructive operations (required for teardown)", action="store_true")
     c.add("--node_cap", env_var="NODE_CAP", help="Node Capacity")
     c.add("--cpu_less_than", env_var="CPU_LESS_THAN", help="CPU Add Threshold")
     c.add("--cpu_remove", env_var="CPU_REMOVE", help="CPU Remove Threshold")
@@ -629,17 +628,6 @@ def migrate_anm(options):
         return False
 
 
-# Teardown the machine
-def teardown_machine(machine_config):
-    logging.info("Teardown machine")
-    pass
-    # disable cron
-    # with S() as session:
-    #     select Nodes
-    #     for node in nodes:
-    #         delete node
-
-
 def define_machine(options):
     if not options.rewards_address:
         logging.warning("Rewards Address is required")
@@ -832,17 +820,6 @@ else:
     if options.init:
         logging.warning("Machine already initialized")
         sys.exit(1)
-    # Initate a teardown of the machine
-    if options.teardown:
-        if options.confirm:
-            if options.dry_run:
-                logging.info("DRY_RUN: Initiate Teardown")
-            else:
-                teardown_machine(machine_config)
-            sys.exit(0)
-        else:
-            logging.warning("Please confirm the teardown with --confirm")
-            sys.exit(1)
     # Get Machine from Row (skip in test mode or when using --version/--remove_lockfile)
     if not os.getenv("WNM_TEST_MODE") and not _SKIP_DB_INIT:
         machine_config = machine_config[0]
