@@ -119,6 +119,21 @@ class AntctlManager(ProcessManager):
         """
         logging.info(f"Creating antctl node {node.id}")
 
+        # Get machine config to check no_upnp setting
+        machine_config = None
+        if self.S:
+            from wnm.config import S
+            from wnm.models import Machine
+            from sqlalchemy import select
+
+            try:
+                with S() as session:
+                    result = session.execute(select(Machine)).first()
+                    if result:
+                        machine_config = result[0]
+            except Exception as e:
+                logging.warning(f"Failed to get machine config: {e}")
+
         # Build antctl add command with path overrides
         args = [
             "add",
@@ -132,8 +147,11 @@ class AntctlManager(ProcessManager):
             str(node.metrics_port),
             "--rewards-address",
             node.wallet,
-            "--no-upnp",
         ]
+
+        # Add --no-upnp if configured (defaults to True for backwards compatibility)
+        if machine_config and getattr(machine_config, 'no_upnp', True):
+            args.append("--no-upnp")
 
         # Add optional log directory if specified
         if node.log_dir:

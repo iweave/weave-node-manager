@@ -69,24 +69,40 @@ class LaunchdManager(ProcessManager):
         uid = os.getuid()
         return f"gui/{uid}"
 
-    def _generate_plist_content(self, node: Node, binary_path: str) -> str:
+    def _generate_plist_content(self, node: Node, binary_path: str, machine_config=None) -> str:
         """
         Generate the plist XML content for a node.
 
         Args:
             node: Node database record
             binary_path: Path to the node binary in the node's directory
+            machine_config: Machine configuration (optional, will query if not provided)
 
         Returns:
             XML string for the plist file
         """
+        # Get machine config if not provided
+        if machine_config is None and self.S:
+            from wnm.config import S
+            from wnm.models import Machine
+            from sqlalchemy import select
+
+            with S() as session:
+                result = session.execute(select(Machine)).first()
+                if result:
+                    machine_config = result[0]
+
         label = self._get_service_label(node)
         log_file = os.path.join(LOG_DIR, f"antnode{node.node_name}.log")
 
         # Build program arguments array
-        args = [
-            binary_path,
-            "--no-upnp",  # Disable UPnP (not needed/available on macOS in many cases)
+        args = [binary_path]
+
+        # Add --no-upnp if configured (defaults to True for backwards compatibility)
+        if machine_config and getattr(machine_config, 'no_upnp', True):
+            args.append("--no-upnp")
+
+        args.extend([
             "--bootstrap-cache-dir",
             BOOTSTRAP_CACHE_DIR,
             "--root-dir",
@@ -104,7 +120,7 @@ class LaunchdManager(ProcessManager):
             "--rewards-address",
             node.wallet,
             node.network,
-        ]
+        ])
 
         # Build ProgramArguments XML
         args_xml = "\n".join(f"        <string>{arg}</string>" for arg in args)

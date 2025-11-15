@@ -124,6 +124,21 @@ class SetsidManager(ProcessManager):
             logging.warning(f"Node {node.id} already running")
             return True
 
+        # Get machine config to check no_upnp setting
+        machine_config = None
+        if self.S:
+            from wnm.config import S
+            from wnm.models import Machine
+            from sqlalchemy import select
+
+            try:
+                with S() as session:
+                    result = session.execute(select(Machine)).first()
+                    if result:
+                        machine_config = result[0]
+            except Exception as e:
+                logging.warning(f"Failed to get machine config: {e}")
+
         # Prepare command
         binary = Path(node.root_dir) / "antnode"
         if not binary.exists():
@@ -149,10 +164,13 @@ class SetsidManager(ProcessManager):
             "1",
             "--max-archived-log-files",
             "1",
-            "--rewards-address",
-            node.wallet,
-            node.network,
         ]
+
+        # Add --no-upnp if configured (defaults to True for backwards compatibility)
+        if machine_config and getattr(machine_config, 'no_upnp', True):
+            cmd.append("--no-upnp")
+
+        cmd.extend(["--rewards-address", node.wallet, node.network])
 
         # Start process in background using setsid
         try:

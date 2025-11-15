@@ -365,6 +365,12 @@ def load_config():
         help="Process manager to use: systemd+sudo, systemd+user, setsid+sudo, setsid+user, launchd+sudo, launchd+user, antctl+sudo, antctl+user",
         choices=["systemd+sudo", "systemd+user", "setsid+sudo", "setsid+user", "launchd+sudo", "launchd+user", "antctl+sudo", "antctl+user"],
     )
+    c.add(
+        "--no_upnp",
+        env_var="NO_UPNP",
+        help="Disable UPnP port forwarding on nodes (default: enabled)",
+        action="store_true",
+    )
 
     options = c.parse_known_args()[0] or []
     # Return the first result from parse_known_args, ignore unknown options
@@ -484,6 +490,8 @@ def merge_config_changes(options, machine_config):
         cfg["start_args"] = options.start_args
     if options.process_manager and options.process_manager != machine_config.process_manager:
         cfg["process_manager"] = options.process_manager
+    if hasattr(options, 'no_upnp') and bool(options.no_upnp) != bool(machine_config.no_upnp):
+        cfg["no_upnp"] = bool(options.no_upnp)
 
     return cfg
 
@@ -600,6 +608,9 @@ def load_anm_config(options):
     else:
         anm_config["process_manager"] = "systemd+user"
 
+    # UPnP setting (defaults to True/enabled)
+    anm_config["no_upnp"] = bool(_get_option(options, "no_upnp", False))
+
     return anm_config
 
 
@@ -688,6 +699,7 @@ def define_machine(options):
         "max_node_per_container": 200,
         "min_container_count": 1,
         "docker_image": "iweave/antnode:latest",
+        "no_upnp": bool(_get_option(options, "no_upnp", False)),
     }
 
     # Set default process manager based on platform if not specified

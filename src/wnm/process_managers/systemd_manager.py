@@ -82,6 +82,21 @@ class SystemdManager(ProcessManager):
         """
         logging.info(f"Creating systemd node {node.id}")
 
+        # Get machine config to check no_upnp setting
+        machine_config = None
+        if self.S:
+            from wnm.config import S
+            from wnm.models import Machine
+            from sqlalchemy import select
+
+            try:
+                with S() as session:
+                    result = session.execute(select(Machine)).first()
+                    if result:
+                        machine_config = result[0]
+            except Exception as e:
+                logging.warning(f"Failed to get machine config: {e}")
+
         # Prepare service name
         service_name = f"antnode{node.node_name}.service"
         log_dir = f"{LOG_DIR}/antnode{node.node_name}"
@@ -156,12 +171,32 @@ class SystemdManager(ProcessManager):
         else:
             user_line = ""  # User services run as the invoking user
 
+        # Build ExecStart command with conditional --no-upnp
+        exec_args = [
+            binary_in_node_dir,
+            "--bootstrap-cache-dir", BOOTSTRAP_CACHE_DIR,
+            "--root-dir", node.root_dir,
+            "--port", str(node.port),
+            "--enable-metrics-server",
+            "--metrics-server-port", str(node.metrics_port),
+            "--log-output-dest", log_dir,
+            "--max-log-files", "1",
+            "--max-archived-log-files", "1",
+        ]
+
+        # Add --no-upnp if configured (defaults to True for backwards compatibility)
+        if machine_config and getattr(machine_config, 'no_upnp', True):
+            exec_args.append("--no-upnp")
+
+        exec_args.extend(["--rewards-address", node.wallet, node.network])
+        exec_start = " ".join(exec_args)
+
         service_content = f"""[Unit]
 Description=antnode{node.node_name}
 [Service]
 {env_string}
 {user_line}
-ExecStart={binary_in_node_dir} --bootstrap-cache-dir {BOOTSTRAP_CACHE_DIR} --root-dir {node.root_dir} --port {node.port} --enable-metrics-server --metrics-server-port {node.metrics_port} --log-output-dest {log_dir} --max-log-files 1 --max-archived-log-files 1 --rewards-address {node.wallet} {node.network}
+ExecStart={exec_start}
 Restart=always
 #RestartSec=300
 """

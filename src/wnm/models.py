@@ -106,6 +106,9 @@ class Machine(Base):
         UnicodeText, default="autonomi/node:latest"
     )
 
+    # Node runtime flags
+    no_upnp: Mapped[bool] = mapped_column(Integer, default=1)  # SQLite uses 0/1 for boolean
+
     # Relationships
     containers: Mapped[list["Container"]] = relationship(
         back_populates="machine", cascade="all, delete-orphan"
@@ -155,6 +158,7 @@ class Machine(Base):
         max_node_per_container=200,
         min_container_count=1,
         docker_image="autonomi/node:latest",
+        no_upnp=True,
     ):
         self.cpu_count = cpu_count
         self.node_cap = node_cap
@@ -195,6 +199,7 @@ class Machine(Base):
         self.max_node_per_container = max_node_per_container
         self.min_container_count = min_container_count
         self.docker_image = docker_image
+        self.no_upnp = no_upnp
 
     def __repr__(self):
         return (
@@ -250,6 +255,7 @@ class Machine(Base):
             "max_concurrent_removals": self.max_concurrent_removals,
             "node_removal_strategy": f"{self.node_removal_strategy}",
             "process_manager": f"{self.process_manager}" if self.process_manager else None,
+            "no_upnp": bool(self.no_upnp),
         }
 
 

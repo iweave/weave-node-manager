@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.0.24] - 2025-11-15
+
+### Added
+- **Configurable UPnP control**: Added `--no_upnp` flag for admin-configurable UPnP behavior
+  - New `no_upnp` field in Machine model (defaults to True/enabled for backwards compatibility)
+  - Command-line argument `--no_upnp` and environment variable `NO_UPNP` support
+  - All process managers (LaunchdManager, AntctlManager, SystemdManager, SetsidManager) conditionally add `--no-upnp` based on machine config
+  - Replaces hardcoded `--no-upnp` in process managers with deployment-specific setting
+
+### Changed
+- **Process managers**: Updated all process managers to use machine config for UPnP setting
+  - Previously hardcoded `--no-upnp` in LaunchdManager and AntctlManager
+  - Now all managers respect `machine_config.no_upnp` setting with fallback to True for backwards compatibility
+
 ## [0.0.21] - 2025-11-14
 
 ### Added
