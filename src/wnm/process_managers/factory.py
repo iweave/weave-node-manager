@@ -7,6 +7,7 @@ based on the manager type.
 
 import logging
 
+from wnm.process_managers.antctl_manager import AntctlManager
 from wnm.process_managers.base import ProcessManager
 from wnm.process_managers.docker_manager import DockerManager
 from wnm.process_managers.launchd_manager import LaunchdManager
@@ -43,8 +44,7 @@ def get_process_manager(
         "docker": DockerManager,
         "setsid": SetsidManager,
         "launchd": LaunchdManager,
-        # Future managers:
-        # "antctl": AntctlManager,
+        "antctl": AntctlManager,
     }
 
     manager_class = managers.get(base_type)

@@ -2,6 +2,43 @@
 
 ## [Unreleased]
 
+## [0.0.21] - 2025-11-14
+
+### Added
+- **AntctlManager process manager**: Full integration with antctl CLI for node management
+  - Supports both `antctl+user` and `antctl+sudo` modes
+  - Wraps all antctl commands: add, start, stop, remove, status, reset
+  - Automatic discovery and import of existing antctl nodes via `antctl status --json`
+  - Path overrides to maintain WNM's platform-specific conventions
+  - Service name extraction and storage in `node.service` field
+  - Comprehensive error handling and logging
+- **Node schema enhancement**: Added `log_dir` field to Node model
+  - Captures antctl's `log_dir_path` during node import
+  - Optional field (nullable) for backward compatibility
+  - Allows preservation of existing log directory paths when importing
+- **CLI support**: Added `--process_manager antctl+user` and `--process_manager antctl+sudo` options
+- **Auto-import on init**: When initializing with `antctl+user/antctl+sudo`, automatically discovers and imports existing antctl nodes
+- **Documentation**: Comprehensive antctl integration guide in ANTCTL_README.md
+  - Installation and setup instructions
+  - Configuration examples and usage patterns
+  - Multi-container scenario handling
+  - Path configuration and overrides
+  - Troubleshooting guide
+
+### Changed
+- **survey_machine()**: Now respects `machine_config.process_manager` when discovering nodes
+  - Previously always used platform auto-detection
+  - Now uses configured process manager first, falls back to auto-detection
+- **Machine model**: Added default values for Docker-related fields in `__init__`
+  - `max_node_per_container=200`
+  - `min_container_count=1`
+  - `docker_image="iweave/antnode:latest"`
+
+### Fixed
+- **Node import during initialization**: Antctl nodes are now properly imported during `--init`
+  - Fixed condition to survey nodes when using antctl process manager
+  - Ensures existing antctl-managed nodes are discovered on first run
+
 ## [0.0.20] - 2025-11-13
 
 ### Changed

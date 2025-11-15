@@ -37,10 +37,10 @@ used in an elevated, administrative session.
 
 First, use the `add` command to create some services:
 ```
-$ antctl add --count 3 --peer /ip4/139.59.168.228/udp/56309/quic-v1/p2p/12D3KooWFTMtaqu24ddDSXk9v5YxnuhJmTLFRunER1CG4wZ2XLUU
+$ antctl add --count 3
 ```
 
-This downloads the latest version of the `antnode` binary and creates three services that will initially connect to the specified peer. Soon, specification of a peer will not be required.
+This downloads the latest version of the `antnode` binary and creates three services.
 
 There are many arguments available for customising the service. For example, you can choose the port the node will run on, or the version of `antnode`. Run `antctl add --help` to see all available options.
 
@@ -114,7 +114,7 @@ The nodes could now be left running like this, but for the purposes of this guid
 
 It's possible to run the `add` command again, as before:
 ```
-antctl add --count 3 --peer /ip4/46.101.80.187/udp/58070/quic-v1/p2p/12D3KooWKgJQedzCxrp33u3dBD1mUZ9HTjEjgrxskEBvzoQWkRT9
+antctl add --count 3
 ```
 
 The subsequent `status` command will show us an additional three nodes, for a total of six:
@@ -344,3 +344,197 @@ dawn@wnm:~/weave-node-manager$ antctl status --json
   "daemon": null
 }
 ### /command-output
+
+---
+
+## Using Antctl with Weave Node Manager (WNM)
+
+WNM can use `antctl` as a process manager backend, allowing WNM's decision engine and resource monitoring to work with antctl-managed nodes.
+
+### Prerequisites
+
+1. Install antctl via [antup](https://github.com/maidsafe/antup):
+   ```bash
+   antup antctl
+   ```
+
+2. Verify antctl is in your PATH:
+   ```bash
+   which antctl  # Should show ~/.local/bin/antctl
+   antctl --version
+   ```
+
+### Using WNM with Antctl
+
+#### Specify Process Manager
+
+Use the `--process_manager` flag to specify antctl as your process manager:
+
+```bash
+# User-mode antctl (no sudo required)
+wnm --process_manager antctl+user --init --rewards_address 0xYourEthereumAddress
+
+# System-mode antctl (with sudo)
+sudo wnm --process_manager antctl+sudo --init --rewards_address 0xYourEthereumAddress
+```
+
+#### Import Existing Antctl Nodes
+
+If you already have nodes managed by antctl, WNM can discover and import them:
+
+```bash
+# Survey existing antctl nodes
+wnm --process_manager antctl+user --init --rewards_address faucet
+
+# WNM will detect existing nodes via 'antctl status --json'
+```
+
+**Important**: Only import antctl clusters that were created with `--metrics-port` enabled, as WNM relies on the metrics port for node monitoring.
+
+#### Configuration
+
+When using antctl as the process manager:
+
+- **Node ID**: WNM assigns sequential database IDs (1, 2, 3...)
+- **Service Name**: antctl assigns service names (antnode1, antnode2, antnode3...)
+- **Stored in database**: `node.service` field contains the antctl service name
+- **Log Directory**: Captured from antctl's `log_dir_path` and stored in `node.log_dir`
+
+### WNM Operations with Antctl
+
+WNM delegates node lifecycle operations to antctl:
+
+| WNM Operation | Antctl Command | Description |
+|--------------|----------------|-------------|
+| Add node | `antctl add --count 1 [options]` | Creates and starts a new node |
+| Start node | `antctl start --service-name {service}` | Starts a stopped node |
+| Stop node | `antctl stop --service-name {service}` | Stops a running node |
+| Remove node | `antctl stop && antctl remove` | Stops and removes a node |
+| Upgrade node | Stop → Copy binary → Start | WNM handles upgrade flow |
+| Survey nodes | `antctl status --json` | Discovers existing nodes |
+| Teardown cluster | `antctl reset --force` | Removes all nodes |
+
+### Path Configuration
+
+WNM overrides antctl's default paths to match WNM's platform-specific conventions:
+
+**Flags passed to `antctl add`**:
+- `--data-dir-path`: Node data directory (wnm manages)
+- `--log-dir-path`: Log directory (wnm manages)
+- `--port`: Node port (wnm assigns)
+- `--metrics-port`: Metrics port (wnm assigns)
+- `--rewards-address`: Ethereum wallet address
+- `--no-upnp`: Disable UPnP (wnm controls)
+
+**When importing existing antctl nodes**, WNM preserves the original paths from antctl's JSON output.
+
+### Multi-Container Support
+
+In multi-container deployments (e.g., Docker), each container can have its own antctl instance with identical service names:
+
+- Container 1: antnode1, antnode2, antnode3
+- Container 2: antnode1, antnode2, antnode3
+
+WNM distinguishes these using the `node.container_id` foreign key in the database.
+
+### Example: Complete Workflow
+
+```bash
+# 1. Install antctl
+antup antctl
+
+# 2. Initialize WNM with antctl as process manager
+wnm --process_manager antctl+user --init \
+  --rewards_address 0x00455d78f850b0358E8cea5be24d415E01E107CF \
+  --node_cap 10
+
+# 3. WNM will automatically:
+#    - Discover existing antctl nodes (if any)
+#    - Add new nodes based on resource availability
+#    - Monitor nodes via metrics port
+#    - Remove nodes when resources are constrained
+
+# 4. Run WNM continuously (typically via cron)
+wnm
+```
+
+### Monitoring and Status
+
+WNM determines node status through the metrics port, not via `antctl status`. This allows WNM to:
+
+- Monitor node health in real-time
+- Detect node failures quickly
+- Track connected peers, uptime, and records
+- Make resource-based decisions
+
+You can still use `antctl status` directly to view your nodes:
+
+```bash
+# View all nodes
+antctl status
+
+# View detailed information
+antctl status --details
+
+# View JSON output (same format WNM uses)
+antctl status --json
+```
+
+### Firewall Management
+
+WNM defaults to "null" firewall management when using antctl, as antctl is expected to manage its own port requirements. On Linux with UFW, you may need to manually configure firewall rules or use a different firewall manager.
+
+### Troubleshooting
+
+**Antctl not found**:
+```bash
+# Ensure ~/.local/bin is in your PATH
+export PATH="$HOME/.local/bin:$PATH"
+
+# Or install antctl
+antup antctl
+```
+
+**Permission errors**:
+```bash
+# For user-mode services (recommended)
+wnm --process_manager antctl+user
+
+# For system-mode services
+sudo wnm --process_manager antctl+sudo
+```
+
+**Database schema update** (for existing WNM users):
+
+If you're upgrading from a previous version of WNM, the `log_dir` field was added to the Node schema. For SQLite databases:
+
+```bash
+# Option 1: Recreate database (loses existing data)
+rm ~/.local/share/wnm/colony.db
+wnm --init
+
+# Option 2: Manual migration (preserves data)
+sqlite3 ~/.local/share/wnm/colony.db
+> ALTER TABLE node ADD COLUMN log_dir TEXT;
+> .quit
+```
+
+### Advantages of Using Antctl with WNM
+
+1. **Robust Service Management**: Leverages OS-native service infrastructure (systemd/launchd)
+2. **Clean Integration**: WNM's decision engine + antctl's process management
+3. **Flexible Deployment**: User-mode or system-mode services
+4. **Easy Import**: Discover and adopt existing antctl nodes
+5. **Platform Support**: Works on Linux and macOS
+
+### Limitations
+
+- **No auto-detection**: WNM does not automatically detect antctl availability; you must explicitly specify `--process_manager antctl+user` or `antctl+sudo`
+- **Service name gaps**: When nodes are removed, antctl doesn't reuse service numbers (e.g., after removing antnode2, the next node will be antnode4, not antnode2)
+- **Database migration**: Existing WNM databases need the `log_dir` field added manually
+
+### See Also
+
+- [WNM Process Managers](PLATFORM-SUPPORT.md)
+- [Antctl GitHub Repository](https://github.com/maidsafe/antctl)
+- [Antup Installation Tool](https://github.com/maidsafe/antup)

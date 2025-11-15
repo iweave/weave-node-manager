@@ -30,8 +30,12 @@ def survey_machine(machine_config, manager_type: str = None) -> list:
         List of node dictionaries ready for database insertion
     """
     if manager_type is None:
-        # Auto-detect manager type from platform
-        manager_type = get_default_manager_type()
+        # Try to use manager type from machine config first
+        if hasattr(machine_config, 'process_manager') and machine_config.process_manager:
+            manager_type = machine_config.process_manager
+        else:
+            # Auto-detect manager type from platform
+            manager_type = get_default_manager_type()
 
     logging.info(f"Surveying machine with {manager_type} manager")
 

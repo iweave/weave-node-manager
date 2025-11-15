@@ -163,8 +163,15 @@ def main():
 
     # Do we already have nodes
     if metrics["total_nodes"] == 0:
-        # Are we migrating an anm server
-        if options.init and options.migrate_anm:
+        # Survey for existing nodes if:
+        # 1. Migrating from anm (--init --migrate_anm)
+        # 2. Initializing with antctl to import existing antctl nodes (--init with antctl+user/antctl+sudo)
+        should_survey = (
+            (options.init and options.migrate_anm) or
+            (options.init and machine_config.process_manager and machine_config.process_manager.startswith("antctl"))
+        )
+
+        if should_survey:
             Workers = survey_machine(machine_config) or []
             if Workers:
                 if options.dry_run:

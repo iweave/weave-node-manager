@@ -1,5 +1,6 @@
 """Tests for process managers (systemd, docker, setsid, etc.)"""
 
+import json
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
@@ -58,6 +59,18 @@ class TestProcessManagerFactory:
         """Test getting LaunchdManager from factory"""
         manager = get_process_manager("launchd")
         assert isinstance(manager, LaunchdManager)
+
+    def test_get_antctl_manager(self):
+        """Test getting AntctlManager from factory"""
+        from wnm.process_managers.antctl_manager import AntctlManager
+
+        manager = get_process_manager("antctl+user")
+        assert isinstance(manager, AntctlManager)
+        assert manager.use_sudo is False
+
+        manager = get_process_manager("antctl+sudo")
+        assert isinstance(manager, AntctlManager)
+        assert manager.use_sudo is True
 
     def test_unknown_manager_type(self):
         """Test error handling for unknown manager type"""
@@ -542,23 +555,166 @@ class TestLaunchdManager:
         assert manager.disable_firewall_port(55001) is True
 
 
-# Skip antctl tests for now (not implemented)
-@pytest.mark.skip(reason="AntctlManager not yet implemented")
 class TestAntctlManager:
     """Tests for AntctlManager"""
 
-    def test_create_node(self):
-        """Test creating a node with antctl"""
-        pass
-
-    def test_start_node(self):
+    @patch("subprocess.run")
+    def test_start_node(self, mock_run, mock_node):
         """Test starting an antctl node"""
-        pass
+        from wnm.process_managers.antctl_manager import AntctlManager
 
-    def test_stop_node(self):
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+        manager = AntctlManager(mode="user")
+        result = manager.start_node(mock_node)
+        assert result is True
+        # Verify antctl start was called
+        assert any("antctl" in str(call) for call in mock_run.call_args_list)
+
+    @patch("subprocess.run")
+    def test_stop_node(self, mock_run, mock_node):
         """Test stopping an antctl node"""
-        pass
+        from wnm.process_managers.antctl_manager import AntctlManager
 
-    def test_parse_output(self):
-        """Test parsing antctl command output"""
-        pass
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+        manager = AntctlManager(mode="user")
+        result = manager.stop_node(mock_node)
+        assert result is True
+        # Verify antctl stop was called
+        assert any("antctl" in str(call) for call in mock_run.call_args_list)
+
+    @patch("subprocess.run")
+    def test_restart_node(self, mock_run, mock_node):
+        """Test restarting an antctl node"""
+        from wnm.process_managers.antctl_manager import AntctlManager
+
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+        manager = AntctlManager(mode="user")
+        result = manager.restart_node(mock_node)
+        assert result is True
+        # Should call both stop and start
+        assert mock_run.call_count >= 2
+
+    @patch("subprocess.run")
+    @patch("os.path.isdir")
+    def test_get_status(self, mock_isdir, mock_run, mock_node):
+        """Test getting antctl node status"""
+        from wnm.process_managers.antctl_manager import AntctlManager
+        from wnm.utils import read_node_metadata
+
+        mock_isdir.return_value = True
+        manager = AntctlManager(mode="user")
+
+        with patch("wnm.process_managers.antctl_manager.read_node_metadata") as mock_read:
+            # Node is stopped
+            mock_read.return_value = {"status": STOPPED}
+            status = manager.get_status(mock_node)
+            assert status.status == STOPPED
+
+    @patch("subprocess.run")
+    def test_remove_node(self, mock_run, mock_node):
+        """Test removing an antctl node"""
+        from wnm.process_managers.antctl_manager import AntctlManager
+
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+        manager = AntctlManager(mode="user")
+        result = manager.remove_node(mock_node)
+        assert result is True
+        # Verify antctl remove was called
+        assert any("remove" in str(call) for call in mock_run.call_args_list)
+
+    def test_service_name_extraction(self):
+        """Test parsing antctl command output for service names"""
+        from wnm.process_managers.antctl_manager import AntctlManager
+
+        manager = AntctlManager(mode="user")
+
+        # Test successful extraction
+        output = "Service antnode1 created successfully"
+        service_name = manager._extract_service_name_from_output(output)
+        assert service_name == "antnode1"
+
+        # Test with different format
+        output = "Added antnode42"
+        service_name = manager._extract_service_name_from_output(output)
+        assert service_name == "antnode42"
+
+        # Test failure case
+        output = "No service name here"
+        service_name = manager._extract_service_name_from_output(output)
+        assert service_name is None
+
+    @patch("subprocess.run")
+    def test_survey_nodes(self, mock_run):
+        """Test surveying nodes with antctl status --json"""
+        from wnm.process_managers.antctl_manager import AntctlManager
+
+        # Mock JSON output from antctl status
+        json_output = {
+            "nodes": [
+                {
+                    "service_name": "antnode1",
+                    "status": "Running",
+                    "data_dir_path": "/path/to/node1",
+                    "log_dir_path": "/path/to/node1/logs",
+                    "node_port": 55001,
+                    "metrics_port": 13001,
+                    "rewards_address": "0x1234",
+                    "peer_id": "abc123",
+                    "version": "0.4.7",
+                    "antnode_path": "/path/to/antnode",
+                    "network": "evm-arbitrum-one",
+                }
+            ],
+            "daemon": None,
+        }
+
+        mock_run.return_value = Mock(
+            returncode=0, stdout=json.dumps(json_output), stderr=""
+        )
+
+        manager = AntctlManager(mode="user")
+
+        # Create mock machine_config
+        class MockMachineConfig:
+            host = "127.0.0.1"
+
+        machine_config = MockMachineConfig()
+        nodes = manager.survey_nodes(machine_config)
+
+        assert len(nodes) == 1
+        assert nodes[0]["service"] == "antnode1"
+        assert nodes[0]["root_dir"] == "/path/to/node1"
+        assert nodes[0]["log_dir"] == "/path/to/node1/logs"
+        assert nodes[0]["port"] == 55001
+        assert nodes[0]["metrics_port"] == 13001
+        assert nodes[0]["manager_type"] == "antctl"
+
+    @patch("subprocess.run")
+    def test_teardown_cluster(self, mock_run):
+        """Test tearing down cluster with antctl reset"""
+        from wnm.process_managers.antctl_manager import AntctlManager
+
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+        manager = AntctlManager(mode="user")
+        result = manager.teardown_cluster()
+        assert result is True
+        # Verify antctl reset was called
+        assert any("reset" in str(call) and "--force" in str(call) for call in mock_run.call_args_list)
+
+    def test_mode_selection(self):
+        """Test user vs sudo mode selection"""
+        from wnm.process_managers.antctl_manager import AntctlManager
+
+        # User mode
+        manager = AntctlManager(mode="user")
+        assert manager.use_sudo is False
+        assert manager.antctl_cmd == ["antctl"]
+
+        # Sudo mode
+        manager = AntctlManager(mode="sudo")
+        assert manager.use_sudo is True
+        assert manager.antctl_cmd == ["sudo", "antctl"]
+
+        # Default (user mode)
+        manager = AntctlManager()
+        assert manager.use_sudo is False

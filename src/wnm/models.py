@@ -152,6 +152,9 @@ class Machine(Base):
         max_concurrent_removals=1,
         node_removal_strategy="youngest",
         process_manager=None,
+        max_node_per_container=200,
+        min_container_count=1,
+        docker_image="autonomi/node:latest",
     ):
         self.cpu_count = cpu_count
         self.node_cap = node_cap
@@ -189,6 +192,9 @@ class Machine(Base):
         self.max_concurrent_removals = max_concurrent_removals
         self.node_removal_strategy = node_removal_strategy
         self.process_manager = process_manager
+        self.max_node_per_container = max_node_per_container
+        self.min_container_count = min_container_count
+        self.docker_image = docker_image
 
     def __repr__(self):
         return (
@@ -352,6 +358,8 @@ class Node(Base):
     version: Mapped[Optional[str]] = mapped_column(UnicodeText)
     # Root directory of the node
     root_dir: Mapped[str] = mapped_column(UnicodeText)
+    # Log directory of the node (optional, defaults to platform-specific location)
+    log_dir: Mapped[Optional[str]] = mapped_column(UnicodeText, nullable=True)
     # Node open port
     port: Mapped[int] = mapped_column(Integer)
     # Node metrics port
@@ -417,6 +425,7 @@ class Node(Base):
         machine_id=1,
         container_id=None,
         manager_type="systemd",
+        log_dir=None,
     ):
         self.id = id
         self.node_name = node_name
@@ -425,6 +434,7 @@ class Node(Base):
         self.binary = binary
         self.version = version
         self.root_dir = root_dir
+        self.log_dir = log_dir
         self.port = port
         self.metrics_port = metrics_port
         self.network = network

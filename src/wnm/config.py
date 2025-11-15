@@ -362,8 +362,8 @@ def load_config():
     c.add(
         "--process_manager",
         env_var="PROCESS_MANAGER",
-        help="Process manager to use: systemd+sudo, systemd+user, setsid+sudo, setsid+user, launchd+sudo, launchd+user",
-        choices=["systemd+sudo", "systemd+user", "setsid+sudo", "setsid+user", "launchd+sudo", "launchd+user"],
+        help="Process manager to use: systemd+sudo, systemd+user, setsid+sudo, setsid+user, launchd+sudo, launchd+user, antctl+sudo, antctl+user",
+        choices=["systemd+sudo", "systemd+user", "setsid+sudo", "setsid+user", "launchd+sudo", "launchd+user", "antctl+sudo", "antctl+user"],
     )
 
     options = c.parse_known_args()[0] or []
@@ -681,6 +681,13 @@ def define_machine(options):
         "metrics_port_start": int(_get_option(options, "metrics_port_start") or 13),
         "environment": _get_option(options, "environment") or "",
         "start_args": _get_option(options, "start_args") or "",
+        "max_concurrent_upgrades": 1,
+        "max_concurrent_starts": 2,
+        "max_concurrent_removals": 1,
+        "node_removal_strategy": "youngest",
+        "max_node_per_container": 200,
+        "min_container_count": 1,
+        "docker_image": "iweave/antnode:latest",
     }
 
     # Set default process manager based on platform if not specified
