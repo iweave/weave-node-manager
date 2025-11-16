@@ -454,6 +454,28 @@ With defaults (`--port_start 55` and `--metrics_port_start 13`):
 
 Bootstrap peers are currently managed by the antnode binary itself, not by wnm. Future versions may add configuration support.
 
+### UPnP Configuration
+
+**`--no_upnp`**
+- Environment variable: `NO_UPNP`
+- Type: Boolean flag
+- Default: False (UPnP enabled by default)
+- Description: Disable UPnP (Universal Plug and Play) port forwarding on nodes
+- Use cases:
+  - Running nodes behind a firewall with manually configured port forwarding
+  - Security-conscious setups where automatic port forwarding is undesirable
+  - Network environments where UPnP is disabled or unavailable
+- Note: When UPnP is disabled, you must manually configure port forwarding for each node port
+
+**Example:**
+```bash
+# Initialize with UPnP disabled
+wnm --init --rewards_address 0xYourAddress --no_upnp
+
+# Or set in config file
+no_upnp=True
+```
+
 ### Bootstrap Cache Management
 
 Bootstrap cache directory is automatically managed:
@@ -487,7 +509,7 @@ No user configuration is currently needed.
 **`--process_manager`**
 - Environment variable: `PROCESS_MANAGER`
 - Type: String
-- Choices: `systemd+sudo`, `systemd+user`, `setsid+sudo`, `setsid+user`, `launchd+sudo`, `launchd+user`
+- Choices: `systemd+sudo`, `systemd+user`, `setsid+sudo`, `setsid+user`, `launchd+sudo`, `launchd+user`, `antctl+sudo`, `antctl+user`
 - Platform defaults:
   - macOS: `launchd+user`
   - Linux: `systemd+user`
@@ -499,6 +521,8 @@ No user configuration is currently needed.
   - `setsid+user` uses background processes without sudo
   - `launchd+sudo` requires root privileges on macOS
   - `launchd+user` uses user-level LaunchAgents on macOS
+  - `antctl+sudo` uses antctl CLI wrapper with sudo (requires antctl installation)
+  - `antctl+user` uses antctl CLI wrapper without sudo (requires antctl installation)
 
 ### Logging Configuration
 
@@ -506,14 +530,23 @@ No user configuration is currently needed.
 - Environment variable: `LOGLEVEL`
 - Type: String
 - Choices: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`
-- Default: Not set (INFO level)
+- Default: `INFO`
 - Description: Python logging level for wnm output
+- Note: Controls verbosity of wnm's own logging output
 
 **`-v` / `--verbose`**
 - Flag only (no environment variable)
 - Type: Boolean flag
 - Default: False
 - Description: Enable verbose output (sets loglevel to DEBUG)
+- Note: Shorthand for `--loglevel DEBUG`
+
+**`-q` / `--quiet`**
+- Flag only (no environment variable)
+- Type: Boolean flag
+- Default: False
+- Description: Quiet mode - suppresses all output except errors
+- Note: Sets loglevel to ERROR, useful for cron jobs and automation
 
 ### Dry-Run Mode
 
@@ -611,8 +644,12 @@ These settings control how many nodes can be in transitional states simultaneous
 **`--report`**
 - Environment variable: `REPORT`
 - Type: String
-- Choices: `node-status`, `node-status-details`
+- Choices: `node-status`, `node-status-details`, `influx-resources`
 - Description: Generate a status report instead of managing nodes
+- Report types:
+  - `node-status`: Tabular summary with service name, peer ID, status, and connected peers
+  - `node-status-details`: Detailed information for each node including paths, version, and metrics
+  - `influx-resources`: InfluxDB line protocol format for metrics integration
 
 **`--report_format`**
 - Environment variable: `REPORT_FORMAT`
@@ -620,6 +657,7 @@ These settings control how many nodes can be in transitional states simultaneous
 - Choices: `text`, `json`
 - Default: `text`
 - Description: Output format for reports
+- Note: `influx-resources` report only supports InfluxDB line protocol format (no json/text option)
 
 ### Special Flags
 
