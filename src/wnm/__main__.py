@@ -25,9 +25,7 @@ from wnm.utils import (
     update_counters,
 )
 
-logging.basicConfig(level=logging.INFO)
-# Info level logging for sqlalchemy is too verbose, only use when needed
-logging.getLogger("sqlalchemy.engine.Engine").disabled = True
+# Logging is configured in config.py based on --loglevel and --quiet flags
 
 
 # A storage place for ant node data
@@ -203,7 +201,11 @@ def main():
 
     # Check for reports
     if options.report:
-        from wnm.reports import generate_node_status_report, generate_node_status_details_report
+        from wnm.reports import (
+            generate_node_status_report,
+            generate_node_status_details_report,
+            generate_influx_resources_report,
+        )
 
         # If survey action is specified, run it first
         if options.force_action == "survey":
@@ -226,6 +228,10 @@ def main():
         elif options.report == "node-status-details":
             report_output = generate_node_status_details_report(
                 S, options.service_name, options.report_format
+            )
+        elif options.report == "influx-resources":
+            report_output = generate_influx_resources_report(
+                S, options.service_name
             )
         else:
             report_output = f"Unknown report type: {options.report}"

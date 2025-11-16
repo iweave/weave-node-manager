@@ -87,6 +87,8 @@ def read_node_metrics(host, port):
         url = "http://{0}:{1}/metrics".format(host, port)
         response = requests.get(url, timeout=5)
         metrics["status"] = RUNNING
+
+        # Original metrics (already collected)
         metrics["uptime"] = int(
             (re.findall(r"ant_node_uptime ([\d]+)", response.text) or [0])[0]
         )
@@ -109,6 +111,68 @@ def read_node_metrics(host, port):
                 re.findall(r"ant_networking_connected_peers ([\d]+)", response.text)
                 or [0]
             )[0]
+        )
+
+        # New influx-specific metrics
+        # PUTs (counter, use _total suffix)
+        metrics["puts"] = int(
+            (re.findall(r"ant_node_put_record_ok_total(?:\{[^}]*\})? ([\d]+)", response.text) or [0])[0]
+        )
+
+        # GETs (not currently exposed, default to 0)
+        metrics["gets"] = 0
+
+        # Rewards (as string for high precision)
+        metrics["rewards"] = str(
+            (re.findall(r"ant_node_current_reward_wallet_balance ([\d.]+)", response.text) or ["0"])[0]
+        )
+
+        # Memory in MB * 100 (e.g., 97.8125 -> 9781)
+        mem_mb = float((re.findall(r"ant_networking_process_memory_used_mb ([\d.]+)", response.text) or [0])[0])
+        metrics["mem"] = int(mem_mb * 100)
+
+        # CPU percentage * 100 (e.g., 0.0353 -> 4)
+        cpu_pct = float((re.findall(r"ant_networking_process_cpu_usage_percentage ([\d.]+)", response.text) or [0])[0])
+        metrics["cpu"] = int(cpu_pct * 100)
+
+        # Open connections
+        metrics["open_connections"] = int(
+            (re.findall(r"ant_networking_open_connections ([\d]+)", response.text) or [0])[0]
+        )
+
+        # Total peers in routing table
+        metrics["total_peers"] = int(
+            (re.findall(r"ant_networking_peers_in_routing_table ([\d]+)", response.text) or [0])[0]
+        )
+
+        # Bad peers (counter, use _total suffix)
+        metrics["bad_peers"] = int(
+            (re.findall(r"ant_networking_bad_peers_count_total ([\d]+)", response.text) or [0])[0]
+        )
+
+        # Relevant records
+        metrics["rel_records"] = int(
+            (re.findall(r"ant_networking_relevant_records ([\d]+)", response.text) or [0])[0]
+        )
+
+        # Maximum records
+        metrics["max_records"] = int(
+            (re.findall(r"ant_networking_max_records ([\d]+)", response.text) or [0])[0]
+        )
+
+        # Payment count
+        metrics["payment_count"] = int(
+            (re.findall(r"ant_networking_received_payment_count ([\d]+)", response.text) or [0])[0]
+        )
+
+        # Live time
+        metrics["live_time"] = int(
+            (re.findall(r"ant_networking_live_time ([\d]+)", response.text) or [0])[0]
+        )
+
+        # Network size
+        metrics["network_size"] = int(
+            (re.findall(r"ant_networking_estimated_network_size ([\d]+)", response.text) or [0])[0]
         )
     except requests.exceptions.ConnectionError:
         logging.debug("Connection Refused on port: {0}:{1}".format(host, str(port)))
@@ -301,8 +365,26 @@ def update_node_from_metrics(S, id, metrics, metadata):
             "connected_peers": metrics["connected_peers"],
             "peer_id": metadata["peer_id"],
         }
+
+        # Add influx-specific metrics if available (only for RUNNING nodes)
+        if metrics["status"] == RUNNING:
+            card["gets"] = metrics.get("gets", 0)
+            card["puts"] = metrics.get("puts", 0)
+            card["mem"] = metrics.get("mem", 0)
+            card["cpu"] = metrics.get("cpu", 0)
+            card["open_connections"] = metrics.get("open_connections", 0)
+            card["total_peers"] = metrics.get("total_peers", 0)
+            card["bad_peers"] = metrics.get("bad_peers", 0)
+            card["rel_records"] = metrics.get("rel_records", 0)
+            card["max_records"] = metrics.get("max_records", 0)
+            card["rewards"] = metrics.get("rewards", "0")
+            card["payment_count"] = metrics.get("payment_count", 0)
+            card["live_time"] = metrics.get("live_time", 0)
+            card["network_size"] = metrics.get("network_size", 0)
+
         if "version" in metadata:
             card["version"] = metadata["version"]
+
         with S() as session:
             session.query(Node).filter(Node.id == id).update(card)
             session.commit()

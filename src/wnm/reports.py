@@ -6,6 +6,7 @@ Provides formatted reporting capabilities for node status and details.
 
 import json
 import logging
+import time
 from typing import List, Optional
 
 from sqlalchemy import select
@@ -245,6 +246,109 @@ class NodeReporter:
         else:
             return json.dumps(node_dicts, indent=2)
 
+    def influx_resources_report(
+        self,
+        service_name: Optional[str] = None,
+    ) -> str:
+        """
+        Generate InfluxDB line protocol report for node metrics.
+
+        Format (InfluxDB line protocol):
+            nodes,id=1 PeerId="12D3...",status="RUNNING",version="0.4.7",gets=0i,puts=1i,... <timestamp>
+            nodes_totals rewards="12345",nodes_running=5i,nodes_killed=2i <timestamp>
+            nodes_network size=2064384i <timestamp>
+
+        Args:
+            service_name: Optional comma-separated list of service names
+
+        Returns:
+            InfluxDB line protocol formatted string
+        """
+        service_names = parse_service_names(service_name)
+        nodes = self._get_nodes(service_names)
+
+        if not nodes:
+            return "# No nodes found"
+
+        lines = []
+        timestamp_ns = int(time.time() * 1_000_000_000)  # Current time in nanoseconds
+
+        # Per-node metrics
+        total_rewards = 0
+        running_count = 0
+        killed_count = 0
+        total_network_size = 0
+        network_size_count = 0
+
+        for node in nodes:
+            # Convert CPU and MEM back to decimals (they're stored * 100)
+            cpu_val = node.cpu / 100.0 if node.cpu else 0.0
+            mem_val = node.mem / 100.0 if node.mem else 0.0
+
+            # Build tags (id only)
+            tags = f"id={node.id}"
+
+            # Build fields (all metrics)
+            fields = []
+            fields.append(f'PeerId="{node.peer_id or ""}"')
+            fields.append(f'status="{node.status}"')
+            fields.append(f'version="{node.version or ""}"')
+            fields.append(f"gets={node.gets}i")
+            fields.append(f"puts={node.puts}i")
+            fields.append(f"up_time={node.uptime}i")
+            fields.append(f'rewards="{node.rewards or "0"}"')  # String for precision
+            fields.append(f"records={node.records}i")
+            fields.append(f"connected_peers={node.connected_peers}i")
+            fields.append(f"network_size={node.network_size}i")
+            fields.append(f"open_connections={node.open_connections}i")
+            fields.append(f"total_peers={node.total_peers}i")
+            fields.append(f"shunned_count={node.shunned}i")
+            fields.append(f"bad_peers={node.bad_peers}i")
+            fields.append(f"mem={mem_val}")
+            fields.append(f"cpu={cpu_val}")
+            fields.append(f"rel_records={node.rel_records}i")
+            fields.append(f"max_records={node.max_records}i")
+            fields.append(f"payment_count={node.payment_count}i")
+            fields.append(f"live_time={node.live_time}i")
+
+            # Assemble line: measurement,tags fields timestamp
+            line = f"nodes,{tags} {','.join(fields)} {timestamp_ns}"
+            lines.append(line)
+
+            # Accumulate totals
+            try:
+                total_rewards += float(node.rewards or "0")
+            except ValueError:
+                pass  # Skip non-numeric rewards
+
+            if node.status == RUNNING:
+                running_count += 1
+            elif node.status in (STOPPED, DEAD):
+                killed_count += 1
+
+            # For network size, only count running nodes with non-zero estimates
+            if node.status == RUNNING and node.network_size > 0:
+                total_network_size += node.network_size
+                network_size_count += 1
+
+        # Totals line
+        total_fields = []
+        total_fields.append(f'rewards="{total_rewards}"')  # String for precision
+        total_fields.append(f"nodes_running={running_count}i")
+        total_fields.append(f"nodes_killed={killed_count}i")
+        totals_line = f"nodes_totals {','.join(total_fields)} {timestamp_ns}"
+        lines.append(totals_line)
+
+        # Network size line (average of running nodes' estimates)
+        if network_size_count > 0:
+            avg_network_size = total_network_size // network_size_count
+        else:
+            avg_network_size = 0
+        network_line = f"nodes_network size={avg_network_size}i {timestamp_ns}"
+        lines.append(network_line)
+
+        return "\n".join(lines)
+
 
 def generate_node_status_report(
     session_factory,
@@ -284,3 +388,21 @@ def generate_node_status_details_report(
     """
     reporter = NodeReporter(session_factory)
     return reporter.node_status_details_report(service_name, report_format)
+
+
+def generate_influx_resources_report(
+    session_factory,
+    service_name: Optional[str] = None,
+) -> str:
+    """
+    Convenience function to generate InfluxDB line protocol report.
+
+    Args:
+        session_factory: SQLAlchemy scoped_session factory
+        service_name: Optional comma-separated list of service names
+
+    Returns:
+        InfluxDB line protocol formatted string
+    """
+    reporter = NodeReporter(session_factory)
+    return reporter.influx_resources_report(service_name)

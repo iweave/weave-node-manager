@@ -1,0 +1,13 @@
+# HELP ant_node_antnode_version The version of the ant node.
+# TYPE ant_node_antnode_version info
+ant_node_antnode_version_info{antnode_version="0.4.7"} 1
+# HELP ant_node_antnode_branch The branch of the ant node.
+# TYPE ant_node_antnode_branch info
+ant_node_antnode_branch_info{antnode_branch="stable"} 1
+# HELP ant_networking_peer_id Identifier of a peer of the network.
+# TYPE ant_networking_peer_id info
+ant_networking_peer_id_info{peer_id="12D3KooWMDqtXsSEbuWZ5wdrr3Ai6rUWJta6yBgutJaJXusSujuu"} 1
+# HELP ant_networking_identify_protocol_str The protocol version string that is used to connect to the correct network.
+# TYPE ant_networking_identify_protocol_str info
+ant_networking_identify_protocol_str_info{identify_protocol_str="ant/1.0/1"} 1
+# EOF

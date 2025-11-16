@@ -2,6 +2,57 @@
 
 ## [Unreleased]
 
+## [0.0.25] - 2025-11-16
+
+### Added
+- **InfluxDB line protocol reporting**: New `influx-resources` report type for direct InfluxDB integration
+  - Outputs InfluxDB line protocol format with per-node metrics, totals, and network size
+  - Compatible with NTracking's influx-resources.sh data structure
+  - Command: `wnm --report influx-resources [--service_name node1,node2] --quiet`
+- **Enhanced metrics collection**: Extended node metrics from Prometheus `/metrics` endpoint
+  - Added 13 new database fields: `gets`, `puts`, `mem`, `cpu`, `open_connections`, `total_peers`, `bad_peers`
+  - Added storage metrics: `rel_records`, `max_records`
+  - Added economic metrics: `rewards` (TEXT for 18-decimal precision), `payment_count`, `live_time`
+  - Added network metrics: `network_size`
+  - All influx metrics automatically collected during node survey
+- **Logging control improvements**:
+  - `-q/--quiet` flag to suppress all output except errors (sets loglevel to ERROR)
+  - `--loglevel` option now functional (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  - Logging configuration centralized in config.py based on command-line options
+- **Alembic database migrations**: Proper migration system for schema changes
+  - Baseline migration (eeec2af7114c) for November 6 schema
+  - Migration 62bd2784638c: Add `log_dir` field to Node table (Nov 14)
+  - Migration abc5afa09a61: Add `no_upnp` field to Machine table (Nov 15)
+  - Migration ade8fcd1fc9a: Add 13 influx metrics fields to Node table (Nov 16)
+  - Run with: `alembic upgrade head`
+
+### Changed
+- **Metrics collection**: `read_node_metrics()` now parses all InfluxDB-needed metrics from node's Prometheus endpoint
+- **Database updates**: `update_node_from_metrics()` saves influx metrics for RUNNING nodes only
+- **Node model**: Updated to store high-precision rewards as TEXT instead of Integer
+- **Reports**: Added `generate_influx_resources_report()` convenience function
+
+### Migration Instructions
+For existing databases, run database migrations:
+```bash
+# Set your database path (optional, defaults to platform-specific location)
+export WNM_DATABASE_URL="sqlite:////path/to/your/colony.db"
+
+# Run migrations
+alembic upgrade head
+```
+
+Migrations add:
+- `log_dir` column to `node` table (nullable)
+- `no_upnp` column to `machine` table (default: 1/enabled)
+- 13 influx metrics columns to `node` table (all default to 0 or "0")
+
+### Technical Details
+- Rewards stored as TEXT to handle 18-decimal precision (e.g., Ethereum wei)
+- CPU and memory stored × 100 for precision (e.g., 25.5% stored as 2550)
+- Network size computed as average of all running nodes' estimates
+- Uses `batch_alter_table` for SQLite compatibility
+
 ## [0.0.24] - 2025-11-15
 
 ### Added

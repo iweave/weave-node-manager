@@ -230,6 +230,7 @@ def load_config():
 
     c.add("-c", "--config", is_config_file=True, help="config file path")
     c.add("-v", help="verbose", action="store_true")
+    c.add("-q", "--quiet", help="Quiet mode (suppress all output except errors)", action="store_true")
     c.add("--version", help="Show version and exit", action="store_true")
     c.add("--remove_lockfile", help="Remove the lock file and exit", action="store_true")
     c.add(
@@ -238,7 +239,7 @@ def load_config():
         help="Path to the database",
         default=DEFAULT_DB_PATH,
     )
-    c.add("--loglevel", env_var="LOGLEVEL", help="Log level")
+    c.add("--loglevel", env_var="LOGLEVEL", help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)", default="INFO")
     c.add(
         "--dry_run", env_var="DRY_RUN", help="Do not save changes", action="store_true"
     )
@@ -342,8 +343,8 @@ def load_config():
     c.add(
         "--report",
         env_var="REPORT",
-        help="Generate a report: node-status, node-status-details",
-        choices=["node-status", "node-status-details"],
+        help="Generate a report: node-status, node-status-details, influx-resources",
+        choices=["node-status", "node-status-details", "influx-resources"],
     )
     c.add(
         "--report_format",
@@ -373,6 +374,21 @@ def load_config():
     )
 
     options = c.parse_known_args()[0] or []
+
+    # Configure logging level based on options
+    if options.quiet:
+        log_level = logging.ERROR
+    elif options.loglevel:
+        # Convert string to logging level
+        log_level = getattr(logging, options.loglevel.upper(), logging.INFO)
+    else:
+        log_level = logging.INFO
+
+    # Set the logging level
+    logging.basicConfig(level=log_level, force=True)
+    # Info level logging for sqlalchemy is too verbose, only use when needed
+    logging.getLogger("sqlalchemy.engine.Engine").disabled = True
+
     # Return the first result from parse_known_args, ignore unknown options
     return options
 

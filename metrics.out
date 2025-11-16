@@ -1,0 +1,547 @@
+# HELP ant_node_put_record_ok Number of successful record PUTs.
+# TYPE ant_node_put_record_ok counter
+ant_node_put_record_ok_total{record_type="Chunk"} 1
+# HELP ant_node_put_record_err Number of errors during record PUTs.
+# TYPE ant_node_put_record_err counter
+ant_node_put_record_err_total 0
+# HELP ant_node_put_record_err_v2 Number of errors during record PUTs.
+# TYPE ant_node_put_record_err_v2 counter
+# HELP ant_node_replication_triggered Number of time that replication has been triggered.
+# TYPE ant_node_replication_triggered counter
+ant_node_replication_triggered_total 373
+# HELP ant_node_replication_keys_to_fetch Number of replication keys to fetch from the network.
+# TYPE ant_node_replication_keys_to_fetch histogram
+ant_node_replication_keys_to_fetch_sum 1.0
+ant_node_replication_keys_to_fetch_count 1
+ant_node_replication_keys_to_fetch_bucket{le="1.0"} 1
+ant_node_replication_keys_to_fetch_bucket{le="2.0"} 1
+ant_node_replication_keys_to_fetch_bucket{le="4.0"} 1
+ant_node_replication_keys_to_fetch_bucket{le="8.0"} 1
+ant_node_replication_keys_to_fetch_bucket{le="+Inf"} 1
+# HELP ant_node_peer_added_to_routing_table Number of peers that have been added to the Routing Table.
+# TYPE ant_node_peer_added_to_routing_table counter
+ant_node_peer_added_to_routing_table_total 363
+# HELP ant_node_peer_removed_from_routing_table Number of peers that have been removed from the Routing Table.
+# TYPE ant_node_peer_removed_from_routing_table counter
+ant_node_peer_removed_from_routing_table_total 1
+# HELP ant_node_current_reward_wallet_balance The number of Nanos in the node reward wallet.
+# TYPE ant_node_current_reward_wallet_balance gauge
+ant_node_current_reward_wallet_balance 0
+# HELP ant_node_total_forwarded_rewards The cumulative number of Nanos forwarded by the node.
+# TYPE ant_node_total_forwarded_rewards gauge
+ant_node_total_forwarded_rewards 0
+# HELP ant_node_uptime The uptime of the node in seconds.
+# TYPE ant_node_uptime gauge
+ant_node_uptime 1260
+# HELP libp2p_bandwidth_bytes Bandwidth usage by direction and transport protocols.
+# TYPE libp2p_bandwidth_bytes counter
+# UNIT libp2p_bandwidth_bytes bytes
+libp2p_bandwidth_bytes_total{protocols="/ip4/udp/quic-v1",direction="Inbound"} 762
+libp2p_bandwidth_bytes_total{protocols="/ip4/udp/quic-v1/p2p",direction="Inbound"} 6094405
+libp2p_bandwidth_bytes_total{protocols="/ip4/udp/quic-v1",direction="Outbound"} 1428
+libp2p_bandwidth_bytes_total{protocols="/ip4/udp/quic-v1/p2p",direction="Outbound"} 2312365
+# HELP libp2p_identify_errors Number of errors while attempting to identify the remote.
+# TYPE libp2p_identify_errors counter
+libp2p_identify_errors_total 217
+# HELP libp2p_identify_pushed Number of times identification information of the local node has been actively pushed to a peer..
+# TYPE libp2p_identify_pushed counter
+libp2p_identify_pushed_total 240
+# HELP libp2p_identify_received Number of times identification information has been received from a peer.
+# TYPE libp2p_identify_received counter
+libp2p_identify_received_total 3123
+# HELP libp2p_identify_sent Number of times identification information of the local node has been sent to a peer in response to an identification request.
+# TYPE libp2p_identify_sent counter
+libp2p_identify_sent_total 3138
+# HELP libp2p_identify_remote_protocols Number of connected nodes supporting a specific protocol, with "unrecognized" for each peer supporting one or more unrecognized protocols
+# TYPE libp2p_identify_remote_protocols gauge
+libp2p_identify_remote_protocols{protocol="/libp2p/circuit/relay/0.2.0/hop"} 3
+libp2p_identify_remote_protocols{protocol="/libp2p/circuit/relay/0.2.0/stop"} 3
+libp2p_identify_remote_protocols{protocol="/ipfs/id/1.0.0"} 4
+libp2p_identify_remote_protocols{protocol="unrecognized"} 4
+libp2p_identify_remote_protocols{protocol="/ipfs/id/push/1.0.0"} 4
+# HELP libp2p_identify_remote_listen_addresses Number of connected nodes advertising a specific listen address
+# TYPE libp2p_identify_remote_listen_addresses gauge
+libp2p_identify_remote_listen_addresses{listen_address="/ip4/udp/quic-v1/p2p"} 4
+# HELP libp2p_identify_local_observed_addresses Number of connected nodes observing the local node at a specific address
+# TYPE libp2p_identify_local_observed_addresses gauge
+libp2p_identify_local_observed_addresses{observed_address="/ip4/udp/quic-v1"} 4
+# HELP libp2p_kad_query_result_get_record_ok Number of records returned by a successful Kademlia get record query.
+# TYPE libp2p_kad_query_result_get_record_ok counter
+libp2p_kad_query_result_get_record_ok_total 0
+# HELP libp2p_kad_query_result_get_record_error Number of failed Kademlia get record queries.
+# TYPE libp2p_kad_query_result_get_record_error counter
+# HELP libp2p_kad_query_result_get_closest_peers_ok Number of closest peers returned by a successful Kademlia get closest peers query.
+# TYPE libp2p_kad_query_result_get_closest_peers_ok histogram
+libp2p_kad_query_result_get_closest_peers_ok_sum 360.0
+libp2p_kad_query_result_get_closest_peers_ok_count 18
+libp2p_kad_query_result_get_closest_peers_ok_bucket{le="1.0"} 0
+libp2p_kad_query_result_get_closest_peers_ok_bucket{le="2.0"} 0
+libp2p_kad_query_result_get_closest_peers_ok_bucket{le="4.0"} 0
+libp2p_kad_query_result_get_closest_peers_ok_bucket{le="8.0"} 0
+libp2p_kad_query_result_get_closest_peers_ok_bucket{le="16.0"} 0
+libp2p_kad_query_result_get_closest_peers_ok_bucket{le="32.0"} 18
+libp2p_kad_query_result_get_closest_peers_ok_bucket{le="64.0"} 18
+libp2p_kad_query_result_get_closest_peers_ok_bucket{le="128.0"} 18
+libp2p_kad_query_result_get_closest_peers_ok_bucket{le="256.0"} 18
+libp2p_kad_query_result_get_closest_peers_ok_bucket{le="512.0"} 18
+libp2p_kad_query_result_get_closest_peers_ok_bucket{le="+Inf"} 18
+# HELP libp2p_kad_query_result_get_closest_peers_error Number of failed Kademlia get closest peers queries.
+# TYPE libp2p_kad_query_result_get_closest_peers_error counter
+libp2p_kad_query_result_get_closest_peers_error_total{error="Timeout"} 21
+# HELP libp2p_kad_query_result_get_providers_ok Number of providers returned by a successful Kademlia get providers query.
+# TYPE libp2p_kad_query_result_get_providers_ok histogram
+libp2p_kad_query_result_get_providers_ok_sum 0.0
+libp2p_kad_query_result_get_providers_ok_count 0
+libp2p_kad_query_result_get_providers_ok_bucket{le="1.0"} 0
+libp2p_kad_query_result_get_providers_ok_bucket{le="2.0"} 0
+libp2p_kad_query_result_get_providers_ok_bucket{le="4.0"} 0
+libp2p_kad_query_result_get_providers_ok_bucket{le="8.0"} 0
+libp2p_kad_query_result_get_providers_ok_bucket{le="16.0"} 0
+libp2p_kad_query_result_get_providers_ok_bucket{le="32.0"} 0
+libp2p_kad_query_result_get_providers_ok_bucket{le="64.0"} 0
+libp2p_kad_query_result_get_providers_ok_bucket{le="128.0"} 0
+libp2p_kad_query_result_get_providers_ok_bucket{le="256.0"} 0
+libp2p_kad_query_result_get_providers_ok_bucket{le="512.0"} 0
+libp2p_kad_query_result_get_providers_ok_bucket{le="+Inf"} 0
+# HELP libp2p_kad_query_result_get_providers_error Number of failed Kademlia get providers queries.
+# TYPE libp2p_kad_query_result_get_providers_error counter
+# HELP libp2p_kad_query_result_num_requests Number of requests started for a Kademlia query.
+# TYPE libp2p_kad_query_result_num_requests histogram
+libp2p_kad_query_result_num_requests_sum{type="GetClosestPeers"} 2921.0
+libp2p_kad_query_result_num_requests_count{type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_requests_bucket{le="1.0",type="GetClosestPeers"} 0
+libp2p_kad_query_result_num_requests_bucket{le="2.0",type="GetClosestPeers"} 0
+libp2p_kad_query_result_num_requests_bucket{le="4.0",type="GetClosestPeers"} 0
+libp2p_kad_query_result_num_requests_bucket{le="8.0",type="GetClosestPeers"} 0
+libp2p_kad_query_result_num_requests_bucket{le="16.0",type="GetClosestPeers"} 1
+libp2p_kad_query_result_num_requests_bucket{le="32.0",type="GetClosestPeers"} 10
+libp2p_kad_query_result_num_requests_bucket{le="64.0",type="GetClosestPeers"} 13
+libp2p_kad_query_result_num_requests_bucket{le="128.0",type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_requests_bucket{le="256.0",type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_requests_bucket{le="512.0",type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_requests_bucket{le="+Inf",type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_requests_sum{type="Bootstrap"} 1535.0
+libp2p_kad_query_result_num_requests_count{type="Bootstrap"} 25
+libp2p_kad_query_result_num_requests_bucket{le="1.0",type="Bootstrap"} 0
+libp2p_kad_query_result_num_requests_bucket{le="2.0",type="Bootstrap"} 0
+libp2p_kad_query_result_num_requests_bucket{le="4.0",type="Bootstrap"} 0
+libp2p_kad_query_result_num_requests_bucket{le="8.0",type="Bootstrap"} 0
+libp2p_kad_query_result_num_requests_bucket{le="16.0",type="Bootstrap"} 3
+libp2p_kad_query_result_num_requests_bucket{le="32.0",type="Bootstrap"} 11
+libp2p_kad_query_result_num_requests_bucket{le="64.0",type="Bootstrap"} 14
+libp2p_kad_query_result_num_requests_bucket{le="128.0",type="Bootstrap"} 24
+libp2p_kad_query_result_num_requests_bucket{le="256.0",type="Bootstrap"} 25
+libp2p_kad_query_result_num_requests_bucket{le="512.0",type="Bootstrap"} 25
+libp2p_kad_query_result_num_requests_bucket{le="+Inf",type="Bootstrap"} 25
+# HELP libp2p_kad_query_result_num_success Number of successful requests of a Kademlia query.
+# TYPE libp2p_kad_query_result_num_success histogram
+libp2p_kad_query_result_num_success_sum{type="GetClosestPeers"} 1391.0
+libp2p_kad_query_result_num_success_count{type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_success_bucket{le="1.0",type="GetClosestPeers"} 0
+libp2p_kad_query_result_num_success_bucket{le="2.0",type="GetClosestPeers"} 0
+libp2p_kad_query_result_num_success_bucket{le="4.0",type="GetClosestPeers"} 0
+libp2p_kad_query_result_num_success_bucket{le="8.0",type="GetClosestPeers"} 1
+libp2p_kad_query_result_num_success_bucket{le="16.0",type="GetClosestPeers"} 10
+libp2p_kad_query_result_num_success_bucket{le="32.0",type="GetClosestPeers"} 14
+libp2p_kad_query_result_num_success_bucket{le="64.0",type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_success_bucket{le="128.0",type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_success_bucket{le="256.0",type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_success_bucket{le="512.0",type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_success_bucket{le="+Inf",type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_success_sum{type="Bootstrap"} 726.0
+libp2p_kad_query_result_num_success_count{type="Bootstrap"} 25
+libp2p_kad_query_result_num_success_bucket{le="1.0",type="Bootstrap"} 0
+libp2p_kad_query_result_num_success_bucket{le="2.0",type="Bootstrap"} 0
+libp2p_kad_query_result_num_success_bucket{le="4.0",type="Bootstrap"} 0
+libp2p_kad_query_result_num_success_bucket{le="8.0",type="Bootstrap"} 4
+libp2p_kad_query_result_num_success_bucket{le="16.0",type="Bootstrap"} 11
+libp2p_kad_query_result_num_success_bucket{le="32.0",type="Bootstrap"} 14
+libp2p_kad_query_result_num_success_bucket{le="64.0",type="Bootstrap"} 25
+libp2p_kad_query_result_num_success_bucket{le="128.0",type="Bootstrap"} 25
+libp2p_kad_query_result_num_success_bucket{le="256.0",type="Bootstrap"} 25
+libp2p_kad_query_result_num_success_bucket{le="512.0",type="Bootstrap"} 25
+libp2p_kad_query_result_num_success_bucket{le="+Inf",type="Bootstrap"} 25
+# HELP libp2p_kad_query_result_num_failure Number of failed requests of a Kademlia query.
+# TYPE libp2p_kad_query_result_num_failure histogram
+libp2p_kad_query_result_num_failure_sum{type="Bootstrap"} 534.0
+libp2p_kad_query_result_num_failure_count{type="Bootstrap"} 25
+libp2p_kad_query_result_num_failure_bucket{le="1.0",type="Bootstrap"} 1
+libp2p_kad_query_result_num_failure_bucket{le="2.0",type="Bootstrap"} 1
+libp2p_kad_query_result_num_failure_bucket{le="4.0",type="Bootstrap"} 3
+libp2p_kad_query_result_num_failure_bucket{le="8.0",type="Bootstrap"} 6
+libp2p_kad_query_result_num_failure_bucket{le="16.0",type="Bootstrap"} 11
+libp2p_kad_query_result_num_failure_bucket{le="32.0",type="Bootstrap"} 19
+libp2p_kad_query_result_num_failure_bucket{le="64.0",type="Bootstrap"} 25
+libp2p_kad_query_result_num_failure_bucket{le="128.0",type="Bootstrap"} 25
+libp2p_kad_query_result_num_failure_bucket{le="256.0",type="Bootstrap"} 25
+libp2p_kad_query_result_num_failure_bucket{le="512.0",type="Bootstrap"} 25
+libp2p_kad_query_result_num_failure_bucket{le="+Inf",type="Bootstrap"} 25
+libp2p_kad_query_result_num_failure_sum{type="GetClosestPeers"} 938.0
+libp2p_kad_query_result_num_failure_count{type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_failure_bucket{le="1.0",type="GetClosestPeers"} 1
+libp2p_kad_query_result_num_failure_bucket{le="2.0",type="GetClosestPeers"} 1
+libp2p_kad_query_result_num_failure_bucket{le="4.0",type="GetClosestPeers"} 2
+libp2p_kad_query_result_num_failure_bucket{le="8.0",type="GetClosestPeers"} 8
+libp2p_kad_query_result_num_failure_bucket{le="16.0",type="GetClosestPeers"} 14
+libp2p_kad_query_result_num_failure_bucket{le="32.0",type="GetClosestPeers"} 22
+libp2p_kad_query_result_num_failure_bucket{le="64.0",type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_failure_bucket{le="128.0",type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_failure_bucket{le="256.0",type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_failure_bucket{le="512.0",type="GetClosestPeers"} 39
+libp2p_kad_query_result_num_failure_bucket{le="+Inf",type="GetClosestPeers"} 39
+# HELP libp2p_kad_query_result_duration_seconds Duration of a Kademlia query.
+# TYPE libp2p_kad_query_result_duration_seconds histogram
+# UNIT libp2p_kad_query_result_duration_seconds seconds
+libp2p_kad_query_result_duration_seconds_sum{type="GetClosestPeers"} 349.540340911
+libp2p_kad_query_result_duration_seconds_count{type="GetClosestPeers"} 39
+libp2p_kad_query_result_duration_seconds_bucket{le="0.1",type="GetClosestPeers"} 0
+libp2p_kad_query_result_duration_seconds_bucket{le="0.2",type="GetClosestPeers"} 0
+libp2p_kad_query_result_duration_seconds_bucket{le="0.4",type="GetClosestPeers"} 0
+libp2p_kad_query_result_duration_seconds_bucket{le="0.8",type="GetClosestPeers"} 0
+libp2p_kad_query_result_duration_seconds_bucket{le="1.6",type="GetClosestPeers"} 0
+libp2p_kad_query_result_duration_seconds_bucket{le="3.2",type="GetClosestPeers"} 0
+libp2p_kad_query_result_duration_seconds_bucket{le="6.4",type="GetClosestPeers"} 3
+libp2p_kad_query_result_duration_seconds_bucket{le="12.8",type="GetClosestPeers"} 39
+libp2p_kad_query_result_duration_seconds_bucket{le="25.6",type="GetClosestPeers"} 39
+libp2p_kad_query_result_duration_seconds_bucket{le="51.2",type="GetClosestPeers"} 39
+libp2p_kad_query_result_duration_seconds_bucket{le="+Inf",type="GetClosestPeers"} 39
+libp2p_kad_query_result_duration_seconds_sum{type="Bootstrap"} 250.71211641399996
+libp2p_kad_query_result_duration_seconds_count{type="Bootstrap"} 25
+libp2p_kad_query_result_duration_seconds_bucket{le="0.1",type="Bootstrap"} 0
+libp2p_kad_query_result_duration_seconds_bucket{le="0.2",type="Bootstrap"} 0
+libp2p_kad_query_result_duration_seconds_bucket{le="0.4",type="Bootstrap"} 0
+libp2p_kad_query_result_duration_seconds_bucket{le="0.8",type="Bootstrap"} 0
+libp2p_kad_query_result_duration_seconds_bucket{le="1.6",type="Bootstrap"} 0
+libp2p_kad_query_result_duration_seconds_bucket{le="3.2",type="Bootstrap"} 0
+libp2p_kad_query_result_duration_seconds_bucket{le="6.4",type="Bootstrap"} 0
+libp2p_kad_query_result_duration_seconds_bucket{le="12.8",type="Bootstrap"} 25
+libp2p_kad_query_result_duration_seconds_bucket{le="25.6",type="Bootstrap"} 25
+libp2p_kad_query_result_duration_seconds_bucket{le="51.2",type="Bootstrap"} 25
+libp2p_kad_query_result_duration_seconds_bucket{le="+Inf",type="Bootstrap"} 25
+# HELP libp2p_kad_routing_updated Number of peers added, updated or evicted to, in or from a specific kbucket in the routing table.
+# TYPE libp2p_kad_routing_updated counter
+libp2p_kad_routing_updated_total{action="Added",bucket="239"} 19
+libp2p_kad_routing_updated_total{action="Added",bucket="240"} 20
+libp2p_kad_routing_updated_total{action="Added",bucket="236"} 5
+libp2p_kad_routing_updated_total{action="Added",bucket="231"} 1
+libp2p_kad_routing_updated_total{action="Added",bucket="243"} 20
+libp2p_kad_routing_updated_total{action="Added",bucket="250"} 20
+libp2p_kad_routing_updated_total{action="Added",bucket="254"} 20
+libp2p_kad_routing_updated_total{action="Added",bucket="238"} 16
+libp2p_kad_routing_updated_total{action="Added",bucket="242"} 20
+libp2p_kad_routing_updated_total{action="Added",bucket="252"} 20
+libp2p_kad_routing_updated_total{action="Added",bucket="248"} 20
+libp2p_kad_routing_updated_total{action="Evicted",bucket="251"} 1
+libp2p_kad_routing_updated_total{action="Added",bucket="241"} 8
+libp2p_kad_routing_updated_total{action="Added",bucket="244"} 20
+libp2p_kad_routing_updated_total{action="Added",bucket="253"} 20
+libp2p_kad_routing_updated_total{action="Added",bucket="249"} 20
+libp2p_kad_routing_updated_total{action="Added",bucket="251"} 21
+libp2p_kad_routing_updated_total{action="Added",bucket="245"} 20
+libp2p_kad_routing_updated_total{action="Added",bucket="247"} 20
+libp2p_kad_routing_updated_total{action="Added",bucket="246"} 20
+libp2p_kad_routing_updated_total{action="Added",bucket="255"} 20
+libp2p_kad_routing_updated_total{action="Added",bucket="235"} 2
+libp2p_kad_routing_updated_total{action="Added",bucket="233"} 1
+libp2p_kad_routing_updated_total{action="Added",bucket="237"} 10
+# HELP libp2p_kad_inbound_requests Number of inbound requests.
+# TYPE libp2p_kad_inbound_requests counter
+libp2p_kad_inbound_requests_total{request="FindNode"} 94
+# HELP libp2p_relay_events Events emitted by the relay NetworkBehaviour.
+# TYPE libp2p_relay_events counter
+# HELP libp2p_swarm_connections_incoming Number of incoming connections per address stack.
+# TYPE libp2p_swarm_connections_incoming counter
+libp2p_swarm_connections_incoming_total{protocols="/p2p"} 120
+libp2p_swarm_connections_incoming_total{protocols="/ip4/udp/quic-v1"} 3
+# HELP libp2p_swarm_connections_incoming_error Number of incoming connection errors.
+# TYPE libp2p_swarm_connections_incoming_error counter
+libp2p_swarm_connections_incoming_error_total{error="TransportErrorOther",protocols="/p2p"} 50
+libp2p_swarm_connections_incoming_error_total{error="TransportErrorOther",protocols="/ip4/udp/quic-v1"} 1
+# HELP libp2p_swarm_new_listen_addr Number of new listen addresses.
+# TYPE libp2p_swarm_new_listen_addr counter
+libp2p_swarm_new_listen_addr_total{protocols="/ip4/udp/quic-v1/p2p/p2p-circuit/p2p"} 2
+libp2p_swarm_new_listen_addr_total{protocols="/ip4/udp/quic-v1"} 4
+# HELP libp2p_swarm_expired_listen_addr Number of expired listen addresses.
+# TYPE libp2p_swarm_expired_listen_addr counter
+# HELP libp2p_swarm_external_addr_candidates Number of new external address candidates.
+# TYPE libp2p_swarm_external_addr_candidates counter
+libp2p_swarm_external_addr_candidates_total{protocols="/ip4/udp/quic-v1"} 3053
+# HELP libp2p_swarm_external_addr_confirmed Number of confirmed external addresses.
+# TYPE libp2p_swarm_external_addr_confirmed counter
+libp2p_swarm_external_addr_confirmed_total{protocols="/ip4/udp/quic-v1/p2p/p2p-circuit/p2p"} 2
+# HELP libp2p_swarm_external_addr_expired Number of expired external addresses.
+# TYPE libp2p_swarm_external_addr_expired counter
+# HELP libp2p_swarm_listener_closed Number of listeners closed.
+# TYPE libp2p_swarm_listener_closed counter
+# HELP libp2p_swarm_listener_error Number of listener errors.
+# TYPE libp2p_swarm_listener_error counter
+libp2p_swarm_listener_error_total 1
+# HELP libp2p_swarm_dial_attempt Number of dial attempts.
+# TYPE libp2p_swarm_dial_attempt counter
+libp2p_swarm_dial_attempt_total 3530
+# HELP libp2p_swarm_outgoing_connection_error Number outgoing connection errors.
+# TYPE libp2p_swarm_outgoing_connection_error counter
+libp2p_swarm_outgoing_connection_error_total{peer="Known",error="WrongPeerId"} 1241
+libp2p_swarm_outgoing_connection_error_total{peer="Known",error="TransportOther"} 295
+# HELP libp2p_swarm_connections_established Number of connections established.
+# TYPE libp2p_swarm_connections_established counter
+libp2p_swarm_connections_established_total{role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 3258
+libp2p_swarm_connections_established_total{role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_established_total{role="Listener",protocols="/p2p"} 70
+# HELP libp2p_swarm_connections_establishment_duration Time it took (locally) to establish connections.
+# TYPE libp2p_swarm_connections_establishment_duration histogram
+libp2p_swarm_connections_establishment_duration_sum{role="Listener",protocols="/p2p"} 68.177500082
+libp2p_swarm_connections_establishment_duration_count{role="Listener",protocols="/p2p"} 70
+libp2p_swarm_connections_establishment_duration_bucket{le="0.01",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.015",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.0225",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.03375",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.050625",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.0759375",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.11390625",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.170859375",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.2562890625",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.38443359375",role="Listener",protocols="/p2p"} 16
+libp2p_swarm_connections_establishment_duration_bucket{le="0.576650390625",role="Listener",protocols="/p2p"} 29
+libp2p_swarm_connections_establishment_duration_bucket{le="0.8649755859375",role="Listener",protocols="/p2p"} 58
+libp2p_swarm_connections_establishment_duration_bucket{le="1.29746337890625",role="Listener",protocols="/p2p"} 65
+libp2p_swarm_connections_establishment_duration_bucket{le="1.946195068359375",role="Listener",protocols="/p2p"} 66
+libp2p_swarm_connections_establishment_duration_bucket{le="2.9192926025390628",role="Listener",protocols="/p2p"} 68
+libp2p_swarm_connections_establishment_duration_bucket{le="4.378938903808594",role="Listener",protocols="/p2p"} 69
+libp2p_swarm_connections_establishment_duration_bucket{le="6.568408355712891",role="Listener",protocols="/p2p"} 69
+libp2p_swarm_connections_establishment_duration_bucket{le="9.852612533569337",role="Listener",protocols="/p2p"} 69
+libp2p_swarm_connections_establishment_duration_bucket{le="14.778918800354005",role="Listener",protocols="/p2p"} 69
+libp2p_swarm_connections_establishment_duration_bucket{le="22.168378200531007",role="Listener",protocols="/p2p"} 70
+libp2p_swarm_connections_establishment_duration_bucket{le="+Inf",role="Listener",protocols="/p2p"} 70
+libp2p_swarm_connections_establishment_duration_sum{role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 1743.6359116630065
+libp2p_swarm_connections_establishment_duration_count{role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 3258
+libp2p_swarm_connections_establishment_duration_bucket{le="0.01",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.015",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.0225",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.03375",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.050625",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 26
+libp2p_swarm_connections_establishment_duration_bucket{le="0.0759375",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 136
+libp2p_swarm_connections_establishment_duration_bucket{le="0.11390625",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 195
+libp2p_swarm_connections_establishment_duration_bucket{le="0.170859375",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 225
+libp2p_swarm_connections_establishment_duration_bucket{le="0.2562890625",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 1750
+libp2p_swarm_connections_establishment_duration_bucket{le="0.38443359375",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 1920
+libp2p_swarm_connections_establishment_duration_bucket{le="0.576650390625",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2332
+libp2p_swarm_connections_establishment_duration_bucket{le="0.8649755859375",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2564
+libp2p_swarm_connections_establishment_duration_bucket{le="1.29746337890625",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2924
+libp2p_swarm_connections_establishment_duration_bucket{le="1.946195068359375",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 3159
+libp2p_swarm_connections_establishment_duration_bucket{le="2.9192926025390628",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 3247
+libp2p_swarm_connections_establishment_duration_bucket{le="4.378938903808594",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 3257
+libp2p_swarm_connections_establishment_duration_bucket{le="6.568408355712891",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 3258
+libp2p_swarm_connections_establishment_duration_bucket{le="9.852612533569337",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 3258
+libp2p_swarm_connections_establishment_duration_bucket{le="14.778918800354005",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 3258
+libp2p_swarm_connections_establishment_duration_bucket{le="22.168378200531007",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 3258
+libp2p_swarm_connections_establishment_duration_bucket{le="+Inf",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 3258
+libp2p_swarm_connections_establishment_duration_sum{role="Listener",protocols="/ip4/udp/quic-v1"} 0.38197794100000007
+libp2p_swarm_connections_establishment_duration_count{role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_establishment_duration_bucket{le="0.01",role="Listener",protocols="/ip4/udp/quic-v1"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.015",role="Listener",protocols="/ip4/udp/quic-v1"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.0225",role="Listener",protocols="/ip4/udp/quic-v1"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.03375",role="Listener",protocols="/ip4/udp/quic-v1"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.050625",role="Listener",protocols="/ip4/udp/quic-v1"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.0759375",role="Listener",protocols="/ip4/udp/quic-v1"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.11390625",role="Listener",protocols="/ip4/udp/quic-v1"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.170859375",role="Listener",protocols="/ip4/udp/quic-v1"} 0
+libp2p_swarm_connections_establishment_duration_bucket{le="0.2562890625",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_establishment_duration_bucket{le="0.38443359375",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_establishment_duration_bucket{le="0.576650390625",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_establishment_duration_bucket{le="0.8649755859375",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_establishment_duration_bucket{le="1.29746337890625",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_establishment_duration_bucket{le="1.946195068359375",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_establishment_duration_bucket{le="2.9192926025390628",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_establishment_duration_bucket{le="4.378938903808594",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_establishment_duration_bucket{le="6.568408355712891",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_establishment_duration_bucket{le="9.852612533569337",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_establishment_duration_bucket{le="14.778918800354005",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_establishment_duration_bucket{le="22.168378200531007",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_establishment_duration_bucket{le="+Inf",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+# HELP libp2p_swarm_connections_duration_seconds Time a connection was alive.
+# TYPE libp2p_swarm_connections_duration_seconds histogram
+# UNIT libp2p_swarm_connections_duration_seconds seconds
+libp2p_swarm_connections_duration_seconds_sum{cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 30010.168461205
+libp2p_swarm_connections_duration_seconds_count{cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2559
+libp2p_swarm_connections_duration_seconds_bucket{le="0.01",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.03",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.09",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.27",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.81",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="2.43",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="7.29",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="21.87",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2548
+libp2p_swarm_connections_duration_seconds_bucket{le="65.61",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2559
+libp2p_swarm_connections_duration_seconds_bucket{le="196.83",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2559
+libp2p_swarm_connections_duration_seconds_bucket{le="590.49",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2559
+libp2p_swarm_connections_duration_seconds_bucket{le="1771.47",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2559
+libp2p_swarm_connections_duration_seconds_bucket{le="5314.41",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2559
+libp2p_swarm_connections_duration_seconds_bucket{le="15943.23",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2559
+libp2p_swarm_connections_duration_seconds_bucket{le="47829.69",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2559
+libp2p_swarm_connections_duration_seconds_bucket{le="143489.07",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2559
+libp2p_swarm_connections_duration_seconds_bucket{le="430467.21",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2559
+libp2p_swarm_connections_duration_seconds_bucket{le="1291401.6300000002",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2559
+libp2p_swarm_connections_duration_seconds_bucket{le="3874204.89",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2559
+libp2p_swarm_connections_duration_seconds_bucket{le="11622614.67",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2559
+libp2p_swarm_connections_duration_seconds_bucket{le="+Inf",cause="KeepAliveTimeout",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 2559
+libp2p_swarm_connections_duration_seconds_sum{cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 6009.026520567004
+libp2p_swarm_connections_duration_seconds_count{cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 695
+libp2p_swarm_connections_duration_seconds_bucket{le="0.01",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.03",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.09",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.27",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 52
+libp2p_swarm_connections_duration_seconds_bucket{le="0.81",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 136
+libp2p_swarm_connections_duration_seconds_bucket{le="2.43",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 174
+libp2p_swarm_connections_duration_seconds_bucket{le="7.29",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 188
+libp2p_swarm_connections_duration_seconds_bucket{le="21.87",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 692
+libp2p_swarm_connections_duration_seconds_bucket{le="65.61",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 695
+libp2p_swarm_connections_duration_seconds_bucket{le="196.83",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 695
+libp2p_swarm_connections_duration_seconds_bucket{le="590.49",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 695
+libp2p_swarm_connections_duration_seconds_bucket{le="1771.47",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 695
+libp2p_swarm_connections_duration_seconds_bucket{le="5314.41",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 695
+libp2p_swarm_connections_duration_seconds_bucket{le="15943.23",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 695
+libp2p_swarm_connections_duration_seconds_bucket{le="47829.69",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 695
+libp2p_swarm_connections_duration_seconds_bucket{le="143489.07",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 695
+libp2p_swarm_connections_duration_seconds_bucket{le="430467.21",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 695
+libp2p_swarm_connections_duration_seconds_bucket{le="1291401.6300000002",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 695
+libp2p_swarm_connections_duration_seconds_bucket{le="3874204.89",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 695
+libp2p_swarm_connections_duration_seconds_bucket{le="11622614.67",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 695
+libp2p_swarm_connections_duration_seconds_bucket{le="+Inf",cause="Io",role="Dialer",protocols="/ip4/udp/quic-v1/p2p"} 695
+libp2p_swarm_connections_duration_seconds_sum{cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 21.627198469
+libp2p_swarm_connections_duration_seconds_count{cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_duration_seconds_bucket{le="0.01",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.03",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.09",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.27",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.81",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="2.43",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="7.29",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="21.87",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_duration_seconds_bucket{le="65.61",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_duration_seconds_bucket{le="196.83",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_duration_seconds_bucket{le="590.49",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_duration_seconds_bucket{le="1771.47",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_duration_seconds_bucket{le="5314.41",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_duration_seconds_bucket{le="15943.23",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_duration_seconds_bucket{le="47829.69",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_duration_seconds_bucket{le="143489.07",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_duration_seconds_bucket{le="430467.21",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_duration_seconds_bucket{le="1291401.6300000002",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_duration_seconds_bucket{le="3874204.89",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_duration_seconds_bucket{le="11622614.67",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_duration_seconds_bucket{le="+Inf",cause="KeepAliveTimeout",role="Listener",protocols="/ip4/udp/quic-v1"} 2
+libp2p_swarm_connections_duration_seconds_sum{cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 704.6548423670002
+libp2p_swarm_connections_duration_seconds_count{cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 63
+libp2p_swarm_connections_duration_seconds_bucket{le="0.01",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.03",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.09",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.27",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.81",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="2.43",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="7.29",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="21.87",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 63
+libp2p_swarm_connections_duration_seconds_bucket{le="65.61",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 63
+libp2p_swarm_connections_duration_seconds_bucket{le="196.83",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 63
+libp2p_swarm_connections_duration_seconds_bucket{le="590.49",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 63
+libp2p_swarm_connections_duration_seconds_bucket{le="1771.47",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 63
+libp2p_swarm_connections_duration_seconds_bucket{le="5314.41",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 63
+libp2p_swarm_connections_duration_seconds_bucket{le="15943.23",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 63
+libp2p_swarm_connections_duration_seconds_bucket{le="47829.69",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 63
+libp2p_swarm_connections_duration_seconds_bucket{le="143489.07",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 63
+libp2p_swarm_connections_duration_seconds_bucket{le="430467.21",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 63
+libp2p_swarm_connections_duration_seconds_bucket{le="1291401.6300000002",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 63
+libp2p_swarm_connections_duration_seconds_bucket{le="3874204.89",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 63
+libp2p_swarm_connections_duration_seconds_bucket{le="11622614.67",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 63
+libp2p_swarm_connections_duration_seconds_bucket{le="+Inf",cause="KeepAliveTimeout",role="Listener",protocols="/p2p"} 63
+libp2p_swarm_connections_duration_seconds_sum{cause="Io",role="Listener",protocols="/p2p"} 87.46651756899999
+libp2p_swarm_connections_duration_seconds_count{cause="Io",role="Listener",protocols="/p2p"} 7
+libp2p_swarm_connections_duration_seconds_bucket{le="0.01",cause="Io",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.03",cause="Io",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.09",cause="Io",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.27",cause="Io",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="0.81",cause="Io",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="2.43",cause="Io",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="7.29",cause="Io",role="Listener",protocols="/p2p"} 0
+libp2p_swarm_connections_duration_seconds_bucket{le="21.87",cause="Io",role="Listener",protocols="/p2p"} 6
+libp2p_swarm_connections_duration_seconds_bucket{le="65.61",cause="Io",role="Listener",protocols="/p2p"} 7
+libp2p_swarm_connections_duration_seconds_bucket{le="196.83",cause="Io",role="Listener",protocols="/p2p"} 7
+libp2p_swarm_connections_duration_seconds_bucket{le="590.49",cause="Io",role="Listener",protocols="/p2p"} 7
+libp2p_swarm_connections_duration_seconds_bucket{le="1771.47",cause="Io",role="Listener",protocols="/p2p"} 7
+libp2p_swarm_connections_duration_seconds_bucket{le="5314.41",cause="Io",role="Listener",protocols="/p2p"} 7
+libp2p_swarm_connections_duration_seconds_bucket{le="15943.23",cause="Io",role="Listener",protocols="/p2p"} 7
+libp2p_swarm_connections_duration_seconds_bucket{le="47829.69",cause="Io",role="Listener",protocols="/p2p"} 7
+libp2p_swarm_connections_duration_seconds_bucket{le="143489.07",cause="Io",role="Listener",protocols="/p2p"} 7
+libp2p_swarm_connections_duration_seconds_bucket{le="430467.21",cause="Io",role="Listener",protocols="/p2p"} 7
+libp2p_swarm_connections_duration_seconds_bucket{le="1291401.6300000002",cause="Io",role="Listener",protocols="/p2p"} 7
+libp2p_swarm_connections_duration_seconds_bucket{le="3874204.89",cause="Io",role="Listener",protocols="/p2p"} 7
+libp2p_swarm_connections_duration_seconds_bucket{le="11622614.67",cause="Io",role="Listener",protocols="/p2p"} 7
+libp2p_swarm_connections_duration_seconds_bucket{le="+Inf",cause="Io",role="Listener",protocols="/p2p"} 7
+# HELP ant_networking_records_stored The number of records stored locally.
+# TYPE ant_networking_records_stored gauge
+ant_networking_records_stored 1
+# HELP ant_networking_relay_reservation_health The average health of all the relay reservation connections. Value is between 0-1.
+# TYPE ant_networking_relay_reservation_health gauge
+ant_networking_relay_reservation_health 1.0
+# HELP ant_networking_connected_peers The number of peers that we are currently connected to.
+# TYPE ant_networking_connected_peers gauge
+ant_networking_connected_peers 4
+# HELP ant_networking_connected_relay_clients The number of relay clients that are currently connected to us.
+# TYPE ant_networking_connected_relay_clients gauge
+ant_networking_connected_relay_clients 0
+# HELP ant_networking_estimated_network_size The estimated number of nodes in the network calculated by the peers in our RT.
+# TYPE ant_networking_estimated_network_size gauge
+ant_networking_estimated_network_size 2064384
+# HELP ant_networking_relay_peers_percentage The percentage of relay peers in our routing table.
+# TYPE ant_networking_relay_peers_percentage gauge
+ant_networking_relay_peers_percentage 0.0
+# HELP ant_networking_open_connections The number of active connections to other peers.
+# TYPE ant_networking_open_connections gauge
+ant_networking_open_connections 4
+# HELP ant_networking_peers_in_routing_table The total number of peers in our routing table.
+# TYPE ant_networking_peers_in_routing_table gauge
+ant_networking_peers_in_routing_table 362
+# HELP ant_networking_relay_peers_in_routing_table The total number of relay peers in our routing table.
+# TYPE ant_networking_relay_peers_in_routing_table gauge
+ant_networking_relay_peers_in_routing_table 0
+# HELP ant_networking_shunned_count Number of peers that have shunned our node.
+# TYPE ant_networking_shunned_count counter
+ant_networking_shunned_count_total 0
+# HELP ant_networking_bad_peers_count Number of bad peers that have been detected by us and been added to the blocklist.
+# TYPE ant_networking_bad_peers_count counter
+ant_networking_bad_peers_count_total 0
+# HELP ant_networking_upnp_events Events emitted by the UPnP behaviour.
+# TYPE ant_networking_upnp_events counter
+# HELP ant_networking_relay_client_events Events emitted by the relay client.
+# TYPE ant_networking_relay_client_events counter
+ant_networking_relay_client_events_total{event="ReservationReqAccepted"} 2
+ant_networking_relay_client_events_total{event="InboundCircuitEstablished"} 120
+# HELP ant_networking_node_versions Number of nodes running each version.
+# TYPE ant_networking_node_versions gauge
+ant_networking_node_versions{version="2025.7.1.3"} 1
+ant_networking_node_versions{version="2025.11.1.1"} 80
+# HELP ant_networking_process_memory_used_mb Memory used by the process in MegaBytes.
+# TYPE ant_networking_process_memory_used_mb gauge
+ant_networking_process_memory_used_mb 97.8125
+# HELP ant_networking_process_cpu_usage_percentage The percentage of CPU used by the process. Value is from 0-100.
+# TYPE ant_networking_process_cpu_usage_percentage gauge
+ant_networking_process_cpu_usage_percentage 0.0353
+# HELP ant_networking_relevant_records The number of records that we're responsible for. This is used to calculate the store cost.
+# TYPE ant_networking_relevant_records gauge
+ant_networking_relevant_records 0
+# HELP ant_networking_max_records The maximum number of records that we can store. This is used to calculate the store cost.
+# TYPE ant_networking_max_records gauge
+ant_networking_max_records 0
+# HELP ant_networking_received_payment_count The number of payments received by our node. This is used to calculate the store cost.
+# TYPE ant_networking_received_payment_count gauge
+ant_networking_received_payment_count 0
+# HELP ant_networking_live_time The time for which the node has been alive. This is used to calculate the store cost.
+# TYPE ant_networking_live_time gauge
+ant_networking_live_time 0
+# HELP ant_networking_shunned_by_close_group The number of close group peers that have shunned our node.
+# TYPE ant_networking_shunned_by_close_group gauge
+ant_networking_shunned_by_close_group 0
+# HELP ant_networking_shunned_by_old_close_group The number of close group peers that have shunned our node. This contains the peers that were once in our close group but have since been evicted..
+# TYPE ant_networking_shunned_by_old_close_group gauge
+ant_networking_shunned_by_old_close_group 0
+# EOF
