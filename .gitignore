@@ -4,4 +4,6 @@ alembic
 *.pyc
 colony.db
 __pycache__
-wnm.egg-infoalembic/versions/__pycache__/
+wnm.egg-info
+src/wnm.egg-info/
+alembic/versions/__pycache__/
