@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Node upgrade binary replacement**: Fixed upgrade process to stop node before copying new binary
+  - Previously tried to copy binary while node was running, causing "Text file busy" errors
+  - Node process maintains active file lock on binary, preventing replacement
+  - Now follows correct sequence: stop node → copy new binary → start node
+  - Applies to SystemdManager, LaunchdManager, and SetsidManager (AntctlManager handles its own upgrades)
+  - Added error recovery: attempts to restart with old binary if copy fails
+
 ## [0.0.28] - 2025-11-16
 
 ### Fixed

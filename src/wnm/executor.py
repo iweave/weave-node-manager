@@ -97,7 +97,7 @@ class ActionExecutor:
             return False
 
     def _upgrade_node_binary(self, node: Node, new_version: str) -> bool:
-        """Upgrade a node's binary and restart it.
+        """Upgrade a node's binary by stopping it, copying the new binary, and starting it again.
 
         Args:
             node: Node to upgrade
@@ -106,22 +106,30 @@ class ActionExecutor:
         Returns:
             True if upgrade succeeded
         """
-        # Source binary location
-        source_binary = os.path.expanduser("~/.local/bin/antnode")
+        manager = self._get_process_manager(node)
 
-        # Copy new binary to node directory
+        # Step 1: Stop the node (required to replace binary file)
+        logging.info(f"Stopping node {node.id} for upgrade")
+        if not manager.stop_node(node):
+            logging.error(f"Failed to stop node {node.id} during upgrade")
+            return False
+
+        # Step 2: Copy new binary to node directory
+        source_binary = os.path.expanduser("~/.local/bin/antnode")
         try:
             shutil.copy2(source_binary, node.binary)
             os.chmod(node.binary, 0o755)
             logging.info(f"Copied new binary from {source_binary} to {node.binary}")
         except (OSError, shutil.Error) as err:
             logging.error(f"Failed to copy binary for upgrade: {err}")
+            # Try to restart the node with old binary
+            manager.start_node(node)
             return False
 
-        # Restart the node with new binary
-        manager = self._get_process_manager(node)
-        if not manager.restart_node(node):
-            logging.error(f"Failed to restart node {node.id} during upgrade")
+        # Step 3: Start the node with new binary
+        logging.info(f"Starting node {node.id} with new binary")
+        if not manager.start_node(node):
+            logging.error(f"Failed to start node {node.id} after upgrade")
             return False
 
         # Update status to UPGRADING
