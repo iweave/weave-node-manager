@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.1.2] - 2025-11-17
+
+### Added
+- **Database rebuild capability for systemd and launchd process managers**: Added ability to rebuild database from existing system configuration
+  - Extended survey trigger to support `systemd`, `systemd+user`, `systemd+sudo`, `launchd`, `launchd+user`, and `launchd+sudo` process managers
+  - Users can now run `wnm --init --process_manager <type> --rewards_address <addr>` to rebuild database from existing nodes
+  - Automatically detects port configuration from discovered nodes (reverse-engineers `port_start` from node 1's port)
+  - Preserves node IDs from service names (e.g., `antnode0003.service` → node ID 3)
+  - Handles non-sequential node IDs gracefully (gaps in numbering are normal)
+  - Added `detect_port_ranges_from_nodes()` function in migration module to calculate port configuration
+  - Automatically updates machine config database with detected port ranges
+  - Useful for disaster recovery scenarios where database is lost but systemd/launchd services remain
+
+### Fixed
+- **Migration documentation clarity**: Updated USER-GUIDE to distinguish between:
+  - `--migrate_anm` flag: Only for actual anm installations (checks for `/var/antctl/system`)
+  - Plain `--init` with process manager: For rebuilding wnm clusters or importing existing systemd/launchd nodes
+
 ## [0.0.31] - 2025-11-17
 
 ### Added

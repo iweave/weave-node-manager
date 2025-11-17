@@ -419,6 +419,7 @@ which wnm
 
 #### Step 5: Initialize WNM
 
+**If starting fresh:**
 ```bash
 wnm --init --rewards_address 0xYourEthereumAddress
 ```
@@ -427,6 +428,17 @@ This creates:
 - Database: `~/.local/share/autonomi/colony.db`
 - Log directory: `~/.local/share/autonomi/logs/`
 - Node storage: `~/.local/share/autonomi/node/`
+
+**If rebuilding database from existing wnm cluster:**
+```bash
+wnm --init --process_manager systemd+user --rewards_address 0xYourEthereumAddress
+```
+
+This will:
+- Scan systemd user services for existing antnode services
+- Import discovered nodes into database
+- Automatically detect port_start from node 1's port configuration
+- Preserve node IDs from service names
 
 #### Step 6: Test in Dry-Run Mode
 
@@ -518,16 +530,31 @@ which wnm
 
 #### Step 4: Initialize
 
-**If migrating from anm:**
+**If migrating from anm (actual anm installation):**
 ```bash
 wnm --init --migrate_anm
 ```
 
 This will:
-- Disable anm by removing `/etc/cron.d/anm`
+- Disable anm by removing `/etc/cron.d/anm` (uses sudo internally)
 - Read configuration from `/var/antctl/config`
 - Import existing nodes from systemd services
+- Automatically detect port configuration from existing nodes
 - Take over management from anm
+- Note: Only use this if you have an actual anm installation (checks for `/var/antctl/system`)
+
+**If rebuilding database from existing wnm systemd+sudo cluster:**
+```bash
+wnm --init --process_manager systemd+sudo --rewards_address 0xYourEthereumAddress
+```
+
+This will:
+- Scan systemd services for existing antnode services
+- Import discovered nodes into database
+- Automatically detect port_start from node 1's port configuration
+- Preserve node IDs from service names
+- Note: Nodes may have gaps in numbering (e.g., 1, 3, 7) - this is normal
+- Note: Do NOT use `--migrate_anm` for wnm clusters (only for actual anm migrations)
 
 **If starting fresh:**
 ```bash

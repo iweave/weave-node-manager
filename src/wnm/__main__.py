@@ -18,8 +18,8 @@ from wnm.config import (
 )
 from wnm.decision_engine import DecisionEngine
 from wnm.executor import ActionExecutor
-from wnm.migration import survey_machine
-from wnm.models import Node
+from wnm.migration import detect_port_ranges_from_nodes, survey_machine
+from wnm.models import Machine, Node
 from wnm.utils import (
     get_antnode_version,
     get_machine_metrics,
@@ -165,15 +165,62 @@ def main():
         # Survey for existing nodes if:
         # 1. Migrating from anm (--init --migrate_anm)
         # 2. Initializing with antctl to import existing antctl nodes (--init with antctl+user/antctl+sudo)
-        should_survey = (options.init and options.migrate_anm) or (
-            options.init
-            and machine_config.process_manager
-            and machine_config.process_manager.startswith("antctl")
+        # 3. Initializing with any process manager to rebuild database from system (--init with systemd/launchd/setsid)
+        should_survey = (
+            (options.init and options.migrate_anm)
+            or (
+                options.init
+                and machine_config.process_manager
+                and machine_config.process_manager.startswith("antctl")
+            )
+            or (
+                options.init
+                and machine_config.process_manager
+                and machine_config.process_manager
+                in ["systemd", "systemd+user", "systemd+sudo", "launchd", "launchd+user", "launchd+sudo"]
+            )
         )
 
         if should_survey:
             Workers = survey_machine(machine_config) or []
             if Workers:
+                # Detect port ranges from discovered nodes
+                detected_ports = detect_port_ranges_from_nodes(Workers)
+
+                # Update machine config with detected port ranges if different from current
+                if detected_ports:
+                    port_config_updates = {}
+                    if (
+                        detected_ports.get("port_start")
+                        and detected_ports["port_start"] != machine_config.port_start
+                    ):
+                        logging.info(
+                            f"Updating port_start from {machine_config.port_start} "
+                            f"to {detected_ports['port_start']} (detected from nodes)"
+                        )
+                        port_config_updates["port_start"] = detected_ports["port_start"]
+
+                    if (
+                        detected_ports.get("metrics_port_start")
+                        and detected_ports["metrics_port_start"] != machine_config.metrics_port_start
+                    ):
+                        logging.info(
+                            f"Updating metrics_port_start from {machine_config.metrics_port_start} "
+                            f"to {detected_ports['metrics_port_start']} (detected from nodes)"
+                        )
+                        port_config_updates["metrics_port_start"] = detected_ports["metrics_port_start"]
+
+                    # Apply port configuration updates if any
+                    if port_config_updates and not options.dry_run:
+                        with S() as session:
+                            session.query(Machine).filter(Machine.id == 1).update(
+                                port_config_updates
+                            )
+                            session.commit()
+                        logging.info("Port configuration updated in database")
+                        # Update local_config with new port settings
+                        local_config.update(port_config_updates)
+
                 if options.dry_run:
                     logging.warning(f"DRYRUN: Not saving {len(Workers)} detected nodes")
                 else:
