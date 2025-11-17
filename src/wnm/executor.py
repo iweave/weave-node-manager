@@ -115,7 +115,7 @@ class ActionExecutor:
             return False
 
         # Step 2: Copy new binary to node directory
-        source_binary = os.path.expanduser("~/.local/bin/antnode")
+        source_binary = os.path.expanduser(self.machine_config.antnode_path)
         try:
             shutil.copy2(source_binary, node.binary)
             os.chmod(node.binary, 0o755)
@@ -499,7 +499,7 @@ class ActionExecutor:
             session.refresh(node)  # Get the persisted node
 
         # Create the node using process manager
-        source_binary = os.path.expanduser("~/.local/bin/antnode")
+        source_binary = os.path.expanduser(machine_config["antnode_path"])
         manager = self._get_process_manager(node)
 
         node_process = manager.create_node(node, source_binary)

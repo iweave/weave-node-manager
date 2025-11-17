@@ -109,6 +109,11 @@ class Machine(Base):
     # Node runtime flags
     no_upnp: Mapped[bool] = mapped_column(Integer, default=1)  # SQLite uses 0/1 for boolean
 
+    # Binary path configuration
+    antnode_path: Mapped[Optional[str]] = mapped_column(
+        UnicodeText, default="~/.local/bin/antnode"
+    )
+
     # Relationships
     containers: Mapped[list["Container"]] = relationship(
         back_populates="machine", cascade="all, delete-orphan"
@@ -159,6 +164,7 @@ class Machine(Base):
         min_container_count=1,
         docker_image="autonomi/node:latest",
         no_upnp=True,
+        antnode_path="~/.local/bin/antnode",
     ):
         self.cpu_count = cpu_count
         self.node_cap = node_cap
@@ -200,6 +206,7 @@ class Machine(Base):
         self.min_container_count = min_container_count
         self.docker_image = docker_image
         self.no_upnp = no_upnp
+        self.antnode_path = antnode_path
 
     def __repr__(self):
         return (

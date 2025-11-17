@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.0.29] - 2025-11-16
+
+### Added
+- **Configurable antnode binary path**: Added `--antnode_path` configuration option
+  - Allows customization of source antnode binary location (default: `~/.local/bin/antnode`)
+  - Stored in database as machine configuration setting
+  - Can be set via command-line argument or `ANTNODE_PATH` environment variable
+  - Used by upgrade process and node creation to locate source binary
+  - Prevents config value from being clobbered by default value
+
 ### Fixed
 - **Node upgrade binary replacement**: Fixed upgrade process to stop node before copying new binary
   - Previously tried to copy binary while node was running, causing "Text file busy" errors

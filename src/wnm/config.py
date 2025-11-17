@@ -372,6 +372,11 @@ def load_config():
         help="Disable UPnP port forwarding on nodes (default: enabled)",
         action="store_true",
     )
+    c.add(
+        "--antnode_path",
+        env_var="ANTNODE_PATH",
+        help="Path to the antnode binary (default: ~/.local/bin/antnode)",
+    )
 
     options = c.parse_known_args()[0] or []
 
@@ -514,6 +519,9 @@ def merge_config_changes(options, machine_config):
     if '--no_upnp' in sys.argv or '--no-upnp' in sys.argv or os.getenv('NO_UPNP'):
         if bool(options.no_upnp) != bool(machine_config.no_upnp):
             cfg["no_upnp"] = bool(options.no_upnp)
+    # Only update antnode_path if explicitly provided (not None)
+    if options.antnode_path and options.antnode_path != machine_config.antnode_path:
+        cfg["antnode_path"] = options.antnode_path
 
     return cfg
 
@@ -633,6 +641,9 @@ def load_anm_config(options):
     # UPnP setting (defaults to True/enabled)
     anm_config["no_upnp"] = bool(_get_option(options, "no_upnp", False))
 
+    # antnode binary path
+    anm_config["antnode_path"] = _get_option(options, "antnode_path") or "~/.local/bin/antnode"
+
     return anm_config
 
 
@@ -722,6 +733,7 @@ def define_machine(options):
         "min_container_count": 1,
         "docker_image": "iweave/antnode:latest",
         "no_upnp": bool(_get_option(options, "no_upnp", False)),
+        "antnode_path": _get_option(options, "antnode_path") or "~/.local/bin/antnode",
     }
 
     # Set default process manager based on platform if not specified
