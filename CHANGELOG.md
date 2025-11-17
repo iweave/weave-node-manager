@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.0.27] - 2025-11-16
+
+### Fixed
+- **Critical: no_upnp config clobbering**: Fixed bug where `no_upnp` setting was reset to False on every wnm run
+  - The `--no_upnp` flag uses `action="store_true"` which defaults to False when not provided
+  - `merge_config_changes()` was incorrectly treating the False default as an explicit user choice
+  - Now only updates database if flag is explicitly provided via `--no_upnp` command line or `NO_UPNP` env var
+  - Prevents loss of UPnP configuration between runs
+- **AntctlManager network argument**: Fixed network name not being specified correctly
+
+### Changed
+- **Restrict process_manager to init-only**: `--process_manager` can now only be set during `--init`
+  - Similar to existing restrictions on `--port_start` and `--metrics_port_start`
+  - Prevents accidental changes to process manager type on active clusters
+  - Exits with error: "Cannot change port_start, metrics_port_start, or process_manager on an active machine"
+
 ## [0.0.26] - 2025-11-16
 
 ### Changed

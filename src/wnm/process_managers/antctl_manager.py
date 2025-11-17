@@ -141,12 +141,13 @@ class AntctlManager(ProcessManager):
             "1",
             "--data-dir-path",
             node.root_dir,
-            "--port",
+            "--node-port",
             str(node.port),
             "--metrics-port",
             str(node.metrics_port),
             "--rewards-address",
             node.wallet,
+
         ]
 
         # Add --no-upnp if configured (defaults to True for backwards compatibility)
@@ -161,9 +162,8 @@ class AntctlManager(ProcessManager):
         if binary_path:
             args.extend(["--path", binary_path])
 
-        # Add network if not default
-        if node.network and node.network != "evm-arbitrum-one":
-            args.extend(["--network", node.network])
+        # Add network
+        args.append(node.network or "evm-arbitrum-one")
 
         try:
             result = self._run_antctl(args)

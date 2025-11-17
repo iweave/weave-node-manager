@@ -504,10 +504,16 @@ def merge_config_changes(options, machine_config):
         cfg["environment"] = options.environment
     if options.start_args and options.start_args != machine_config.start_args:
         cfg["start_args"] = options.start_args
+    # process_manager can only be set during init (not allowed to change after initialization)
+    # Similar to port_start and metrics_port_start
     if options.process_manager and options.process_manager != machine_config.process_manager:
         cfg["process_manager"] = options.process_manager
-    if hasattr(options, 'no_upnp') and bool(options.no_upnp) != bool(machine_config.no_upnp):
-        cfg["no_upnp"] = bool(options.no_upnp)
+    # Only update no_upnp if explicitly provided (check if in command line or env var)
+    # Don't update based on store_true default value of False
+    import sys
+    if '--no_upnp' in sys.argv or '--no-upnp' in sys.argv or os.getenv('NO_UPNP'):
+        if bool(options.no_upnp) != bool(machine_config.no_upnp):
+            cfg["no_upnp"] = bool(options.no_upnp)
 
     return cfg
 
@@ -863,9 +869,9 @@ else:
 config_updates = merge_config_changes(options, machine_config) if not os.getenv("WNM_TEST_MODE") and not _SKIP_DB_INIT else {}
 # Failfirst on invalid config change
 if (
-    "port_start" in config_updates or "metrics_port_start" in config_updates
+    "port_start" in config_updates or "metrics_port_start" in config_updates or "process_manager" in config_updates
 ) and not did_we_init:
-    logging.warning("Can not change start port numbers on an active machine")
+    logging.warning("Cannot change port_start, metrics_port_start, or process_manager on an active machine")
     sys.exit(1)
 
 
