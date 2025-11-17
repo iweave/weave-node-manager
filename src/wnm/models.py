@@ -65,6 +65,7 @@ class Machine(Base):
 
     # Delay timers (in seconds, changed from minutes)
     delay_start: Mapped[int] = mapped_column(Integer)
+    delay_restart: Mapped[int] = mapped_column(Integer)
     delay_upgrade: Mapped[int] = mapped_column(Integer)
     delay_remove: Mapped[int] = mapped_column(Integer)
 
@@ -93,9 +94,7 @@ class Machine(Base):
     max_concurrent_removals: Mapped[int] = mapped_column(Integer, default=1)
 
     # NEW: Node selection strategy (Phase 6)
-    node_removal_strategy: Mapped[str] = mapped_column(
-        UnicodeText, default="youngest"
-    )
+    node_removal_strategy: Mapped[str] = mapped_column(UnicodeText, default="youngest")
 
     # Process manager type
     process_manager: Mapped[Optional[str]] = mapped_column(UnicodeText, default=None)
@@ -108,7 +107,9 @@ class Machine(Base):
     )
 
     # Node runtime flags
-    no_upnp: Mapped[bool] = mapped_column(Integer, default=1)  # SQLite uses 0/1 for boolean
+    no_upnp: Mapped[bool] = mapped_column(
+        Integer, default=1
+    )  # SQLite uses 0/1 for boolean
 
     # Binary path configuration
     antnode_path: Mapped[Optional[str]] = mapped_column(
@@ -134,6 +135,7 @@ class Machine(Base):
         hd_less_than,
         hd_remove,
         delay_start,
+        delay_restart,
         delay_upgrade,
         delay_remove,
         node_storage,
@@ -177,6 +179,7 @@ class Machine(Base):
         self.hd_less_than = hd_less_than
         self.hd_remove = hd_remove
         self.delay_start = delay_start
+        self.delay_restart = delay_restart
         self.delay_upgrade = delay_upgrade
         self.delay_remove = delay_remove
         self.node_storage = node_storage
@@ -265,7 +268,9 @@ class Machine(Base):
             "max_concurrent_starts": self.max_concurrent_starts,
             "max_concurrent_removals": self.max_concurrent_removals,
             "node_removal_strategy": f"{self.node_removal_strategy}",
-            "process_manager": f"{self.process_manager}" if self.process_manager else None,
+            "process_manager": (
+                f"{self.process_manager}" if self.process_manager else None
+            ),
             "no_upnp": bool(self.no_upnp),
             "antnode_path": f"{self.antnode_path}" if self.antnode_path else None,
         }
@@ -291,8 +296,12 @@ class Container(Base):
     # Port range tracking for s6overlay block-based allocation
     port_range_start: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     port_range_end: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    metrics_port_range_start: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    metrics_port_range_end: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    metrics_port_range_start: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True
+    )
+    metrics_port_range_end: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True
+    )
 
     # Relationships
     machine: Mapped["Machine"] = relationship(back_populates="containers")

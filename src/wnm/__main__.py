@@ -12,6 +12,7 @@ from wnm.config import (
     S,
     apply_config_updates,
     config_updates,
+    engine,
     machine_config,
     options,
 )
@@ -164,9 +165,10 @@ def main():
         # Survey for existing nodes if:
         # 1. Migrating from anm (--init --migrate_anm)
         # 2. Initializing with antctl to import existing antctl nodes (--init with antctl+user/antctl+sudo)
-        should_survey = (
-            (options.init and options.migrate_anm) or
-            (options.init and machine_config.process_manager and machine_config.process_manager.startswith("antctl"))
+        should_survey = (options.init and options.migrate_anm) or (
+            options.init
+            and machine_config.process_manager
+            and machine_config.process_manager.startswith("antctl")
         )
 
         if should_survey:
@@ -230,9 +232,7 @@ def main():
                 S, options.service_name, options.report_format
             )
         elif options.report == "influx-resources":
-            report_output = generate_influx_resources_report(
-                S, options.service_name
-            )
+            report_output = generate_influx_resources_report(S, options.service_name)
         else:
             report_output = f"Unknown report type: {options.report}"
 
@@ -242,6 +242,46 @@ def main():
 
     # Check for forced actions
     if options.force_action:
+        # Handle database migration command specially
+        if options.force_action == "wnm-db-migration":
+            if not options.confirm:
+                logging.error("Database migration requires --confirm flag for safety")
+                logging.info("Use: wnm --force_action wnm-db-migration --confirm")
+                os.remove(LOCK_FILE)
+                sys.exit(1)
+
+            # Import migration utilities
+            from wnm.db_migration import run_migrations, has_pending_migrations
+
+            # Check if there are pending migrations
+            pending, current, head = has_pending_migrations(engine, options.dbpath)
+
+            if not pending:
+                logging.info("Database is already up to date!")
+                logging.info(f"Current revision: {current}")
+                os.remove(LOCK_FILE)
+                sys.exit(0)
+
+            logging.info("=" * 70)
+            logging.info("RUNNING DATABASE MIGRATIONS")
+            logging.info("=" * 70)
+            logging.info(
+                f"Upgrading database from {current or 'unversioned'} to {head}"
+            )
+
+            try:
+                run_migrations(engine, options.dbpath)
+                logging.info("Database migration completed successfully!")
+                logging.info("=" * 70)
+                os.remove(LOCK_FILE)
+                sys.exit(0)
+            except Exception as e:
+                logging.error(f"Migration failed: {e}")
+                logging.error("Please restore from backup and report this issue.")
+                logging.info("=" * 70)
+                os.remove(LOCK_FILE)
+                sys.exit(1)
+
         # Teardown requires confirmation for safety
         if options.force_action == "teardown" and not options.confirm:
             logging.error("Teardown requires --confirm flag for safety")
@@ -256,7 +296,7 @@ def main():
             metrics,
             service_name=options.service_name,
             dry_run=options.dry_run,
-            count=options.count if hasattr(options, 'count') else 1,
+            count=options.count if hasattr(options, "count") else 1,
         )
     else:
         this_action = choose_action(local_config, metrics, options.dry_run)

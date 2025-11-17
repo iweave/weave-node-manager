@@ -113,15 +113,21 @@ def _detect_process_manager_mode():
 
     # Add platform-specific default locations
     if PLATFORM == "Linux":
-        db_locations.extend([
-            "/var/antctl/colony.db",  # sudo mode
-            os.path.expanduser("~/.local/share/autonomi/colony.db"),  # user mode
-        ])
+        db_locations.extend(
+            [
+                "/var/antctl/colony.db",  # sudo mode
+                os.path.expanduser("~/.local/share/autonomi/colony.db"),  # user mode
+            ]
+        )
     elif PLATFORM == "Darwin":
-        db_locations.extend([
-            "/Library/Application Support/autonomi/colony.db",  # sudo mode
-            os.path.expanduser("~/Library/Application Support/autonomi/colony.db"),  # user mode
-        ])
+        db_locations.extend(
+            [
+                "/Library/Application Support/autonomi/colony.db",  # sudo mode
+                os.path.expanduser(
+                    "~/Library/Application Support/autonomi/colony.db"
+                ),  # user mode
+            ]
+        )
 
     for db_path in db_locations:
         if os.path.exists(db_path):
@@ -168,7 +174,9 @@ if PLATFORM == "Darwin":
         BASE_DIR = os.path.expanduser("~/Library/Application Support/autonomi")
         NODE_STORAGE = os.path.expanduser("~/Library/Application Support/autonomi/node")
         LOG_DIR = os.path.expanduser("~/Library/Logs/autonomi")
-        BOOTSTRAP_CACHE_DIR = os.path.expanduser("~/Library/Caches/autonomi/bootstrap-cache")
+        BOOTSTRAP_CACHE_DIR = os.path.expanduser(
+            "~/Library/Caches/autonomi/bootstrap-cache"
+        )
 elif PLATFORM == "Linux":
     if _PM_MODE == "sudo":
         # System-wide paths for systemd+sudo or setsid+sudo
@@ -181,7 +189,9 @@ elif PLATFORM == "Linux":
         BASE_DIR = os.path.expanduser("~/.local/share/autonomi")
         NODE_STORAGE = os.path.expanduser("~/.local/share/autonomi/node")
         LOG_DIR = os.path.expanduser("~/.local/share/autonomi/logs")
-        BOOTSTRAP_CACHE_DIR = os.path.expanduser("~/.local/share/autonomi/bootstrap-cache")
+        BOOTSTRAP_CACHE_DIR = os.path.expanduser(
+            "~/.local/share/autonomi/bootstrap-cache"
+        )
 else:
     # Windows or other platforms (user-level only)
     BASE_DIR = os.path.expanduser("~/autonomi")
@@ -205,7 +215,7 @@ if not os.getenv("WNM_TEST_MODE"):
                         ["sudo", "mkdir", "-p", directory],
                         check=True,
                         stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE
+                        stderr=subprocess.PIPE,
                     )
                 except (subprocess.CalledProcessError, FileNotFoundError) as e:
                     # If sudo fails or isn't available, warn but continue
@@ -230,22 +240,38 @@ def load_config():
 
     c.add("-c", "--config", is_config_file=True, help="config file path")
     c.add("-v", help="verbose", action="store_true")
-    c.add("-q", "--quiet", help="Quiet mode (suppress all output except errors)", action="store_true")
+    c.add(
+        "-q",
+        "--quiet",
+        help="Quiet mode (suppress all output except errors)",
+        action="store_true",
+    )
     c.add("--version", help="Show version and exit", action="store_true")
-    c.add("--remove_lockfile", help="Remove the lock file and exit", action="store_true")
+    c.add(
+        "--remove_lockfile", help="Remove the lock file and exit", action="store_true"
+    )
     c.add(
         "--dbpath",
         env_var="DBPATH",
         help="Path to the database",
         default=DEFAULT_DB_PATH,
     )
-    c.add("--loglevel", env_var="LOGLEVEL", help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)", default="INFO")
+    c.add(
+        "--loglevel",
+        env_var="LOGLEVEL",
+        help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+        default="INFO",
+    )
     c.add(
         "--dry_run", env_var="DRY_RUN", help="Do not save changes", action="store_true"
     )
     c.add("--init", help="Initialize a cluster", action="store_true")
     c.add("--migrate_anm", help="Migrate a cluster from anm", action="store_true")
-    c.add("--confirm", help="Confirm destructive operations (required for teardown)", action="store_true")
+    c.add(
+        "--confirm",
+        help="Confirm destructive operations (required for teardown)",
+        action="store_true",
+    )
     c.add("--node_cap", env_var="NODE_CAP", help="Node Capacity")
     c.add("--cpu_less_than", env_var="CPU_LESS_THAN", help="CPU Add Threshold")
     c.add("--cpu_remove", env_var="CPU_REMOVE", help="CPU Remove Threshold")
@@ -332,8 +358,18 @@ def load_config():
     c.add(
         "--force_action",
         env_var="FORCE_ACTION",
-        help="Force an action: add, remove, upgrade, start, stop, disable, teardown, survey",
-        choices=["add", "remove", "upgrade", "start", "stop", "disable", "teardown", "survey"],
+        help="Force an action: add, remove, upgrade, start, stop, disable, teardown, survey, wnm-db-migration",
+        choices=[
+            "add",
+            "remove",
+            "upgrade",
+            "start",
+            "stop",
+            "disable",
+            "teardown",
+            "survey",
+            "wnm-db-migration",
+        ],
     )
     c.add(
         "--service_name",
@@ -364,7 +400,16 @@ def load_config():
         "--process_manager",
         env_var="PROCESS_MANAGER",
         help="Process manager to use: systemd+sudo, systemd+user, setsid+sudo, setsid+user, launchd+sudo, launchd+user, antctl+sudo, antctl+user",
-        choices=["systemd+sudo", "systemd+user", "setsid+sudo", "setsid+user", "launchd+sudo", "launchd+user", "antctl+sudo", "antctl+user"],
+        choices=[
+            "systemd+sudo",
+            "systemd+user",
+            "setsid+sudo",
+            "setsid+user",
+            "launchd+sudo",
+            "launchd+user",
+            "antctl+sudo",
+            "antctl+user",
+        ],
     )
     c.add(
         "--no_upnp",
@@ -404,15 +449,24 @@ def merge_config_changes(options, machine_config):
     cfg = {}
     if options.node_cap and int(options.node_cap) != machine_config.node_cap:
         cfg["node_cap"] = int(options.node_cap)
-    if options.cpu_less_than and int(options.cpu_less_than) != machine_config.cpu_less_than:
+    if (
+        options.cpu_less_than
+        and int(options.cpu_less_than) != machine_config.cpu_less_than
+    ):
         cfg["cpu_less_than"] = int(options.cpu_less_than)
     if options.cpu_remove and int(options.cpu_remove) != machine_config.cpu_remove:
         cfg["cpu_remove"] = int(options.cpu_remove)
-    if options.mem_less_than and int(options.mem_less_than) != machine_config.mem_less_than:
+    if (
+        options.mem_less_than
+        and int(options.mem_less_than) != machine_config.mem_less_than
+    ):
         cfg["mem_less_than"] = int(options.mem_less_than)
     if options.mem_remove and int(options.mem_remove) != machine_config.mem_remove:
         cfg["mem_remove"] = int(options.mem_remove)
-    if options.hd_less_than and int(options.hd_less_than) != machine_config.hd_less_than:
+    if (
+        options.hd_less_than
+        and int(options.hd_less_than) != machine_config.hd_less_than
+    ):
         cfg["hd_less_than"] = int(options.hd_less_than)
     if options.hd_remove and int(options.hd_remove) != machine_config.hd_remove:
         cfg["hd_remove"] = int(options.hd_remove)
@@ -428,7 +482,10 @@ def merge_config_changes(options, machine_config):
         and int(options.delay_upgrade) != machine_config.delay_upgrade
     ):
         cfg["delay_upgrade"] = int(options.delay_upgrade)
-    if options.delay_remove and int(options.delay_remove) != machine_config.delay_remove:
+    if (
+        options.delay_remove
+        and int(options.delay_remove) != machine_config.delay_remove
+    ):
         cfg["delay_remove"] = int(options.delay_remove)
     if options.node_storage and options.node_storage != machine_config.node_storage:
         cfg["node_storage"] = options.node_storage
@@ -444,11 +501,15 @@ def merge_config_changes(options, machine_config):
             logging.error(f"Invalid rewards_address: {error_msg}")
             sys.exit(1)
         cfg["rewards_address"] = options.rewards_address
-    if options.donate_address and options.donate_address != machine_config.donate_address:
+    if (
+        options.donate_address
+        and options.donate_address != machine_config.donate_address
+    ):
         cfg["donate_address"] = options.donate_address
     if (
         options.max_load_average_allowed
-        and float(options.max_load_average_allowed) != machine_config.max_load_average_allowed
+        and float(options.max_load_average_allowed)
+        != machine_config.max_load_average_allowed
     ):
         cfg["max_load_average_allowed"] = float(options.max_load_average_allowed)
     if (
@@ -498,7 +559,10 @@ def merge_config_changes(options, machine_config):
         and int(options.netio_write_remove) != machine_config.netio_write_remove
     ):
         cfg["netio_write_remove"] = int(options.netio_write_remove)
-    if options.crisis_bytes and int(options.crisis_bytes) != machine_config.crisis_bytes:
+    if (
+        options.crisis_bytes
+        and int(options.crisis_bytes) != machine_config.crisis_bytes
+    ):
         cfg["crisis_bytes"] = int(options.crisis_bytes)
     if (
         options.metrics_port_start
@@ -511,12 +575,16 @@ def merge_config_changes(options, machine_config):
         cfg["start_args"] = options.start_args
     # process_manager can only be set during init (not allowed to change after initialization)
     # Similar to port_start and metrics_port_start
-    if options.process_manager and options.process_manager != machine_config.process_manager:
+    if (
+        options.process_manager
+        and options.process_manager != machine_config.process_manager
+    ):
         cfg["process_manager"] = options.process_manager
     # Only update no_upnp if explicitly provided (check if in command line or env var)
     # Don't update based on store_true default value of False
     import sys
-    if '--no_upnp' in sys.argv or '--no-upnp' in sys.argv or os.getenv('NO_UPNP'):
+
+    if "--no_upnp" in sys.argv or "--no-upnp" in sys.argv or os.getenv("NO_UPNP"):
         if bool(options.no_upnp) != bool(machine_config.no_upnp):
             cfg["no_upnp"] = bool(options.no_upnp)
     # Only update antnode_path if explicitly provided (not None)
@@ -551,18 +619,30 @@ def load_anm_config(options):
     # What can we save from /var/antctl/config
     if os.path.exists("/var/antctl/config"):
         load_dotenv("/var/antctl/config")
-    anm_config["node_cap"] = int(os.getenv("NodeCap") or _get_option(options, "node_cap") or 20)
+    anm_config["node_cap"] = int(
+        os.getenv("NodeCap") or _get_option(options, "node_cap") or 20
+    )
     anm_config["cpu_less_than"] = int(
         os.getenv("CpuLessThan") or _get_option(options, "cpu_less_than") or 50
     )
-    anm_config["cpu_remove"] = int(os.getenv("CpuRemove") or _get_option(options, "cpu_remove") or 70)
+    anm_config["cpu_remove"] = int(
+        os.getenv("CpuRemove") or _get_option(options, "cpu_remove") or 70
+    )
     anm_config["mem_less_than"] = int(
         os.getenv("MemLessThan") or _get_option(options, "mem_less_than") or 60
     )
-    anm_config["mem_remove"] = int(os.getenv("MemRemove") or _get_option(options, "mem_remove") or 75)
-    anm_config["hd_less_than"] = int(os.getenv("HDLessThan") or _get_option(options, "hd_less_than") or 75)
-    anm_config["hd_remove"] = int(os.getenv("HDRemove") or _get_option(options, "hd_remove") or 90)
-    anm_config["delay_start"] = int(os.getenv("DelayStart") or _get_option(options, "delay_start") or 300)
+    anm_config["mem_remove"] = int(
+        os.getenv("MemRemove") or _get_option(options, "mem_remove") or 75
+    )
+    anm_config["hd_less_than"] = int(
+        os.getenv("HDLessThan") or _get_option(options, "hd_less_than") or 75
+    )
+    anm_config["hd_remove"] = int(
+        os.getenv("HDRemove") or _get_option(options, "hd_remove") or 90
+    )
+    anm_config["delay_start"] = int(
+        os.getenv("DelayStart") or _get_option(options, "delay_start") or 300
+    )
     anm_config["delay_upgrade"] = int(
         os.getenv("DelayUpgrade") or _get_option(options, "delay_upgrade") or 300
     )
@@ -623,8 +703,12 @@ def load_anm_config(options):
     anm_config["netio_write_remove"] = int(os.getenv("NetIOWriteRemove") or 0)
     # Timer for last stopped nodes
     anm_config["last_stopped_at"] = 0
-    anm_config["host"] = os.getenv("Host") or _get_option(options, "host") or "127.0.0.1"
-    anm_config["crisis_bytes"] = _get_option(options, "crisis_bytes") or DEFAULT_CRISIS_BYTES
+    anm_config["host"] = (
+        os.getenv("Host") or _get_option(options, "host") or "127.0.0.1"
+    )
+    anm_config["crisis_bytes"] = (
+        _get_option(options, "crisis_bytes") or DEFAULT_CRISIS_BYTES
+    )
     anm_config["environment"] = _get_option(options, "environment") or ""
     anm_config["start_args"] = _get_option(options, "start_args") or ""
 
@@ -642,7 +726,9 @@ def load_anm_config(options):
     anm_config["no_upnp"] = bool(_get_option(options, "no_upnp", False))
 
     # antnode binary path
-    anm_config["antnode_path"] = _get_option(options, "antnode_path") or "~/.local/bin/antnode"
+    anm_config["antnode_path"] = (
+        _get_option(options, "antnode_path") or "~/.local/bin/antnode"
+    )
 
     return anm_config
 
@@ -681,7 +767,9 @@ def define_machine(options):
     donate_address = options.donate_address or DONATE
 
     # Validate rewards_address format
-    is_valid, error_msg = validate_rewards_address(options.rewards_address, donate_address)
+    is_valid, error_msg = validate_rewards_address(
+        options.rewards_address, donate_address
+    )
     if not is_valid:
         logging.error(f"Invalid rewards_address: {error_msg}")
         return False
@@ -703,13 +791,18 @@ def define_machine(options):
         "hd_less_than": int(_get_option(options, "hd_less_than") or 75),
         "hd_remove": int(_get_option(options, "hd_remove") or 90),
         "delay_start": int(_get_option(options, "delay_start") or 300),
+        "delay_restart": int(_get_option(options, "delay_restart") or 600),
         "delay_upgrade": int(_get_option(options, "delay_upgrade") or 300),
         "delay_remove": int(_get_option(options, "delay_remove") or 300),
         "node_storage": _get_option(options, "node_storage") or NODE_STORAGE,
         "rewards_address": _get_option(options, "rewards_address"),
         "donate_address": _get_option(options, "donate_address") or FAUCET,
-        "max_load_average_allowed": float(_get_option(options, "max_load_average_allowed") or cpucount),
-        "desired_load_average": float(_get_option(options, "desired_load_average") or cpucount * 0.6),
+        "max_load_average_allowed": float(
+            _get_option(options, "max_load_average_allowed") or cpucount
+        ),
+        "desired_load_average": float(
+            _get_option(options, "desired_load_average") or cpucount * 0.6
+        ),
         "port_start": int(_get_option(options, "port_start") or 55),
         "hdio_read_less_than": int(_get_option(options, "hdio_read_less_than") or 0),
         "hdio_read_remove": int(_get_option(options, "hdio_read_remove") or 0),
@@ -717,11 +810,15 @@ def define_machine(options):
         "hdio_write_remove": int(_get_option(options, "hdio_write_remove") or 0),
         "netio_read_less_than": int(_get_option(options, "netio_read_less_than") or 0),
         "netio_read_remove": int(_get_option(options, "netio_read_remove") or 0),
-        "netio_write_less_than": int(_get_option(options, "netio_write_less_than") or 0),
+        "netio_write_less_than": int(
+            _get_option(options, "netio_write_less_than") or 0
+        ),
         "netio_write_remove": int(_get_option(options, "netio_write_remove") or 0),
         "last_stopped_at": 0,
         "host": _get_option(options, "host") or "127.0.0.1",
-        "crisis_bytes": int(_get_option(options, "crisis_bytes") or DEFAULT_CRISIS_BYTES),
+        "crisis_bytes": int(
+            _get_option(options, "crisis_bytes") or DEFAULT_CRISIS_BYTES
+        ),
         "metrics_port_start": int(_get_option(options, "metrics_port_start") or 13),
         "environment": _get_option(options, "environment") or "",
         "start_args": _get_option(options, "start_args") or "",
@@ -769,7 +866,7 @@ def apply_config_updates(config_updates):
 options = load_config()
 
 # Expand ~ and environment variables in dbpath if needed
-if hasattr(options, 'dbpath') and options.dbpath:
+if hasattr(options, "dbpath") and options.dbpath:
     # Handle both bare paths and sqlite:/// URLs
     if options.dbpath.startswith("sqlite:///"):
         path_part = options.dbpath[10:]
@@ -788,8 +885,8 @@ if hasattr(options, 'dbpath') and options.dbpath:
 # Skip database initialization for --version, --remove_lockfile, and test mode
 # These cases should work without any database or lock file checks
 _SKIP_DB_INIT = (
-    getattr(options, 'version', False)
-    or getattr(options, 'remove_lockfile', False)
+    getattr(options, "version", False)
+    or getattr(options, "remove_lockfile", False)
     or os.getenv("WNM_TEST_MODE")
 )
 
@@ -801,6 +898,18 @@ if not _SKIP_DB_INIT:
     # Create a connection to the ORM
     session_factory = sessionmaker(bind=engine)
     S = scoped_session(session_factory)
+
+    # Import migration utilities
+    from wnm.db_migration import auto_stamp_new_database, check_and_warn_migrations
+
+    # Auto-stamp new databases with current migration version
+    auto_stamp_new_database(engine, options.dbpath)
+
+    # Check for pending migrations (skip if running migration command)
+    if not (
+        hasattr(options, "force_action") and options.force_action == "wnm-db-migration"
+    ):
+        check_and_warn_migrations(engine, options.dbpath)
 else:
     # Create dummy objects for --version, --remove_lockfile, or test mode
     engine = None
@@ -842,7 +951,9 @@ if not machine_config and not os.getenv("WNM_TEST_MODE") and not _SKIP_DB_INIT:
                         session.commit()
                         machine_config = session.execute(select(Machine)).first()
                     if not machine_config:
-                        logging.error("Unable to locate record after successful migration")
+                        logging.error(
+                            "Unable to locate record after successful migration"
+                        )
                         sys.exit(1)
                     # Get Machine from Row
                     machine_config = machine_config[0]
@@ -878,12 +989,20 @@ else:
         machine_config = machine_config[0]
 
 # Collect the proposed changes unless we are initializing (skip in test mode or when using --version/--remove_lockfile)
-config_updates = merge_config_changes(options, machine_config) if not os.getenv("WNM_TEST_MODE") and not _SKIP_DB_INIT else {}
+config_updates = (
+    merge_config_changes(options, machine_config)
+    if not os.getenv("WNM_TEST_MODE") and not _SKIP_DB_INIT
+    else {}
+)
 # Failfirst on invalid config change
 if (
-    "port_start" in config_updates or "metrics_port_start" in config_updates or "process_manager" in config_updates
+    "port_start" in config_updates
+    or "metrics_port_start" in config_updates
+    or "process_manager" in config_updates
 ) and not did_we_init:
-    logging.warning("Cannot change port_start, metrics_port_start, or process_manager on an active machine")
+    logging.warning(
+        "Cannot change port_start, metrics_port_start, or process_manager on an active machine"
+    )
     sys.exit(1)
 
 
