@@ -176,8 +176,13 @@ class AntctlManager(ProcessManager):
 
             logging.info(f"Created antctl service: {service_name}")
 
-            # Open firewall port if firewall is enabled
-            self.enable_firewall_port(node.port)
+            # Update node.service so start_node can use it
+            node.service = service_name
+
+            # Start the node
+            if not self.start_node(node):
+                logging.error(f"Failed to start node after creation")
+                return None
 
             # Return NodeProcess with external_node_id set to service_name
             return NodeProcess(

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.0.28] - 2025-11-16
+
+### Fixed
+- **AntctlManager node startup**: Fixed antctl process manager to start nodes immediately after creation
+  - Previously, `create_node()` only called `antctl add` but didn't start the node
+  - Nodes remained in "Added" status until picked up by the next management cycle
+  - Now calls `start_node()` after creation, matching behavior of SystemdManager and SetsidManager
+  - Ensures nodes become active immediately after creation
+
 ## [0.0.27] - 2025-11-16
 
 ### Fixed
