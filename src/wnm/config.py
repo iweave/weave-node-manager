@@ -824,20 +824,20 @@ if not machine_config and not os.getenv("WNM_TEST_MODE") and not _SKIP_DB_INIT:
                         session.commit()
                         machine_config = session.execute(select(Machine)).first()
                     if not machine_config:
-                        print("Unable to locate record after successful migration")
+                        logging.error("Unable to locate record after successful migration")
                         sys.exit(1)
                     # Get Machine from Row
                     machine_config = machine_config[0]
                     did_we_init = True
                 else:
-                    print("Failed to migrate machine from anm")
+                    logging.error("Failed to migrate machine from anm")
                     sys.exit(1)
             else:
                 if define_machine(options):
                     with S() as session:
                         machine_config = session.execute(select(Machine)).first()
                     if not machine_config:
-                        print(
+                        logging.error(
                             "Failed to locate record after successfully defining a machine"
                         )
                         sys.exit(1)
@@ -845,10 +845,10 @@ if not machine_config and not os.getenv("WNM_TEST_MODE") and not _SKIP_DB_INIT:
                     machine_config = machine_config[0]
                     did_we_init = True
                 else:
-                    print("Failed to create machine")
+                    logging.error("Failed to create machine")
                     sys.exit(1)
     else:
-        print("No config found")
+        logging.error("No config found")
         sys.exit(1)
 else:
     # Fail if we are trying to init a machine that is already initialized
@@ -870,5 +870,5 @@ if (
 
 
 if __name__ == "__main__":
-    print("Changes:", json.loads(json.dumps(config_updates)))
-    print(json.loads(json.dumps(machine_config)))
+    logging.debug("Changes: " + json.dumps(config_updates))
+    logging.debug(json.dumps(machine_config))

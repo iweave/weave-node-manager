@@ -102,13 +102,13 @@ def main():
         if os.path.exists(LOCK_FILE):
             try:
                 os.remove(LOCK_FILE)
-                print(f"Lock file removed: {LOCK_FILE}")
+                logging.info(f"Lock file removed: {LOCK_FILE}")
                 sys.exit(0)
             except (PermissionError, OSError) as e:
-                print(f"Error removing lock file: {e}")
+                logging.error(f"Error removing lock file: {e}")
                 sys.exit(1)
         else:
-            print(f"Lock file does not exist: {LOCK_FILE}")
+            logging.info(f"Lock file does not exist: {LOCK_FILE}")
             sys.exit(0)
 
     # Are we already running
@@ -245,7 +245,6 @@ def main():
         # Teardown requires confirmation for safety
         if options.force_action == "teardown" and not options.confirm:
             logging.error("Teardown requires --confirm flag for safety")
-            print("Error: Teardown requires --confirm flag. This will remove all nodes.")
             os.remove(LOCK_FILE)
             sys.exit(1)
 
@@ -262,7 +261,7 @@ def main():
     else:
         this_action = choose_action(local_config, metrics, options.dry_run)
 
-    print("Action:", json.dumps(this_action, indent=2))
+    logging.info("Action: " + json.dumps(this_action, indent=2))
 
     os.remove(LOCK_FILE)
     sys.exit(1)
@@ -271,5 +270,4 @@ def main():
 if __name__ == "__main__":
     main()
     # print(options.MemRemove)
-
-print("End of program")
+    logging.debug("End of program")

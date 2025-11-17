@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.0.26] - 2025-11-16
+
+### Changed
+- **Logging improvements**: Replaced print statements with proper logging calls throughout application code
+  - Converted print() to logging.info(), logging.error(), or logging.debug() in `src/wnm/__main__.py` and `src/wnm/config.py`
+  - Improved logging consistency for initialization errors, configuration changes, and action reporting
+  - Retained print statements only for CLI output (--version flag, report output) and standalone scripts
+  - All application code now uses the centralized logging facility controlled by --loglevel and --quiet flags
+
 ## [0.0.25] - 2025-11-16
 
 ### Added

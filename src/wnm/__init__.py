@@ -1,3 +1,3 @@
 """A service to manage a cluster of decentralized Autonomi nodes"""
 
-__version__ = "0.0.25"
+__version__ = "0.0.26"
