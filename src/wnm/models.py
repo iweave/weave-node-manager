@@ -76,6 +76,7 @@ class Machine(Base):
     # Port configuration
     port_start: Mapped[int] = mapped_column(Integer)
     metrics_port_start: Mapped[int] = mapped_column(Integer)
+    rpc_port_start: Mapped[int] = mapped_column(Integer, default=30)
 
     # System state
     last_stopped_at: Mapped[int] = mapped_column(Integer)
@@ -153,6 +154,7 @@ class Machine(Base):
         host,
         crisis_bytes,
         metrics_port_start,
+        rpc_port_start,
         environment,
         start_args,
         max_concurrent_upgrades=1,
@@ -195,6 +197,7 @@ class Machine(Base):
         self.host = host
         self.crisis_bytes = crisis_bytes
         self.metrics_port_start = metrics_port_start
+        self.rpc_port_start = rpc_port_start
         self.environment = environment
         self.start_args = start_args
         self.max_concurrent_upgrades = max_concurrent_upgrades
@@ -255,6 +258,7 @@ class Machine(Base):
             "host": f"{self.host}",
             "crisis_bytes": self.crisis_bytes,
             "metrics_port_start": self.metrics_port_start,
+            "rpc_port_start": self.rpc_port_start,
             "environment": f"{self.environment}",
             "start_args": f"{self.start_args}",
             "max_concurrent_upgrades": self.max_concurrent_upgrades,
@@ -263,6 +267,7 @@ class Machine(Base):
             "node_removal_strategy": f"{self.node_removal_strategy}",
             "process_manager": f"{self.process_manager}" if self.process_manager else None,
             "no_upnp": bool(self.no_upnp),
+            "antnode_path": f"{self.antnode_path}" if self.antnode_path else None,
         }
 
 
@@ -377,6 +382,8 @@ class Node(Base):
     port: Mapped[int] = mapped_column(Integer)
     # Node metrics port
     metrics_port: Mapped[int] = mapped_column(Integer)
+    # Node RPC port
+    rpc_port: Mapped[int] = mapped_column(Integer, default=0)
     # Network to use ( Live is evm-arbitrum-one )
     network: Mapped[str] = mapped_column(UnicodeText)
     # Reward address
@@ -450,6 +457,7 @@ class Node(Base):
         root_dir,
         port,
         metrics_port,
+        rpc_port,
         network,
         wallet,
         peer_id,
@@ -479,6 +487,7 @@ class Node(Base):
         self.log_dir = log_dir
         self.port = port
         self.metrics_port = metrics_port
+        self.rpc_port = rpc_port
         self.network = network
         self.wallet = wallet
         self.peer_id = peer_id

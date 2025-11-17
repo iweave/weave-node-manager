@@ -84,7 +84,9 @@ class AntctlManager(ProcessManager):
             FileNotFoundError: If antctl is not installed
         """
         cmd = self.antctl_cmd + args
-        logging.debug(f"Running antctl command: {' '.join(cmd)}")
+        # Log command with proper shell quoting for debugging
+        import shlex
+        logging.debug(f"Running antctl command: {' '.join(shlex.quote(arg) for arg in cmd)}")
 
         try:
             result = subprocess.run(
@@ -145,6 +147,8 @@ class AntctlManager(ProcessManager):
             str(node.port),
             "--metrics-port",
             str(node.metrics_port),
+            "--rpc-port",
+            str(node.rpc_port),
             "--rewards-address",
             node.wallet,
 

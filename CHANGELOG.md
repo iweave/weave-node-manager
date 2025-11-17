@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [0.0.31] - 2025-11-17
+
+### Added
+- **RPC port configuration**: Added support for configuring RPC server ports to prevent random port assignment
+  - Added `RPC_PORT_BASE` constant (default: 30000) for RPC port calculation (`30000 + node_id`)
+  - Added `rpc_port_start` field to Machine model (default: 30)
+  - Added `rpc_port` field to Node model
+  - AntctlManager now passes `--rpc-port` argument to antctl commands
+  - Prevents antctl from randomly assigning RPC ports that could conflict with node and metrics port ranges
+
+### Fixed
+- **AntctlManager port assignment**: Fixed antctl process manager to properly pass `--node-port` to antctl
+  - Added `rpc_port_start` to Machine.__json__() serialization (was missing, causing KeyError)
+  - Added `antnode_path` to Machine.__json__() serialization (was missing, causing KeyError)
+  - Improved debug logging with proper shell quoting for antctl commands
+  - RPC server ports now controlled instead of randomly assigned (e.g., 51430 → 30001)
+
 ## [0.0.30] - 2025-11-17
 
 ### Fixed

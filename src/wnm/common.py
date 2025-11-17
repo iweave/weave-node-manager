@@ -20,4 +20,5 @@ DEAD = "DEAD"  # -86 Broken node to cleanup
 MIN_NODES_THRESHOLD = 0  # Minimum nodes before considering actions
 PORT_MULTIPLIER = 1000  # Port calculation: PortStart * 1000 + node_id
 METRICS_PORT_BASE = 13000  # Metrics port calculation: 13000 + node_id
+RPC_PORT_BASE = 30000  # RPC port calculation: 30000 + node_id
 DEFAULT_CRISIS_BYTES = 2 * 10**9  # Default crisis threshold in bytes (2GB)
