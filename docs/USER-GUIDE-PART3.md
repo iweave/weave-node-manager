@@ -504,6 +504,23 @@ No user configuration is currently needed.
 - Format: `sqlite:///absolute/path/to/file.db`
 - Note: Tilde (`~`) and environment variables are expanded
 
+### Antnode Binary Path
+
+**`--antnode_path`**
+- Environment variable: `ANTNODE_PATH`
+- Type: String (file path)
+- Default: `~/.local/bin/antnode`
+- Description: Path to the antnode binary executable
+- Use cases:
+  - Using a custom-built antnode binary
+  - Testing different antnode versions
+  - Using antnode from a non-standard installation location
+- Notes:
+  - Path is expanded (tilde `~` and environment variables)
+  - Binary must be executable
+  - All nodes will use this binary path for cloning
+- Example: `--antnode_path /usr/local/bin/antnode`
+
 ### Process Manager Selection
 
 **`--process_manager`**
@@ -621,10 +638,11 @@ These settings control how many nodes can be in transitional states simultaneous
 **`--force_action`**
 - Environment variable: `FORCE_ACTION`
 - Type: String
-- Choices: `add`, `remove`, `upgrade`, `start`, `stop`, `disable`, `teardown`, `survey`
+- Choices: `add`, `remove`, `upgrade`, `start`, `stop`, `disable`, `teardown`, `survey`, `wnm-db-migration`
 - Description: Force a specific action regardless of resource thresholds
-- Use with: `--service_name` to target specific nodes
-- Use with: `--count` to affect multiple nodes
+- Use with: `--service_name` to target specific nodes (for node actions)
+- Use with: `--count` to affect multiple nodes (for node actions)
+- Use with: `--confirm` for destructive operations (`teardown`, `wnm-db-migration`)
 
 **`--service_name`**
 - Environment variable: `SERVICE_NAME`
@@ -686,6 +704,154 @@ These settings control how many nodes can be in transitional states simultaneous
 **`--version`**
 - Flag only
 - Description: Display wnm version and exit
+
+---
+
+## 3.7 Database Migrations
+
+### Overview
+
+WNM uses Alembic for database schema migrations. The system automatically detects when your database schema is out of date and requires migration.
+
+### Automatic Detection
+
+On every startup, WNM checks if your database schema matches the current version:
+- ✅ **Up to date**: Normal operation continues
+- ⚠️ **Out of date**: WNM exits with error and migration instructions
+
+### When Migrations Are Needed
+
+Database migrations are required when:
+- Upgrading WNM to a new version with schema changes
+- New fields are added to the Machine or Node tables
+- Existing fields are modified or removed
+
+### Running Database Migrations
+
+**IMPORTANT: Always backup your database before running migrations!**
+
+**Step 1: Backup your database**
+```bash
+# macOS user mode
+cp ~/Library/Application\ Support/autonomi/colony.db ~/Library/Application\ Support/autonomi/colony.db.backup
+
+# macOS sudo mode
+sudo cp /Library/Application\ Support/autonomi/colony.db /Library/Application\ Support/autonomi/colony.db.backup
+
+# Linux user mode
+cp ~/.local/share/autonomi/colony.db ~/.local/share/autonomi/colony.db.backup
+
+# Linux sudo mode
+sudo cp /var/antctl/colony.db /var/antctl/colony.db.backup
+```
+
+**Step 2: Run migrations**
+```bash
+wnm --force_action wnm-db-migration --confirm
+```
+
+**`--force_action wnm-db-migration`**
+- Requires: `--confirm` flag
+- Description: Run pending database migrations
+- Safety: Conservative approach - always warns and requires confirmation
+- Output: Shows current revision → target revision
+- Exit codes:
+  - `0`: Success (migrations completed or already up to date)
+  - `1`: Failure (error during migration, restore from backup)
+
+### Migration Process
+
+When you run the migration command:
+
+1. **Validation**: Checks for pending migrations
+2. **Warning**: Displays current and target schema versions
+3. **Execution**: Runs all pending migrations in order
+4. **Confirmation**: Reports success or failure
+
+### Migration Examples
+
+**Check if migrations are needed:**
+```bash
+# Just try to run WNM normally
+wnm
+
+# If migrations are needed, you'll see:
+# ======================================================================
+# DATABASE MIGRATION REQUIRED
+# ======================================================================
+#
+# Your database schema is out of date:
+#   Current revision: abc5afa09a61
+#   Required revision: 3249fcc20390
+#
+# IMPORTANT: Backup your database before proceeding!
+#
+# To run migrations:
+#   wnm --force_action wnm-db-migration --confirm
+# ======================================================================
+```
+
+**Run migrations:**
+```bash
+wnm --force_action wnm-db-migration --confirm
+
+# Output:
+# ======================================================================
+# RUNNING DATABASE MIGRATIONS
+# ======================================================================
+# Upgrading database from abc5afa09a61 to 3249fcc20390
+# Database migration completed successfully!
+# ======================================================================
+```
+
+**Already up to date:**
+```bash
+wnm --force_action wnm-db-migration --confirm
+
+# Output:
+# Database is already up to date!
+# Current revision: 3249fcc20390
+```
+
+### New Database Initialization
+
+New databases are automatically stamped with the current schema version:
+- No manual migration needed for fresh installations
+- First run with `--init` creates database at current version
+- Migration system is ready for future updates
+
+### Migration History
+
+WNM tracks schema versions using Alembic revisions. Each migration has:
+- **Revision ID**: Unique identifier (e.g., `3249fcc20390`)
+- **Description**: Human-readable description (e.g., "add_delay_restart_to_machine")
+- **Upgrade function**: Applies schema changes
+- **Downgrade function**: Reverts schema changes (if needed)
+
+### Troubleshooting
+
+**Migration fails:**
+1. Stop WNM if running: `wnm --remove_lockfile`
+2. Restore from backup
+3. Report the issue with error details
+4. Wait for fix before upgrading
+
+**Database locked error:**
+- Ensure no other WNM instances are running
+- Remove lock file: `wnm --remove_lockfile`
+- Try migration again
+
+**Unknown revision:**
+- Your database may be from a different branch or fork
+- Backup and start fresh with `--init`
+
+### Best Practices
+
+1. **Always backup before migrating** - Cannot be stressed enough
+2. **Read release notes** - Check for breaking changes or special instructions
+3. **Keep backups** - Maintain multiple backup copies before major upgrades
+4. **Don't skip versions** - Migrate sequentially through versions
+5. **Monitor the migration** - Watch for errors during migration process
 
 ### Last Stopped Timestamp (Internal)
 
