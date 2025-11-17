@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.0.30] - 2025-11-17
+
+### Fixed
+- **AntctlManager binary path handling**: Fixed antctl process manager to properly use configured `antnode_path`
+  - `create_node()` now passes `--path` argument with `machine_config.antnode_path` to prevent antctl from downloading binaries on every node add
+  - Added `upgrade_node()` method that uses antctl's built-in upgrade command with `--path` argument
+  - Unlike other process managers where wnm manually copies binaries, antctl handles stop/replace/restart internally
+  - Executor now detects AntctlManager and delegates to its `upgrade_node()` method instead of manual binary copying
+  - Prevents redundant binary downloads and ensures consistent binary management across all operations
+
 ## [0.0.29] - 2025-11-16
 
 ### Added

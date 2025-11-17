@@ -158,8 +158,13 @@ class AntctlManager(ProcessManager):
         if node.log_dir:
             args.extend(["--log-dir-path", node.log_dir])
 
-        # Add optional binary path if provided
-        if binary_path:
+        # Add binary path from machine config (antnode_path)
+        # This tells antctl where to find the binary instead of downloading a new one
+        if machine_config and hasattr(machine_config, 'antnode_path') and machine_config.antnode_path:
+            antnode_path = os.path.expanduser(machine_config.antnode_path)
+            args.extend(["--path", antnode_path])
+        elif binary_path:
+            # Fallback to binary_path parameter if machine config not available
             args.extend(["--path", binary_path])
 
         # Add network
@@ -242,8 +247,7 @@ class AntctlManager(ProcessManager):
         Restart an antctl node (stop then start).
 
         NOTE: This is required by the ProcessManager abstract base class,
-        but should NOT be used for upgrades. For upgrades, the correct flow is:
-        stop -> copy binary -> start (not copy -> restart).
+        but should NOT be used for upgrades. For upgrades, use upgrade_node() instead.
 
         Args:
             node: Node database record
@@ -257,6 +261,61 @@ class AntctlManager(ProcessManager):
             return False
 
         return self.start_node(node)
+
+    def upgrade_node(self, node: Node, new_version: str = None) -> bool:
+        """
+        Upgrade an antctl node using antctl's built-in upgrade command.
+
+        Unlike other process managers where WNM manually copies the binary,
+        antctl handles the upgrade process itself (stop, replace binary, restart).
+        We just need to tell antctl where to find the binary via --path.
+
+        Args:
+            node: Node database record
+            new_version: Optional version to upgrade to (not used, kept for compatibility)
+
+        Returns:
+            True if node upgrade succeeded
+        """
+        logging.info(f"Upgrading antctl node {node.id} ({node.service}) to version {new_version or 'latest'}")
+
+        # Get machine config to find antnode_path
+        machine_config = None
+        if self.S:
+            from wnm.config import S
+            from wnm.models import Machine
+            from sqlalchemy import select
+
+            try:
+                with S() as session:
+                    result = session.execute(select(Machine)).first()
+                    if result:
+                        machine_config = result[0]
+            except Exception as e:
+                logging.warning(f"Failed to get machine config: {e}")
+
+        # Build antctl upgrade command
+        args = ["upgrade", "--service-name", node.service]
+
+        # Add path to binary from machine config
+        # This tells antctl where to find the binary instead of downloading
+        if machine_config and hasattr(machine_config, 'antnode_path') and machine_config.antnode_path:
+            antnode_path = os.path.expanduser(machine_config.antnode_path)
+            args.extend(["--path", antnode_path])
+            logging.info(f"Using antnode binary from: {antnode_path}")
+        else:
+            logging.warning("No antnode_path in machine config, antctl will download binary")
+
+        # Add --force flag to allow "downgrade" to same version if needed
+        args.append("--force")
+
+        try:
+            result = self._run_antctl(args)
+            logging.info(f"Successfully upgraded node {node.id}: {result.stdout}")
+            return True
+        except (subprocess.CalledProcessError, FileNotFoundError) as err:
+            logging.error(f"Failed to upgrade antctl node: {err}")
+            return False
 
     def get_status(self, node: Node) -> NodeProcess:
         """
@@ -406,14 +465,14 @@ class AntctlManager(ProcessManager):
                 # Extract service name
                 service_name = node_data.get("service_name", "")
                 if not service_name:
-                    logging.warning(f"Node missing service_name: {node_data}")
+                    logging.warning(f"Node {idx} missing service_name: {node_data}")
                     continue
 
                 # Build node card
                 # NOTE: We do NOT set "id" field - let database auto-assign it
                 # The service name is stored in "service" field
                 card = {
-                    "node_name": service_name,  # Store full service name
+                    "node_name": service_name,  # Store full service name (e.g., "antnode1")
                     "service": service_name,  # Used for antctl commands
                     "host": machine_config.host or "127.0.0.1",
                     "method": "antctl",
