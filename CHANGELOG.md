@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+## [0.1.4] - 2025-11-17
+
+### Fixed
+- **Critical: Exit code bug**: Fixed program always exiting with code 1 (failure) even on success
+  - Changed `sys.exit(1)` to `sys.exit(0)` at end of main() function
+  - Now properly returns 0 on successful execution
+- **Antctl node import**: Fixed antctl node import to correctly extract node IDs from service names
+  - Added regex-based `_extract_node_id()` helper that handles "antnode1", "antnode0001", etc.
+  - Previously failed to detect port ranges because it couldn't parse "antnode1" as node ID 1
+  - Now successfully imports antctl nodes with proper port configuration detection
+- **Antctl RPC port parsing**: Added RPC port extraction from antctl status JSON
+  - Parses `rpc_socket_addr` field (e.g., "127.0.0.1:30001" → 30001)
+  - Ensures imported nodes have complete port information
+
+### Changed
+- **Reduced logging noise**: Changed several warnings to debug-level messages
+  - Port detection warnings now debug-level (only visible with `--loglevel DEBUG`)
+  - Database stamping failures now debug-level
+  - Cleaner output during initialization for users
+- **Import feedback**: Added explicit success message showing number of imported nodes
+  - Now logs "Successfully imported N node(s)" at INFO level
+  - Better visibility of import operation results
+
+## [0.1.3] - 2025-11-17
+
+### Added
+- **`--import` flag for explicit node import**: Added new `--import` flag to explicitly request importing existing nodes during initialization
+  - Used with `--init` to import existing nodes from process manager (systemd, launchd, antctl)
+  - Example: `wnm --init --import --rewards_address <addr> --process_manager launchd+user`
+  - Prevents confusing warnings on fresh installations that don't have existing nodes
+
+### Changed
+- **Node import now opt-in during initialization**: Changed initialization behavior to only import existing nodes when explicitly requested
+  - Previously, `--init` would automatically survey for existing nodes with any process manager, producing warnings on fresh installs
+  - Now only surveys when `--migrate_anm` or `--import` flags are provided
+  - Fresh installations with `--init` (no import flags) now cleanly initialize without warnings
+  - Existing behavior with `--migrate_anm` unchanged
+
 ## [0.1.2] - 2025-11-17
 
 ### Added

@@ -33,21 +33,33 @@ def detect_port_ranges_from_nodes(nodes: list) -> dict:
         Dictionary with 'port_start' and 'metrics_port_start' keys, or empty dict if cannot detect
     """
     if not nodes:
-        logging.warning("No nodes to detect port ranges from")
+        logging.debug("No nodes to detect port ranges from")
         return {}
+
+    def _extract_node_id(node_dict):
+        """Extract numeric node ID from node dictionary."""
+        # Try direct 'id' field first
+        node_id = node_dict.get("id")
+        if node_id is not None:
+            return node_id
+
+        # Try extracting from 'node_name'
+        if "node_name" in node_dict:
+            node_name = node_dict["node_name"]
+            # Handle formats like "antnode1", "antnode0001", or just "0001"
+            import re
+            match = re.search(r'\d+', str(node_name))
+            if match:
+                try:
+                    return int(match.group())
+                except (ValueError, TypeError):
+                    pass
+        return None
 
     # Try to find node 1 first (most reliable for port detection)
     node_1 = None
     for node in nodes:
-        # Node ID can be in 'id' or extracted from 'node_name'
-        node_id = node.get("id")
-        if node_id is None and "node_name" in node:
-            # node_name might be "0001" format, convert to int
-            try:
-                node_id = int(node["node_name"])
-            except (ValueError, TypeError):
-                continue
-
+        node_id = _extract_node_id(node)
         if node_id == 1:
             node_1 = node
             break
@@ -56,29 +68,20 @@ def detect_port_ranges_from_nodes(nodes: list) -> dict:
     if node_1 is None:
         min_node_id = float("inf")
         for node in nodes:
-            node_id = node.get("id")
-            if node_id is None and "node_name" in node:
-                try:
-                    node_id = int(node["node_name"])
-                except (ValueError, TypeError):
-                    continue
-
+            node_id = _extract_node_id(node)
             if node_id and node_id < min_node_id:
                 min_node_id = node_id
                 node_1 = node
 
     if node_1 is None:
-        logging.warning("Could not find any node with valid ID for port detection")
+        logging.debug("Could not find any node with valid ID for port detection (using defaults)")
         return {}
 
     # Extract node_id, port, and metrics_port
-    node_id = node_1.get("id")
-    if node_id is None and "node_name" in node_1:
-        try:
-            node_id = int(node_1["node_name"])
-        except (ValueError, TypeError):
-            logging.warning("Could not parse node_id from node_name")
-            return {}
+    node_id = _extract_node_id(node_1)
+    if node_id is None:
+        logging.warning("Could not extract node_id from node")
+        return {}
 
     node_port = node_1.get("port")
     metrics_port = node_1.get("metrics_port")

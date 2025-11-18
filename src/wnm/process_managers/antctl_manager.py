@@ -489,6 +489,17 @@ class AntctlManager(ProcessManager):
                 card["log_dir"] = node_data.get("log_dir_path", "")  # Store log directory
                 card["port"] = node_data.get("node_port", 0)
                 card["metrics_port"] = node_data.get("metrics_port", 0)
+
+                # Extract RPC port from rpc_socket_addr (e.g., "127.0.0.1:30001")
+                rpc_socket = node_data.get("rpc_socket_addr", "")
+                if rpc_socket and ":" in rpc_socket:
+                    try:
+                        card["rpc_port"] = int(rpc_socket.split(":")[-1])
+                    except (ValueError, IndexError):
+                        card["rpc_port"] = 0
+                else:
+                    card["rpc_port"] = 0
+
                 card["wallet"] = node_data.get("rewards_address", "")
                 card["peer_id"] = node_data.get("peer_id", "")
                 card["version"] = node_data.get("version", "")

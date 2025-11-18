@@ -162,28 +162,17 @@ def main():
 
     # Do we already have nodes
     if metrics["total_nodes"] == 0:
-        # Survey for existing nodes if:
+        # Survey for existing nodes only if explicitly requested:
         # 1. Migrating from anm (--init --migrate_anm)
-        # 2. Initializing with antctl to import existing antctl nodes (--init with antctl+user/antctl+sudo)
-        # 3. Initializing with any process manager to rebuild database from system (--init with systemd/launchd/setsid)
-        should_survey = (
-            (options.init and options.migrate_anm)
-            or (
-                options.init
-                and machine_config.process_manager
-                and machine_config.process_manager.startswith("antctl")
-            )
-            or (
-                options.init
-                and machine_config.process_manager
-                and machine_config.process_manager
-                in ["systemd", "systemd+user", "systemd+sudo", "launchd", "launchd+user", "launchd+sudo"]
-            )
+        # 2. Importing existing nodes (--init --import)
+        should_survey = options.init and (
+            options.migrate_anm or getattr(options, "import_nodes", False)
         )
 
         if should_survey:
             Workers = survey_machine(machine_config) or []
             if Workers:
+                logging.info(f"Found {len(Workers)} existing nodes to import")
                 # Detect port ranges from discovered nodes
                 detected_ports = detect_port_ranges_from_nodes(Workers)
 
@@ -227,6 +216,7 @@ def main():
                     with S() as session:
                         session.execute(insert(Node), Workers)
                         session.commit()
+                    logging.info(f"Successfully imported {len(Workers)} node{'s' if len(Workers) != 1 else ''}")
                     # Reload metrics
                     metrics = get_machine_metrics(
                         S,
@@ -234,13 +224,13 @@ def main():
                         local_config["hd_remove"],
                         local_config["crisis_bytes"],
                     )
-                logging.info(
-                    "Found {counter} nodes defined".format(
-                        counter=metrics["total_nodes"]
+                    logging.info(
+                        "Found {counter} nodes configured".format(
+                            counter=metrics["total_nodes"]
+                        )
                     )
-                )
             else:
-                logging.warning("Requested migration but no nodes found")
+                logging.info("No existing nodes found to import")
         else:
             logging.info("No nodes found")
     else:
@@ -351,7 +341,7 @@ def main():
     logging.info("Action: " + json.dumps(this_action, indent=2))
 
     os.remove(LOCK_FILE)
-    sys.exit(1)
+    sys.exit(0)
 
 
 if __name__ == "__main__":

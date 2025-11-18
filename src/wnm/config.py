@@ -268,6 +268,12 @@ def load_config():
     c.add("--init", help="Initialize a cluster", action="store_true")
     c.add("--migrate_anm", help="Migrate a cluster from anm", action="store_true")
     c.add(
+        "--import",
+        dest="import_nodes",
+        help="Import existing nodes during initialization (used with --init)",
+        action="store_true",
+    )
+    c.add(
         "--confirm",
         help="Confirm destructive operations (required for teardown)",
         action="store_true",

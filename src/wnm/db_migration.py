@@ -209,4 +209,6 @@ def auto_stamp_new_database(engine, db_url: str):
             stamp_database(engine, db_url, "head")
             logging.info("New database auto-stamped with current migration version")
         except Exception as e:
-            logging.warning(f"Could not auto-stamp database: {e}")
+            # Silently ignore stamping errors for new databases
+            # This can happen with relative paths on first initialization
+            logging.debug(f"Could not auto-stamp database (expected for new databases): {e}")
