@@ -28,9 +28,6 @@ from wnm.common import (
 from wnm.models import Base, Machine, Node
 from wnm.wallets import validate_rewards_address
 
-logging.getLogger("sqlalchemy.engine.Engine").disabled = True
-
-
 # ============================================================================
 # Platform Detection and Path Constants
 # ============================================================================
@@ -218,11 +215,9 @@ if not os.getenv("WNM_TEST_MODE"):
                         stderr=subprocess.PIPE,
                     )
                 except (subprocess.CalledProcessError, FileNotFoundError) as e:
-                    # If sudo fails or isn't available, warn but continue
-                    logging.warning(
-                        f"Could not create system directory {directory}: {e}. "
-                        f"You may need to run: sudo mkdir -p {directory}"
-                    )
+                    # If sudo fails or isn't available, silently continue
+                    # (logging not yet configured at module import time)
+                    pass
     else:
         # For user mode, create directories normally (no sudo needed)
         os.makedirs(BASE_DIR, exist_ok=True)
@@ -440,8 +435,15 @@ def load_config():
     else:
         log_level = logging.INFO
 
-    # Set the logging level
-    logging.basicConfig(level=log_level, force=True)
+    # Set the logging level with a proper format
+    logging.basicConfig(
+        level=log_level,
+        format='%(levelname)s [%(name)s] %(message)s',
+        force=True
+    )
+    # Explicitly set root logger level to ensure it takes effect
+    logging.getLogger().setLevel(log_level)
+
     # Info level logging for sqlalchemy is too verbose, only use when needed
     logging.getLogger("sqlalchemy.engine.Engine").disabled = True
 
@@ -898,7 +900,8 @@ _SKIP_DB_INIT = (
 
 # Setup Database engine (skip if --version, --remove_lockfile, or test mode)
 if not _SKIP_DB_INIT:
-    engine = create_engine(options.dbpath, echo=True)
+    # Disable SQLAlchemy's echo to prevent it from reconfiguring logging
+    engine = create_engine(options.dbpath, echo=False)
     # Generate ORM
     Base.metadata.create_all(engine)
     # Create a connection to the ORM

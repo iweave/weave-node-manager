@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.1.5] - 2025-11-18
+
+### Fixed
+- **Critical: Logging system completely broken**: Fixed logging not outputting INFO/DEBUG messages
+  - Root cause: Alembic imports at module level triggered Python's default logging auto-configuration with WARNING level
+  - Moved all alembic imports inside their respective functions to prevent premature logging configuration
+  - Added try/finally block to always restore logging level even if exceptions occur during database stamping
+  - Disabled SQLAlchemy's `echo=True` which was interfering with logging configuration
+  - Logging now properly respects `--loglevel` setting (info, debug, warning, error)
+  - Output format now shows full level name ("INFO" instead of truncated "WARNI")
+
 ## [0.1.4] - 2025-11-17
 
 ### Fixed

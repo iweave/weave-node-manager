@@ -12,15 +12,15 @@ import os
 import sys
 from pathlib import Path
 
-from alembic import command
-from alembic.config import Config
-from alembic.script import ScriptDirectory
 from sqlalchemy import text
 
 
-def get_alembic_config(db_url: str = None) -> Config:
+def get_alembic_config(db_url: str = None):
     """
     Get Alembic configuration.
+
+    NOTE: Alembic imports are done inside this function to prevent automatic
+    logging reconfiguration at module import time.
 
     Args:
         db_url: Database URL (if None, uses default from alembic.ini)
@@ -28,6 +28,9 @@ def get_alembic_config(db_url: str = None) -> Config:
     Returns:
         Alembic Config object
     """
+    # Import alembic here to prevent it from reconfiguring logging at module import time
+    from alembic.config import Config
+
     # Find alembic.ini - it should be at the project root
     # When installed, it will be in the package root
     current_dir = Path(__file__).parent
@@ -48,7 +51,8 @@ def get_alembic_config(db_url: str = None) -> Config:
             "Could not find alembic.ini. Database migrations cannot be managed."
         )
 
-    config = Config(alembic_ini)
+    # Disable Alembic's logging configuration to prevent it from resetting root logger
+    config = Config(alembic_ini, ini_section="alembic", attributes={'configure_logger': False})
 
     # Override database URL if provided
     if db_url:
@@ -77,7 +81,7 @@ def get_current_revision(engine) -> str | None:
         return None
 
 
-def get_head_revision(config: Config) -> str:
+def get_head_revision(config) -> str:
     """
     Get the HEAD revision from migration scripts.
 
@@ -87,6 +91,9 @@ def get_head_revision(config: Config) -> str:
     Returns:
         HEAD revision hash
     """
+    # Import here to prevent module-level logging reconfiguration
+    from alembic.script import ScriptDirectory
+
     script = ScriptDirectory.from_config(config)
     return script.get_current_head()
 
@@ -129,8 +136,18 @@ def stamp_database(engine, db_url: str, revision: str = "head"):
         db_url: Database URL
         revision: Revision to stamp (default: "head")
     """
+    # Import here to prevent module-level logging reconfiguration
+    from alembic import command
+
+    # Save current logging level (Alembic reconfigures logging)
+    root_logger = logging.getLogger()
+    saved_level = root_logger.level
+
     config = get_alembic_config(db_url)
     command.stamp(config, revision)
+
+    # Restore logging level after Alembic finishes
+    root_logger.setLevel(saved_level)
     logging.info(f"Database stamped with revision: {revision}")
 
 
@@ -142,6 +159,9 @@ def run_migrations(engine, db_url: str):
         engine: SQLAlchemy engine
         db_url: Database URL
     """
+    # Import here to prevent module-level logging reconfiguration
+    from alembic import command
+
     config = get_alembic_config(db_url)
     current = get_current_revision(engine)
     head = get_head_revision(config)
@@ -205,10 +225,42 @@ def auto_stamp_new_database(engine, db_url: str):
 
     # Only stamp if alembic_version table doesn't exist
     if current is None:
+        # Skip stamping for relative paths (./colony.db) or when alembic.ini not found
+        # Stamping will fail for relative paths during module import
         try:
-            stamp_database(engine, db_url, "head")
-            logging.info("New database auto-stamped with current migration version")
-        except Exception as e:
-            # Silently ignore stamping errors for new databases
-            # This can happen with relative paths on first initialization
-            logging.debug(f"Could not auto-stamp database (expected for new databases): {e}")
+            # Check if we can find alembic.ini before attempting stamp
+            current_dir = Path(__file__).parent
+            alembic_ini_paths = [
+                current_dir.parent.parent.parent / "alembic.ini",
+                current_dir.parent.parent / "alembic.ini",
+                Path("alembic.ini"),
+            ]
+
+            alembic_ini = None
+            for path in alembic_ini_paths:
+                if path.exists():
+                    alembic_ini = str(path)
+                    break
+
+            if not alembic_ini:
+                # Can't find alembic.ini, skip stamping silently
+                return
+
+            # Save logging level BEFORE calling functions that import alembic
+            # (Alembic imports trigger logging reconfiguration)
+            root_logger = logging.getLogger()
+            saved_level = root_logger.level
+
+            try:
+                stamp_database(engine, db_url, "head")
+                logging.info("New database auto-stamped with current migration version")
+            except Exception:
+                # Silently ignore stamping errors for new databases
+                # This can happen with relative paths or missing alembic.ini
+                pass
+            finally:
+                # Always restore logging level, even if there's an exception
+                root_logger.setLevel(saved_level)
+        except Exception:
+            # Silently ignore other errors (e.g., checking alembic.ini existence)
+            pass
