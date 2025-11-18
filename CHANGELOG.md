@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [0.1.6] - 2025-11-18
+
+### Added
+- **Verbose output control flags**: Added granular control over INFO-level logging
+  - `--show_machine_config`: Log machine configuration on each run (default: disabled)
+  - `--show_machine_metrics`: Log system metrics on each run (default: disabled)
+  - `--show_decisions`: Log decision engine features on each run (default: disabled)
+  - All three flags also enabled when `-v` (verbose) flag is set
+- **New report types**: Added two new report options for on-demand data access
+  - `--report machine-config`: Output machine configuration with database path (text or JSON)
+  - `--report machine-metrics`: Output current system metrics (text or JSON)
+
+### Changed
+- **Reduced default logging verbosity**: Machine config, system metrics, and decision engine features no longer logged by default
+  - Previously these were always logged at INFO level on every run
+  - Now requires explicit `--show_*` flags or `-v` to display
+  - Cleaner output for production cron jobs and scripts
+  - Data still accessible via new report types when needed
+
 ## [0.1.5] - 2025-11-18
 
 ### Fixed

@@ -83,7 +83,8 @@ def choose_action(machine_config, metrics, dry_run):
     actions = engine.plan_actions()
 
     # Log the computed features for debugging
-    logging.info(json.dumps(engine.get_features(), indent=2))
+    if options.show_decisions or options.v:
+        logging.info(json.dumps(engine.get_features(), indent=2))
 
     # Use ActionExecutor to execute the planned actions
     executor = ActionExecutor(S)
@@ -127,7 +128,9 @@ def main():
 
     # Config should have loaded the machine_config
     if machine_config:
-        logging.info("Machine: " + json.dumps(machine_config))
+        # Only log machine config at INFO level if --show_machine_config or -v is set
+        if options.show_machine_config or options.v:
+            logging.info("Machine: " + json.dumps(machine_config))
     else:
         logging.error("Unable to load machine config, exiting")
         sys.exit(1)
@@ -158,7 +161,9 @@ def main():
         local_config["hd_remove"],
         local_config["crisis_bytes"],
     )
-    logging.info(json.dumps(metrics, indent=2))
+    # Only log metrics at INFO level if --show_machine_metrics or -v is set
+    if options.show_machine_metrics or options.v:
+        logging.info(json.dumps(metrics, indent=2))
 
     # Do we already have nodes
     if metrics["total_nodes"] == 0:
@@ -244,6 +249,8 @@ def main():
             generate_node_status_report,
             generate_node_status_details_report,
             generate_influx_resources_report,
+            generate_machine_config_report,
+            generate_machine_metrics_report,
         )
 
         # If survey action is specified, run it first
@@ -270,6 +277,14 @@ def main():
             )
         elif options.report == "influx-resources":
             report_output = generate_influx_resources_report(S, options.service_name)
+        elif options.report == "machine-config":
+            report_output = generate_machine_config_report(
+                S, options.dbpath, options.report_format
+            )
+        elif options.report == "machine-metrics":
+            report_output = generate_machine_metrics_report(
+                metrics, options.report_format
+            )
         else:
             report_output = f"Unknown report type: {options.report}"
 

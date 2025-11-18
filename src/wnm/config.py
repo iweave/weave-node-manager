@@ -236,6 +236,21 @@ def load_config():
     c.add("-c", "--config", is_config_file=True, help="config file path")
     c.add("-v", help="verbose", action="store_true")
     c.add(
+        "--show_machine_config",
+        help="Log machine config at INFO level on every run (default: disabled)",
+        action="store_true",
+    )
+    c.add(
+        "--show_machine_metrics",
+        help="Log system metrics at INFO level on every run (default: disabled)",
+        action="store_true",
+    )
+    c.add(
+        "--show_decisions",
+        help="Log decision engine features at INFO level (default: disabled)",
+        action="store_true",
+    )
+    c.add(
         "-q",
         "--quiet",
         help="Quiet mode (suppress all output except errors)",
@@ -380,8 +395,8 @@ def load_config():
     c.add(
         "--report",
         env_var="REPORT",
-        help="Generate a report: node-status, node-status-details, influx-resources",
-        choices=["node-status", "node-status-details", "influx-resources"],
+        help="Generate a report: node-status, node-status-details, influx-resources, machine-config, machine-metrics",
+        choices=["node-status", "node-status-details", "influx-resources", "machine-config", "machine-metrics"],
     )
     c.add(
         "--report_format",

@@ -406,3 +406,79 @@ def generate_influx_resources_report(
     """
     reporter = NodeReporter(session_factory)
     return reporter.influx_resources_report(service_name)
+
+
+def generate_machine_config_report(
+    session_factory,
+    dbpath: str,
+    report_format: str = "text"
+) -> str:
+    """
+    Generate a report of the machine configuration.
+
+    Args:
+        session_factory: SQLAlchemy scoped_session factory
+        dbpath: Path to the database
+        report_format: Output format ("text" or "json")
+
+    Returns:
+        Formatted report string
+    """
+    from sqlalchemy import select
+    from wnm.models import Machine
+
+    with session_factory() as session:
+        result = session.execute(select(Machine)).first()
+        if not result:
+            return "No machine configuration found"
+
+        machine = result[0]
+        config_dict = machine.__json__()
+
+        # Add dbpath to the config
+        config_dict["dbpath"] = dbpath
+
+        if report_format == "json":
+            return json.dumps(config_dict, indent=2)
+        else:
+            # Text format: one entry per line
+            lines = []
+            for key, value in config_dict.items():
+                lines.append(f"{key}: {value}")
+            return "\n".join(lines)
+
+
+def generate_machine_metrics_report(
+    metrics: dict,
+    report_format: str = "text"
+) -> str:
+    """
+    Generate a report of the current system metrics.
+
+    Args:
+        metrics: Dictionary of system metrics from get_machine_metrics()
+        report_format: Output format ("text" or "json")
+
+    Returns:
+        Formatted report string
+    """
+    if not metrics:
+        if report_format == "json":
+            return json.dumps({"error": "No metrics available"}, indent=2)
+        return "No metrics available"
+
+    # Create a copy to avoid modifying the original
+    metrics_output = dict(metrics)
+
+    # Convert Counter object to regular dict for JSON serialization
+    if "nodes_by_version" in metrics_output:
+        metrics_output["nodes_by_version"] = dict(metrics_output["nodes_by_version"])
+
+    if report_format == "json":
+        return json.dumps(metrics_output, indent=2)
+    else:
+        # Text format: one entry per line
+        lines = []
+        for key, value in metrics_output.items():
+            lines.append(f"{key}: {value}")
+        return "\n".join(lines)
