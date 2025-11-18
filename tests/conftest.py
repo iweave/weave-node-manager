@@ -62,6 +62,7 @@ def sample_machine_config():
         "hd_less_than": 80,
         "hd_remove": 90,
         "delay_start": 300,  # 5 minutes in seconds
+        "delay_restart": 300,  # 5 minutes in seconds
         "delay_upgrade": 600,  # 10 minutes in seconds
         "delay_remove": 900,  # 15 minutes in seconds
         "node_storage": "/tmp/test_nodes",
@@ -82,6 +83,7 @@ def sample_machine_config():
         "host": "test-host",
         "crisis_bytes": 2000000000,
         "metrics_port_start": 13000,
+        "rpc_port_start": 30,
         "environment": None,
         "start_args": None,
         "max_concurrent_upgrades": 1,
@@ -89,6 +91,7 @@ def sample_machine_config():
         "max_concurrent_removals": 1,
         "node_removal_strategy": "youngest",
         "process_manager": process_manager,
+        "antnode_path": "~/.local/bin/antnode",
     }
 
 
@@ -123,6 +126,7 @@ def sample_node_config():
         "root_dir": "/tmp/test_nodes/antnode0001",
         "port": 55001,
         "metrics_port": 13001,
+        "rpc_port": 30001,
         "network": "evm-arbitrum-one",
         "wallet": "0x1234567890123456789012345678901234567890",
         "peer_id": None,

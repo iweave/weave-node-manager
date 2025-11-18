@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.1.7] - 2025-11-18
+
+### Fixed
+- **Test fixtures missing required model parameters**: Fixed test failures caused by fixtures not including new required fields
+  - Added `delay_restart` and `rpc_port_start` to `sample_machine_config` in `conftest.py`
+  - Added `rpc_port` to `sample_node_config` in `conftest.py`
+  - Added `antnode_path` to `sample_machine_config` in `conftest.py`
+  - Fixed `test_reports.py` local fixtures to include `delay_restart`, `rpc_port_start`, and `rpc_port` fields
+  - All 246 tests now pass (was 7 failed, 64 errors)
+
 ## [0.1.6] - 2025-11-18
 
 ### Added
