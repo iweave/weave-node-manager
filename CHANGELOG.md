@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-11-20
+
+### Fixed
+- **Alembic migration chain**: Fixed branched migration tree by updating `survey_delay` migration parent
+  - Migration `fa0ca0abff5c` (add_survey_delay_to_machine) now correctly revises `3249fcc20390` instead of `44f23f078686`
+  - Resolves "multiple heads" error in Alembic migration history
+  - Creates proper linear migration chain from baseline through all schema changes
+  - Ensures `alembic upgrade head` runs correctly without branch conflicts
+
 ## [0.1.10] - 2025-11-20
 
 ### Added

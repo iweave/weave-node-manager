@@ -4,7 +4,7 @@ Added survey_delay field to Machine table to control delay between node surveys 
 Defaults to 0 milliseconds (no delay) for backwards compatibility.
 
 Revision ID: fa0ca0abff5c
-Revises: 44f23f078686
+Revises: 3249fcc20390
 Create Date: 2025-11-19 23:54:46.042424
 
 """
@@ -16,7 +16,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'fa0ca0abff5c'
-down_revision: Union[str, Sequence[str], None] = '44f23f078686'
+down_revision: Union[str, Sequence[str], None] = '3249fcc20390'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
