@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## [0.1.10] - 2025-11-20
+
+### Added
+- **Survey delay feature for load distribution**: Added `--survey_delay` parameter to spread out load when surveying nodes
+  - New `--survey_delay` command-line flag accepting milliseconds (default: 0, no delay)
+  - Environment variable: `SURVEY_DELAY`
+  - Inserts configurable delay between each node survey to reduce server load spikes
+  - Applies to both automatic surveys (decision engine) and forced surveys (`--force_action survey`)
+  - Delay inserted BETWEEN nodes, not after the last node (optimized)
+  - Recommended values: 100-500ms for servers with 20+ nodes
+  - Added `survey_delay` field to Machine model (Integer, default: 0)
+  - Database migration: `fa0ca0abff5c_add_survey_delay_to_machine.py`
+  - Documentation added to `docs/USER-GUIDE-PART3.md` section 3.3
+  - Example usage: `wnm --survey_delay 250` for 250ms delay between node surveys
+
+## [0.1.9] - 2025-11-19
+
+### Fixed
+- **Database migration documentation**: Updated `docs/USER-GUIDE-PART3.md` section 3.7 with comprehensive database migration guide
+  - Added step-by-step migration process (backup → run migration → verify)
+  - Added examples of migration output for all scenarios (needed, successful, already up-to-date)
+  - Added troubleshooting section for common migration issues
+  - Added best practices for safe database migrations
+  - Documented automatic detection and new database initialization behavior
+
 ## [0.1.8] - 2025-11-19
 
 ### Added

@@ -468,7 +468,13 @@ def update_counters(S, old, config):
 
 
 # Enable firewall for port
-def update_nodes(S):
+def update_nodes(S, survey_delay_ms=0):
+    """Update all nodes with current metrics.
+
+    Args:
+        S: SQLAlchemy session factory
+        survey_delay_ms: Delay in milliseconds between surveying each node (default: 0)
+    """
     with S() as session:
         nodes = session.execute(
             select(Node.timestamp, Node.id, Node.host, Node.metrics_port, Node.status)
@@ -476,7 +482,7 @@ def update_nodes(S):
             .order_by(Node.timestamp.asc())
         ).all()
     # Iterate through all records
-    for check in nodes:
+    for idx, check in enumerate(nodes):
         # Check on status
         if isinstance(check[0], int):
             logging.debug("Updating info on node " + str(check[1]))
@@ -487,3 +493,7 @@ def update_nodes(S):
                 if node_metadata["status"] == STOPPED and check[4] == STOPPED:
                     continue
                 update_node_from_metrics(S, check[1], node_metrics, node_metadata)
+
+            # Insert delay between nodes (but not after the last node)
+            if survey_delay_ms > 0 and idx < len(nodes) - 1:
+                time.sleep(survey_delay_ms / 1000.0)

@@ -279,6 +279,19 @@ All delay values are in **seconds** (not minutes).
 - Description: How long to wait in REMOVING state before actually removing a node
 - Use case: Provides a grace period before permanent removal
 
+**`--survey_delay`**
+- Environment variable: `SURVEY_DELAY`
+- Type: Integer (milliseconds)
+- Default: `0` (no delay)
+- Description: Delay in milliseconds between surveying each node
+- Use case: Spreads out the load when surveying many nodes on large servers
+- Notes:
+  - Applies to both automatic surveys (decision engine) and forced surveys (`--force_action survey`)
+  - Delay is inserted BETWEEN nodes, not after the last node
+  - Set to 0 to disable (surveys all nodes as fast as possible)
+  - Useful values: 100-500ms for servers with 20+ nodes
+- Example: `--survey_delay 250` inserts 250ms delay between each node survey
+
 ### Crisis Bytes Threshold
 
 **`--crisis_bytes`**

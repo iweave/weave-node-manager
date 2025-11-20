@@ -299,6 +299,7 @@ def load_config():
     c.add("--delay_restart", env_var="DELAY_RESTART", help="Delay Restart Timer")
     c.add("--delay_upgrade", env_var="DELAY_UPGRADE", help="Delay Upgrade Timer")
     c.add("--delay_remove", env_var="DELAY_REMOVE", help="Delay Remove Timer")
+    c.add("--survey_delay", env_var="SURVEY_DELAY", help="Survey Delay between nodes (milliseconds)")
     c.add("--node_storage", env_var="NODE_STORAGE", help="Node Storage Path")
     c.add("--rewards_address", env_var="REWARDS_ADDRESS", help="Rewards Address")
     c.add("--donate_address", env_var="DONATE_ADDRESS", help="Donate Address")
@@ -510,6 +511,11 @@ def merge_config_changes(options, machine_config):
         and int(options.delay_remove) != machine_config.delay_remove
     ):
         cfg["delay_remove"] = int(options.delay_remove)
+    if (
+        options.survey_delay
+        and int(options.survey_delay) != machine_config.survey_delay
+    ):
+        cfg["survey_delay"] = int(options.survey_delay)
     if options.node_storage and options.node_storage != machine_config.node_storage:
         cfg["node_storage"] = options.node_storage
     if (
@@ -675,6 +681,7 @@ def load_anm_config(options):
     anm_config["delay_remove"] = int(
         os.getenv("DelayRemove") or _get_option(options, "delay_remove") or 300
     )
+    anm_config["survey_delay"] = int(_get_option(options, "survey_delay") or 0)
     anm_config["node_storage"] = (
         os.getenv("NodeStorage") or _get_option(options, "node_storage") or NODE_STORAGE
     )
@@ -817,6 +824,7 @@ def define_machine(options):
         "delay_restart": int(_get_option(options, "delay_restart") or 600),
         "delay_upgrade": int(_get_option(options, "delay_upgrade") or 300),
         "delay_remove": int(_get_option(options, "delay_remove") or 300),
+        "survey_delay": int(_get_option(options, "survey_delay") or 0),
         "node_storage": _get_option(options, "node_storage") or NODE_STORAGE,
         "rewards_address": _get_option(options, "rewards_address"),
         "donate_address": _get_option(options, "donate_address") or FAUCET,

@@ -267,7 +267,7 @@ class ActionExecutor:
         if dry_run:
             logging.warning("DRYRUN: System rebooted, survey nodes")
         else:
-            update_nodes(self.S)
+            update_nodes(self.S, survey_delay_ms=machine_config.get("survey_delay", 0))
             # Update the last stopped time
             with self.S() as session:
                 session.query(Machine).filter(Machine.id == 1).update(
@@ -580,7 +580,8 @@ class ActionExecutor:
         if dry_run:
             logging.warning("DRYRUN: Update nodes")
         else:
-            update_nodes(self.S)
+            survey_delay = self.machine_config.get("survey_delay", 0) if self.machine_config else 0
+            update_nodes(self.S, survey_delay_ms=survey_delay)
         return {"status": "idle"}
 
     def _parse_node_name(self, service_name: str) -> Optional[int]:
@@ -1285,12 +1286,14 @@ class ActionExecutor:
         Returns:
             Dictionary with survey results
         """
+        import time
         from wnm.utils import read_node_metrics, read_node_metadata, update_node_from_metrics
 
         surveyed_nodes = []
         failed_nodes = []
+        survey_delay_ms = self.machine_config.survey_delay
 
-        for service_name in service_names:
+        for idx, service_name in enumerate(service_names):
             node = self._get_node_by_name(service_name)
             if not node:
                 failed_nodes.append({"service": service_name, "error": "not found"})
@@ -1329,6 +1332,10 @@ class ActionExecutor:
 
                 update_node_from_metrics(self.S, node.id, node_metrics, node_metadata)
                 surveyed_nodes.append(service_name)
+
+            # Insert delay between nodes (but not after the last node)
+            if survey_delay_ms > 0 and idx < len(service_names) - 1:
+                time.sleep(survey_delay_ms / 1000.0)
 
         return {
             "status": "survey-complete" if not dry_run else "survey-dryrun",
@@ -1370,7 +1377,8 @@ class ActionExecutor:
                 return {"status": "survey-dryrun", "node_count": node_count}
 
             # Update all nodes
-            update_nodes(self.S)
+            survey_delay = self.machine_config.get("survey_delay", 0) if self.machine_config else 0
+            update_nodes(self.S, survey_delay_ms=survey_delay)
 
             # Get updated count
             with self.S() as session:
