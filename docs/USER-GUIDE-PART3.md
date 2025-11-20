@@ -677,6 +677,57 @@ These settings control how many nodes can be in transitional states simultaneous
 - Description: Output format for reports
 - Note: `influx-resources` report only supports InfluxDB line protocol format (no json/text option)
 
+### InfluxDB Resources Report Export Examples
+
+The `influx-resources` report generates output in InfluxDB line protocol format, which can be ingested by [NTracking](https://github.com/safenetforum-community/NTracking) using Telegraf.
+
+**Prerequisites:**
+- Telegraf installed and configured with `inputs.file` plugin
+- Directory for InfluxDB line protocol files (e.g., `/tmp/influx-resources/`)
+- Telegraf configuration watching the directory
+
+**Linux (Local Telegraf Installation):**
+
+When Telegraf is running on the same Linux machine as wnm:
+
+```bash
+# Export metrics to file for Telegraf ingestion
+wnm --report influx-resources --force_action survey -q > /tmp/influx-resources/influx-resources
+```
+
+This writes the InfluxDB line protocol directly to a file that Telegraf can read and forward to InfluxDB.
+
+**macOS (Remote Telegraf via SSH):**
+
+When running wnm on macOS and Telegraf is on a remote Linux machine (e.g., a VM):
+
+```bash
+# Export metrics and send to remote Telegraf host via SSH
+wnm --report influx-resources --force_action survey -q | ssh xdntracking tee /tmp/influx-resources/influx-resources
+```
+
+This pipes the output through SSH to write it to the remote machine's Telegraf input directory.
+
+**Automation with Cron:**
+
+Add to crontab to export metrics every minute:
+
+```bash
+# Linux (local Telegraf)
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+/5 * * * * . ~/.venv/bin/activate && wnm --report influx-resources --force_action survey -q > /tmp/influx-resources/influx-resources 2>&1
+
+# macOS (remote Telegraf)
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+* * * * * /Users/username/.pyenv/versions/3.14.0/bin/wnm --report influx-resources --force_action survey -q | ssh xdntracking tee /tmp/influx-resources/influx-resources >/dev/null 2>&1
+```
+
+**Notes:**
+- Use `-q` (quiet mode) to suppress non-metric output
+- `--force_action survey` updates all node metrics before generating the report
+- Ensure the target directory exists and is writable
+- For SSH method, set up SSH key authentication to avoid password prompts
+
 ### Special Flags
 
 **`--init`**

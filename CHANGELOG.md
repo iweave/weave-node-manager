@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.1.8] - 2025-11-19
+
+### Added
+- **InfluxDB Resources Report Export Examples**: Added comprehensive documentation for exporting `influx-resources` report to NTracking
+  - Added new section "InfluxDB Resources Report Export Examples" in `docs/USER-GUIDE-PART3.md`
+  - Linux example for local Telegraf installations writing to `/tmp/influx-resources/`
+  - macOS example for remote Telegraf via SSH to VM (e.g., `ssh xdntracking tee /tmp/influx-resources/influx-resources`)
+  - Cron automation examples for both Linux and macOS scenarios with proper PATH configuration
+  - Documentation of integration with NTracking technology stack
+  - Notes on using `-q` flag, `--force_action survey`, and SSH key authentication
+
 ## [0.1.7] - 2025-11-18
 
 ### Fixed
