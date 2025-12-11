@@ -718,11 +718,59 @@ Example: If `max_concurrent_starts=4` but only 2 stopped nodes exist, WNM will:
 **`--force_action`**
 - Environment variable: `FORCE_ACTION`
 - Type: String
-- Choices: `add`, `remove`, `upgrade`, `start`, `stop`, `disable`, `teardown`, `survey`, `wnm-db-migration`
+- Choices: `add`, `remove`, `upgrade`, `start`, `stop`, `disable`, `teardown`, `survey`, `wnm-db-migration`, `nullop`, `update_config`
 - Description: Force a specific action regardless of resource thresholds
 - Use with: `--service_name` to target specific nodes (for node actions)
 - Use with: `--count` to affect multiple nodes (for node actions)
 - Use with: `--confirm` for destructive operations (`teardown`, `wnm-db-migration`)
+
+#### Lightweight Config Update Actions
+
+**`nullop` / `update_config`**
+- Type: Forced action (bypasses decision engine)
+- Description: Update configuration settings without running the full decision engine cycle
+- Use cases:
+  - Quick configuration parameter changes
+  - Testing configuration updates with `--dry_run`
+  - Updating thresholds without triggering node management
+  - Minimal resource usage for config-only operations
+- Behavior:
+  - Loads minimal resources (config only, no system metrics)
+  - Applies any command-line config parameter changes to database
+  - Exits immediately without node surveying or decision engine
+  - Supports `--dry_run` mode for testing changes
+- Notes:
+  - Both `nullop` and `update_config` are aliases for the same action
+  - Does NOT collect system metrics or node status
+  - Does NOT run the decision engine or take any node actions
+  - Only updates configuration values in the database
+
+**Examples:**
+
+Update node capacity:
+```bash
+wnm --force_action nullop --node_cap 30
+```
+
+Update CPU thresholds:
+```bash
+wnm --force_action update_config --cpu_less_than 60 --cpu_remove 80
+```
+
+Test configuration change without saving (dry-run):
+```bash
+wnm --force_action nullop --mem_less_than 70 --dry_run
+```
+
+Verify configuration loads correctly (no changes):
+```bash
+wnm --force_action update_config
+```
+
+Update multiple settings at once:
+```bash
+wnm --force_action nullop --node_cap 40 --delay_start 600 --survey_delay 250
+```
 
 **`--service_name`**
 - Environment variable: `SERVICE_NAME`
