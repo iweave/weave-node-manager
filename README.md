@@ -274,7 +274,7 @@ wnm --init --rewards_address 0xYourEthereumAddress
 
 ### Run via Cron (Recommended)
 
-WNM is designed to run every minute via cron, making one decision per cycle:
+WNM is designed to run every minute via cron. By default it performs one operation per cycle, but can be configured for concurrent operations on powerful machines:
 
 **macOS:**
 ```bash

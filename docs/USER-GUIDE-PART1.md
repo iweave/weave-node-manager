@@ -79,7 +79,7 @@ Weave Node Manager is **Alpha software**. While it has been tested and is in act
 - **ANM cluster migration is one-way** you have to reset if you want to go back to anm
 
 That said, wnm is designed to be safe:
-- It operates conservatively by default (one action per cycle)
+- It operates conservatively by default (one operation per cycle, configurable for concurrent operations on powerful machines)
 - Dry-run mode lets you test before making changes
 
 
@@ -926,8 +926,9 @@ sudo tail -f /var/antctl/wnm-cron.log
 
 Once cron is set up, wnm will run every minute and make decisions:
 
-**Initial Growth Phase** (first hour):
-- Adds nodes one at a time every few minutes
+**Initial Growth Phase** (first hours):
+- By default: Adds nodes one at a time every few minutes
+- With concurrent operations enabled: Can add multiple nodes simultaneously for faster scaling
 - Stops when resource thresholds are hit OR node cap is reached
 - Each node takes ~1 minute to start and begin responding
 
@@ -939,7 +940,7 @@ Once cron is set up, wnm will run every minute and make decisions:
 - Upgrades nodes when new antnode versions are released
 - Restarts nodes that become unresponsive
 
-**Example Timeline:**
+**Example Timeline (Default - Conservative):**
 ```
 Minute 0:  wnm runs, creates antnode-1
 Minute 1:  wnm runs, antnode-1 still starting, idle
@@ -951,10 +952,58 @@ Minute 30: wnm runs, 15 nodes RUNNING, CPU at 72%, idle (under add threshold but
 Minute 31: wnm runs, CPU at 68%, creates antnode-16
 ...
 Minute 60: CPU spikes to 82% (you started compiling code)
-Minute 61: wnm runs, removes youngest node (antnode-16)
+Minute 61: wnm runs, stops youngest node (antnode-16)
 Minute 62: CPU drops to 78%, idle (above add threshold)
 ...
 ```
+
+### Scaling Clusters with Concurrent Operations
+
+For powerful machines with high capacity, you can enable concurrent operations to scale clusters faster:
+
+**Conservative (default):**
+```bash
+wnm --max_concurrent_upgrades 1 \
+    --max_concurrent_starts 1 \
+    --max_concurrent_operations 1
+```
+
+**Aggressive (powerful machine):**
+```bash
+wnm --max_concurrent_upgrades 4 \
+    --max_concurrent_starts 4 \
+    --max_concurrent_removals 2 \
+    --max_concurrent_operations 8
+```
+
+**Very aggressive (high-end server):**
+```bash
+wnm --max_concurrent_upgrades 10 \
+    --max_concurrent_starts 10 \
+    --max_concurrent_removals 5 \
+    --max_concurrent_operations 20
+```
+
+**Example Timeline (Aggressive - 4 concurrent starts):**
+```
+Minute 0:  wnm runs, creates antnode-1, antnode-2, antnode-3, antnode-4
+Minute 1:  wnm runs, 4 nodes still starting, idle (at concurrent limit)
+Minute 2:  wnm runs, 4 nodes RUNNING, creates antnode-5, antnode-6, antnode-7, antnode-8
+Minute 3:  wnm runs, 4 new nodes still starting, idle (at concurrent limit)
+Minute 4:  wnm runs, 8 nodes RUNNING, creates antnode-9, antnode-10, antnode-11, antnode-12
+...
+Minute 8:  wnm runs, 20 nodes RUNNING, CPU at 75%, idle (near threshold)
+Minute 9:  wnm runs, CPU at 68%, creates antnode-21, antnode-22, antnode-23, antnode-24
+...
+```
+
+**Key Benefits:**
+- Faster cluster growth on powerful hardware
+- Better utilization of available resources
+- Reduced time to reach node cap
+- Configurable via command-line flags or database settings
+
+See USER-GUIDE-PART3.md Section 3.6 "Concurrency Limits" for detailed configuration options.
 
 #### Troubleshooting Cron
 

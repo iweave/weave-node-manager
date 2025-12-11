@@ -613,28 +613,95 @@ No user configuration is currently needed.
 
 ### Concurrency Limits (Advanced)
 
-These settings control how many nodes can be in transitional states simultaneously:
+These settings control how many nodes can be in transitional states simultaneously, allowing powerful machines to perform multiple operations in parallel for faster scaling.
 
-**`max_concurrent_upgrades`**
-- Database only (no CLI flag yet)
+**`--max_concurrent_upgrades`**
+- Environment variable: `MAX_CONCURRENT_UPGRADES`
 - Type: Integer
 - Default: `1`
-- Description: Maximum nodes that can be upgrading at once
-- Note: Set in database directly, not exposed via CLI
+- Description: Maximum nodes that can be upgrading simultaneously
+- Use case: Set higher on powerful machines to upgrade clusters faster
+- Example: `--max_concurrent_upgrades 4`
 
-**`max_concurrent_starts`**
-- Database only (no CLI flag yet)
-- Type: Integer
-- Default: `2`
-- Description: Maximum nodes that can be starting at once
-- Note: Set in database directly, not exposed via CLI
-
-**`max_concurrent_removals`**
-- Database only (no CLI flag yet)
+**`--max_concurrent_starts`**
+- Environment variable: `MAX_CONCURRENT_STARTS`
 - Type: Integer
 - Default: `1`
-- Description: Maximum nodes that can be in removal process at once
-- Note: Set in database directly, not exposed via CLI
+- Description: Maximum nodes that can be starting/restarting simultaneously
+- Use case: Set higher for faster cluster growth on machines with spare resources
+- Example: `--max_concurrent_starts 4`
+
+**`--max_concurrent_removals`**
+- Environment variable: `MAX_CONCURRENT_REMOVALS`
+- Type: Integer
+- Default: `1`
+- Description: Maximum nodes that can be in removal process simultaneously
+- Use case: Set higher to remove nodes faster during resource pressure or teardown
+- Example: `--max_concurrent_removals 2`
+
+**`--max_concurrent_operations`**
+- Environment variable: `MAX_CONCURRENT_OPERATIONS`
+- Type: Integer
+- Default: `1`
+- Description: Maximum total concurrent operations across all types (global limit)
+- Use case: Prevents overwhelming the system with too many simultaneous operations
+- Note: Effective limit is MIN(per_operation_limit, remaining_global_capacity)
+- Example: `--max_concurrent_operations 8`
+
+### Concurrent Operations Examples
+
+**Conservative (default):**
+```bash
+wnm --max_concurrent_upgrades 1 \
+    --max_concurrent_starts 1 \
+    --max_concurrent_operations 1
+```
+- Adds/upgrades nodes one at a time
+- Safest option, prevents system overload
+- Recommended for most users
+
+**Aggressive (powerful machine):**
+```bash
+wnm --max_concurrent_upgrades 4 \
+    --max_concurrent_starts 4 \
+    --max_concurrent_removals 2 \
+    --max_concurrent_operations 8
+```
+- Adds up to 4 nodes simultaneously
+- Upgrades up to 4 nodes in parallel
+- Faster cluster growth and upgrades
+
+**Very aggressive (high-end server):**
+```bash
+wnm --max_concurrent_upgrades 10 \
+    --max_concurrent_starts 10 \
+    --max_concurrent_removals 5 \
+    --max_concurrent_operations 20
+```
+- Maximize parallelization for rapid scaling
+- Can add 10+ nodes per minute
+- Best for: Dedicated servers
+- Monitor system resources carefully
+
+### How Concurrent Operations Work
+
+WNM will **aggressively scale to capacity** each cycle:
+- If upgrade limit is 4 and 2 nodes are upgrading, WNM will start 2 more upgrades immediately
+- Operations respect both per-type limits AND global limit
+- Dead node removals always take priority and ignore limits
+- Each action selects a different node (no duplicate operations on same node)
+
+**Capacity Constraints:**
+
+Operations are limited by actual node availability:
+- **Upgrades**: Limited by nodes needing upgrade
+- **Starts**: Limited by stopped nodes available
+- **Adds**: Limited by node cap - total nodes
+- **Removes**: Limited by stopped/running nodes available
+
+Example: If `max_concurrent_starts=4` but only 2 stopped nodes exist, WNM will:
+1. Start 2 stopped nodes
+2. Add 2 new nodes (if under node cap)
 
 ### Node Removal Strategy (Advanced)
 

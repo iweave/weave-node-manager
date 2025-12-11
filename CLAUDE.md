@@ -114,8 +114,8 @@ The application runs as a single-execution cycle (typically invoked via cron eve
    - Linux (user): `~/.local/share/autonomi/wnm_active`
 2. **Configuration**: Loads machine config from SQLite database or initializes from `anm` migration
 3. **Metrics Collection**: Gathers system metrics (CPU, memory, disk, I/O, load average) and node statuses
-4. **Decision Engine**: `choose_action()` determines what action to take based on thresholds
-5. **Action Execution**: Performs one action per cycle (add/remove/upgrade/restart node, or idle) via ProcessManager
+4. **Decision Engine**: `choose_action()` determines what actions to take based on thresholds and concurrency limits
+5. **Action Execution**: Performs operations (add/remove/upgrade/restart nodes, or idle) via ProcessManager, respecting concurrent operation limits
 6. **Cleanup**: Removes lock file and exits
 
 ### Database Models (`models.py`)
@@ -278,7 +278,7 @@ Example: If `max_concurrent_starts=4` but only 2 stopped nodes exist, WNM will:
 
 ## Important Constraints
 
-- Concurrent operations respect configured limits (default: 1 action per cycle for backward compatibility)
+- Concurrent operations respect configured limits (defaults: 1 operation per cycle, configurable for powerful machines)
 - Nodes are added/removed based on the "youngest" (most recent `age` timestamp)
 - Upgrades only proceed when no removals are pending
 - Database has single Machine row (id=1); updates apply to entire cluster
