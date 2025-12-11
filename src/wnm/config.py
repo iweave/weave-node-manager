@@ -395,7 +395,7 @@ def load_config():
     c.add(
         "--force_action",
         env_var="FORCE_ACTION",
-        help="Force an action: add, remove, upgrade, start, stop, disable, teardown, survey, wnm-db-migration",
+        help="Force an action: add, remove, upgrade, start, stop, disable, teardown, survey, wnm-db-migration, nullop, update_config",
         choices=[
             "add",
             "remove",
@@ -406,6 +406,8 @@ def load_config():
             "teardown",
             "survey",
             "wnm-db-migration",
+            "nullop",
+            "update_config",
         ],
     )
     c.add(

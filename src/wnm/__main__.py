@@ -134,6 +134,25 @@ def main():
     else:
         logging.error("Unable to load machine config, exiting")
         sys.exit(1)
+
+    # Handle nullop/update_config force action early (bypasses decision engine)
+    if options.force_action in ["nullop", "update_config"]:
+        logging.info(f"Executing {options.force_action}: updating config only")
+        # Check for config updates
+        if config_updates:
+            logging.info("Update: " + json.dumps(config_updates))
+            if options.dry_run:
+                logging.warning("Dry run, not saving requested updates")
+            else:
+                # Store the config changes to the database
+                apply_config_updates(config_updates)
+                logging.info("Configuration updated successfully")
+        else:
+            logging.info("No configuration changes detected")
+        # Clean up and exit immediately
+        os.remove(LOCK_FILE)
+        sys.exit(0)
+
     # Check for config updates
     if config_updates:
         logging.info("Update: " + json.dumps(config_updates))
