@@ -91,8 +91,9 @@ class Machine(Base):
 
     # NEW: Concurrency limits (Phase 5)
     max_concurrent_upgrades: Mapped[int] = mapped_column(Integer, default=1)
-    max_concurrent_starts: Mapped[int] = mapped_column(Integer, default=2)
+    max_concurrent_starts: Mapped[int] = mapped_column(Integer, default=1)
     max_concurrent_removals: Mapped[int] = mapped_column(Integer, default=1)
+    max_concurrent_operations: Mapped[int] = mapped_column(Integer, default=1)
 
     # NEW: Node selection strategy (Phase 6)
     node_removal_strategy: Mapped[str] = mapped_column(UnicodeText, default="youngest")
@@ -161,8 +162,9 @@ class Machine(Base):
         environment,
         start_args,
         max_concurrent_upgrades=1,
-        max_concurrent_starts=2,
+        max_concurrent_starts=1,
         max_concurrent_removals=1,
+        max_concurrent_operations=1,
         node_removal_strategy="youngest",
         process_manager=None,
         max_node_per_container=200,
@@ -209,6 +211,7 @@ class Machine(Base):
         self.max_concurrent_upgrades = max_concurrent_upgrades
         self.max_concurrent_starts = max_concurrent_starts
         self.max_concurrent_removals = max_concurrent_removals
+        self.max_concurrent_operations = max_concurrent_operations
         self.node_removal_strategy = node_removal_strategy
         self.process_manager = process_manager
         self.max_node_per_container = max_node_per_container
@@ -271,6 +274,7 @@ class Machine(Base):
             "max_concurrent_upgrades": self.max_concurrent_upgrades,
             "max_concurrent_starts": self.max_concurrent_starts,
             "max_concurrent_removals": self.max_concurrent_removals,
+            "max_concurrent_operations": self.max_concurrent_operations,
             "node_removal_strategy": f"{self.node_removal_strategy}",
             "process_manager": (
                 f"{self.process_manager}" if self.process_manager else None

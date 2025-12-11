@@ -215,26 +215,35 @@ class DecisionEngine:
             # We'll include it as informational but not block other actions
             pass
 
-        # Priority 4: Wait for in-progress operations
-        if self.metrics["restarting_nodes"]:
-            logging.info("Still waiting for RestartDelay")
+        # Priority 4: Check if at global capacity
+        current_ops = self._get_current_operations()
+        if current_ops >= self.config["max_concurrent_operations"]:
+            logging.info(
+                f"At global concurrent operations limit ({current_ops}/{self.config['max_concurrent_operations']})"
+            )
             return [
                 Action(
                     type=ActionType.SURVEY_NODES,
                     priority=0,
-                    reason="waiting for restart delay",
+                    reason="at global capacity",
                 )
             ]
 
-        if self.metrics["upgrading_nodes"]:
-            logging.info("Still waiting for UpgradeDelay")
-            return [
-                Action(
-                    type=ActionType.SURVEY_NODES,
-                    priority=0,
-                    reason="waiting for upgrade delay",
-                )
-            ]
+        # Log individual operation type capacities (debug)
+        if self.metrics["upgrading_nodes"] >= self.config["max_concurrent_upgrades"]:
+            logging.debug(
+                f"At upgrade capacity ({self.metrics['upgrading_nodes']}/{self.config['max_concurrent_upgrades']})"
+            )
+
+        if self.metrics["restarting_nodes"] >= self.config["max_concurrent_starts"]:
+            logging.debug(
+                f"At start capacity ({self.metrics['restarting_nodes']}/{self.config['max_concurrent_starts']})"
+            )
+
+        if self.metrics["removing_nodes"] >= self.config["max_concurrent_removals"]:
+            logging.debug(
+                f"At removal capacity ({self.metrics['removing_nodes']}/{self.config['max_concurrent_removals']})"
+            )
 
         # Priority 5: Resource pressure - remove nodes
         if self.features["remove"]:
@@ -277,12 +286,25 @@ class DecisionEngine:
         ]
 
     def _plan_resource_removal(self) -> List[Action]:
-        """Plan node removals due to resource pressure.
+        """Plan node removals due to resource pressure with aggressive scaling.
 
         Returns:
-            List of removal or stop actions
+            List of removal/stop actions, limited by capacity AND actual available nodes
         """
         actions = []
+
+        # Calculate available removal slots
+        current_removing = self.metrics.get("removing_nodes", 0)
+        current_ops = self._get_current_operations()
+
+        # Determine capacity
+        removal_capacity = min(
+            self.config["max_concurrent_removals"] - current_removing,
+            self.config["max_concurrent_operations"] - current_ops
+        )
+
+        if removal_capacity <= 0:
+            return []
 
         # If under HD pressure, over node cap, or upgrades need resources
         if (
@@ -293,91 +315,169 @@ class DecisionEngine:
                 and self.metrics["removing_nodes"] == 0
             )
         ):
-            # Priority: Remove stopped nodes first
-            if self.metrics["stopped_nodes"] > 0:
+            # CRITICAL: Remove stopped nodes first (limited by actual stopped nodes)
+            stopped_to_remove = min(
+                self.metrics.get("stopped_nodes", 0),
+                removal_capacity
+            )
+
+            for i in range(stopped_to_remove):
                 actions.append(
                     Action(
                         type=ActionType.REMOVE_NODE,
                         node_id=None,  # Executor will query for youngest stopped
                         priority=80,
-                        reason="remove stopped node (resource pressure)",
+                        reason=f"remove stopped node ({i+1}/{stopped_to_remove})",
                     )
                 )
-            else:
-                # Remove youngest running node
+
+            # CRITICAL: Remove running nodes for remaining capacity
+            remaining_capacity = removal_capacity - stopped_to_remove
+            running_to_remove = min(
+                self.metrics.get("running_nodes", 0),
+                remaining_capacity
+            )
+
+            for i in range(running_to_remove):
                 actions.append(
                     Action(
                         type=ActionType.REMOVE_NODE,
                         node_id=None,  # Executor will query for youngest running
                         priority=75,
-                        reason="remove running node (resource pressure)",
+                        reason=f"remove running node ({i+1}/{running_to_remove})",
                     )
                 )
         else:
-            # Just stop a node to reduce resource usage
+            # Just stop nodes to reduce resource usage
             if self.metrics["removing_nodes"]:
                 logging.info("Still waiting for RemoveDelay")
                 return []
 
-            # Stop the youngest running node
-            actions.append(
-                Action(
-                    type=ActionType.STOP_NODE,
-                    node_id=None,  # Executor will query for youngest running
-                    priority=70,
-                    reason="stop node (reduce resource usage)",
-                )
+            # CRITICAL: Stop youngest running nodes (limited by actual running nodes)
+            nodes_to_stop = min(
+                self.metrics.get("running_nodes", 0),
+                removal_capacity
             )
+
+            for i in range(nodes_to_stop):
+                actions.append(
+                    Action(
+                        type=ActionType.STOP_NODE,
+                        node_id=None,  # Executor will query for youngest running
+                        priority=70,
+                        reason=f"stop node ({i+1}/{nodes_to_stop})",
+                    )
+                )
 
         return actions
 
     def _plan_upgrades(self) -> List[Action]:
-        """Plan node upgrades.
+        """Plan node upgrades with aggressive scaling to capacity.
 
         Returns:
-            List of upgrade actions (currently limited to 1)
-        """
-        # Upgrade oldest running node with outdated version
-        return [
-            Action(
-                type=ActionType.UPGRADE_NODE,
-                node_id=None,  # Executor will query for oldest outdated node
-                priority=60,
-                reason="upgrade outdated node",
-            )
-        ]
-
-    def _plan_node_additions(self) -> List[Action]:
-        """Plan adding new nodes or starting stopped nodes.
-
-        Returns:
-            List of start or add actions
+            List of upgrade actions, limited by capacity AND actual upgradeable nodes
         """
         actions = []
 
-        # Priority: Start stopped nodes first
-        if self.metrics["stopped_nodes"] > 0:
-            # Check if the stopped node needs upgrading
-            # The executor will handle the version check and upgrade if needed
+        # Calculate available upgrade slots
+        current_upgrading = self.metrics.get("upgrading_nodes", 0)
+        current_ops = self._get_current_operations()
+
+        # Determine capacity
+        upgrade_capacity = min(
+            self.config["max_concurrent_upgrades"] - current_upgrading,
+            self.config["max_concurrent_operations"] - current_ops
+        )
+
+        if upgrade_capacity <= 0:
+            return []
+
+        # CRITICAL: Don't plan more upgrades than nodes needing upgrade
+        actual_upgrades_needed = self.metrics.get("nodes_to_upgrade", 0)
+        upgrades_to_plan = min(upgrade_capacity, actual_upgrades_needed)
+
+        if upgrades_to_plan <= 0:
+            return []
+
+        # Plan multiple upgrades up to actual available count
+        for i in range(upgrades_to_plan):
             actions.append(
                 Action(
-                    type=ActionType.START_NODE,
-                    node_id=None,  # Executor will query for oldest stopped
-                    priority=50,
-                    reason="start stopped node",
-                )
-            )
-        elif self.metrics["total_nodes"] < self.config["node_cap"]:
-            # Add a new node
-            actions.append(
-                Action(
-                    type=ActionType.ADD_NODE,
-                    priority=40,
-                    reason="add new node (under capacity)",
+                    type=ActionType.UPGRADE_NODE,
+                    node_id=None,  # Executor will query for oldest outdated nodes
+                    priority=60,
+                    reason=f"upgrade outdated node ({i+1}/{upgrades_to_plan})",
                 )
             )
 
         return actions
+
+    def _plan_node_additions(self) -> List[Action]:
+        """Plan adding new nodes or starting stopped nodes with aggressive scaling.
+
+        Returns:
+            List of start/add actions, limited by capacity AND actual available nodes
+        """
+        actions = []
+
+        # Calculate available start slots
+        current_starting = self.metrics.get("restarting_nodes", 0)
+        current_ops = self._get_current_operations()
+
+        # Determine capacity
+        start_capacity = min(
+            self.config["max_concurrent_starts"] - current_starting,
+            self.config["max_concurrent_operations"] - current_ops
+        )
+
+        if start_capacity <= 0:
+            return []
+
+        # CRITICAL: Plan starts for stopped nodes (limited by actual stopped nodes)
+        stopped_to_start = min(
+            self.metrics.get("stopped_nodes", 0),
+            start_capacity
+        )
+
+        for i in range(stopped_to_start):
+            actions.append(
+                Action(
+                    type=ActionType.START_NODE,
+                    node_id=None,  # Executor will query for oldest stopped nodes
+                    priority=50,
+                    reason=f"start stopped node ({i+1}/{stopped_to_start})",
+                )
+            )
+
+        # CRITICAL: Plan additions for remaining capacity (if under node cap)
+        remaining_capacity = start_capacity - stopped_to_start
+        nodes_to_add = min(
+            remaining_capacity,
+            self.config["node_cap"] - self.metrics["total_nodes"]
+        )
+
+        for i in range(nodes_to_add):
+            actions.append(
+                Action(
+                    type=ActionType.ADD_NODE,
+                    priority=40,
+                    reason=f"add new node ({i+1}/{nodes_to_add})",
+                )
+            )
+
+        return actions
+
+    def _get_current_operations(self) -> int:
+        """Get total number of current concurrent operations.
+
+        Returns:
+            Count of nodes in transitional states (upgrading, restarting, removing)
+        """
+        return (
+            self.metrics.get("upgrading_nodes", 0)
+            + self.metrics.get("restarting_nodes", 0)
+            + self.metrics.get("removing_nodes", 0)
+        )
 
     def get_features(self) -> Dict[str, bool]:
         """Get the computed decision features.

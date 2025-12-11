@@ -215,9 +215,70 @@ Resource thresholds control when nodes are added/removed (use snake_case on comm
 - Linux (root): `/var/antctl/services/`
 - Linux (user): `~/.local/share/autonomi/node/`
 
+## Concurrent Operations
+
+WNM supports running multiple node operations simultaneously to better utilize powerful hardware. This feature allows aggressive scaling on machines with high capacity.
+
+### Configuration Parameters
+
+**Per-Operation Limits:**
+- `--max_concurrent_upgrades` (default: 1): Maximum nodes upgrading simultaneously
+- `--max_concurrent_starts` (default: 1): Maximum nodes starting/restarting simultaneously
+- `--max_concurrent_removals` (default: 1): Maximum nodes being removed simultaneously
+
+**Global Limit:**
+- `--max_concurrent_operations` (default: 1): Total concurrent operations across all types
+
+The effective limit is MIN(per_operation_limit, remaining_global_capacity).
+
+### Examples
+
+**Conservative (default):**
+```bash
+wnm --max_concurrent_upgrades 1 \
+    --max_concurrent_starts 1 \
+    --max_concurrent_operations 1
+```
+
+**Aggressive (powerful machine):**
+```bash
+wnm --max_concurrent_upgrades 4 \
+    --max_concurrent_starts 4 \
+    --max_concurrent_removals 2 \
+    --max_concurrent_operations 8
+```
+
+**Very aggressive (high-end server):**
+```bash
+wnm --max_concurrent_upgrades 10 \
+    --max_concurrent_starts 10 \
+    --max_concurrent_removals 5 \
+    --max_concurrent_operations 20
+```
+
+### Behavior
+
+WNM will **aggressively scale to capacity** each cycle:
+- If upgrade limit is 4 and 2 nodes are upgrading, WNM will start 2 more upgrades immediately
+- Operations respect both per-type limits AND global limit
+- Dead node removals always take priority and ignore limits
+- Each action selects a different node (no duplicate operations on same node)
+
+### Capacity Constraints
+
+Operations are limited by actual node availability:
+- **Upgrades**: Limited by nodes needing upgrade
+- **Starts**: Limited by stopped nodes available
+- **Adds**: Limited by node cap - total nodes
+- **Removes**: Limited by stopped/running nodes available
+
+Example: If `max_concurrent_starts=4` but only 2 stopped nodes exist, WNM will:
+1. Start 2 stopped nodes
+2. Add 2 new nodes (if under node cap)
+
 ## Important Constraints
 
-- Only ONE action per execution cycle (conservative approach)
+- Concurrent operations respect configured limits (default: 1 action per cycle for backward compatibility)
 - Nodes are added/removed based on the "youngest" (most recent `age` timestamp)
 - Upgrades only proceed when no removals are pending
 - Database has single Machine row (id=1); updates apply to entire cluster

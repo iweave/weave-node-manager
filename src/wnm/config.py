@@ -300,6 +300,26 @@ def load_config():
     c.add("--delay_upgrade", env_var="DELAY_UPGRADE", help="Delay Upgrade Timer")
     c.add("--delay_remove", env_var="DELAY_REMOVE", help="Delay Remove Timer")
     c.add("--survey_delay", env_var="SURVEY_DELAY", help="Survey Delay between nodes (milliseconds)")
+    c.add(
+        "--max_concurrent_upgrades",
+        env_var="MAX_CONCURRENT_UPGRADES",
+        help="Maximum number of nodes that can be upgrading simultaneously (default: 1)",
+    )
+    c.add(
+        "--max_concurrent_starts",
+        env_var="MAX_CONCURRENT_STARTS",
+        help="Maximum number of nodes that can be starting/restarting simultaneously (default: 1)",
+    )
+    c.add(
+        "--max_concurrent_removals",
+        env_var="MAX_CONCURRENT_REMOVALS",
+        help="Maximum number of nodes that can be in removal state simultaneously (default: 1)",
+    )
+    c.add(
+        "--max_concurrent_operations",
+        env_var="MAX_CONCURRENT_OPERATIONS",
+        help="Maximum total number of concurrent operations (global limit across all types, default: 1)",
+    )
     c.add("--node_storage", env_var="NODE_STORAGE", help="Node Storage Path")
     c.add("--rewards_address", env_var="REWARDS_ADDRESS", help="Rewards Address")
     c.add("--donate_address", env_var="DONATE_ADDRESS", help="Donate Address")
@@ -516,6 +536,26 @@ def merge_config_changes(options, machine_config):
         and int(options.survey_delay) != machine_config.survey_delay
     ):
         cfg["survey_delay"] = int(options.survey_delay)
+    if (
+        options.max_concurrent_upgrades
+        and int(options.max_concurrent_upgrades) != machine_config.max_concurrent_upgrades
+    ):
+        cfg["max_concurrent_upgrades"] = int(options.max_concurrent_upgrades)
+    if (
+        options.max_concurrent_starts
+        and int(options.max_concurrent_starts) != machine_config.max_concurrent_starts
+    ):
+        cfg["max_concurrent_starts"] = int(options.max_concurrent_starts)
+    if (
+        options.max_concurrent_removals
+        and int(options.max_concurrent_removals) != machine_config.max_concurrent_removals
+    ):
+        cfg["max_concurrent_removals"] = int(options.max_concurrent_removals)
+    if (
+        options.max_concurrent_operations
+        and int(options.max_concurrent_operations) != machine_config.max_concurrent_operations
+    ):
+        cfg["max_concurrent_operations"] = int(options.max_concurrent_operations)
     if options.node_storage and options.node_storage != machine_config.node_storage:
         cfg["node_storage"] = options.node_storage
     if (
@@ -853,9 +893,10 @@ def define_machine(options):
         "metrics_port_start": int(_get_option(options, "metrics_port_start") or 13),
         "environment": _get_option(options, "environment") or "",
         "start_args": _get_option(options, "start_args") or "",
-        "max_concurrent_upgrades": 1,
-        "max_concurrent_starts": 2,
-        "max_concurrent_removals": 1,
+        "max_concurrent_upgrades": int(_get_option(options, "max_concurrent_upgrades") or 1),
+        "max_concurrent_starts": int(_get_option(options, "max_concurrent_starts") or 1),
+        "max_concurrent_removals": int(_get_option(options, "max_concurrent_removals") or 1),
+        "max_concurrent_operations": int(_get_option(options, "max_concurrent_operations") or 1),
         "node_removal_strategy": "youngest",
         "max_node_per_container": 200,
         "min_container_count": 1,
