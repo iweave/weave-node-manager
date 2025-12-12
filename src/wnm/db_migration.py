@@ -81,7 +81,7 @@ def get_current_revision(engine) -> str | None:
         return None
 
 
-def get_head_revision(config) -> str:
+def get_head_revision(config) -> str | list[str]:
     """
     Get the HEAD revision from migration scripts.
 
@@ -89,16 +89,24 @@ def get_head_revision(config) -> str:
         config: Alembic Config object
 
     Returns:
-        HEAD revision hash
+        HEAD revision hash (str) or list of revision hashes if multiple heads
     """
     # Import here to prevent module-level logging reconfiguration
     from alembic.script import ScriptDirectory
+    from alembic.util.exc import CommandError
 
     script = ScriptDirectory.from_config(config)
-    return script.get_current_head()
+    try:
+        return script.get_current_head()
+    except CommandError as e:
+        # Handle multiple heads case
+        if "multiple heads" in str(e).lower():
+            # Return all heads as a list
+            return script.get_heads()
+        raise
 
 
-def has_pending_migrations(engine, db_url: str) -> tuple[bool, str | None, str]:
+def has_pending_migrations(engine, db_url: str) -> tuple[bool, str | None, str | list[str]]:
     """
     Check if there are pending migrations.
 
@@ -108,6 +116,7 @@ def has_pending_migrations(engine, db_url: str) -> tuple[bool, str | None, str]:
 
     Returns:
         Tuple of (has_pending, current_revision, head_revision)
+        Note: head_revision can be a list if there are multiple heads
     """
     config = get_alembic_config(db_url)
     current = get_current_revision(engine)
@@ -118,6 +127,10 @@ def has_pending_migrations(engine, db_url: str) -> tuple[bool, str | None, str]:
     # 2. Legacy database (needs stamping)
     if current is None:
         return False, current, head  # Will be handled by auto-stamp
+
+    # If head is a list (multiple heads), we always have pending migrations
+    if isinstance(head, list):
+        return True, current, head
 
     # If current != head, we have pending migrations
     return current != head, current, head
@@ -189,17 +202,39 @@ def check_and_warn_migrations(engine, db_url: str):
 
     if pending:
         logging.error("=" * 70)
-        logging.error("DATABASE MIGRATION REQUIRED")
-        logging.error("=" * 70)
-        logging.error("")
-        logging.error("Your database schema is out of date:")
-        logging.error(f"  Current revision: {current or 'none (legacy database)'}")
-        logging.error(f"  Required revision: {head}")
-        logging.error("")
-        logging.error("IMPORTANT: Backup your database before proceeding!")
-        logging.error("")
-        logging.error("To run migrations:")
-        logging.error("  wnm --force_action wnm-db-migration --confirm")
+
+        # Check if we have multiple heads (branched migrations)
+        if isinstance(head, list):
+            logging.error("INSTALLATION ERROR: CORRUPTED MIGRATION HISTORY")
+            logging.error("=" * 70)
+            logging.error("")
+            logging.error("The migration history in this installation has multiple branches.")
+            logging.error("This is a bug in the software installation, not your database.")
+            logging.error("")
+            logging.error("Multiple heads detected:")
+            for h in head:
+                logging.error(f"  - {h}")
+            logging.error("")
+            logging.error("Please report this issue at:")
+            logging.error("  https://github.com/happybeing/weave-node-manager/issues")
+            logging.error("")
+            logging.error("If you're running from source, you may need to:")
+            logging.error("  1. Pull the latest changes from the repository")
+            logging.error("  2. Rebuild/reinstall the package")
+            logging.error("  3. Remove the database and re-import the nodes")
+        else:
+            logging.error("DATABASE MIGRATION REQUIRED")
+            logging.error("=" * 70)
+            logging.error("")
+            logging.error("Your database schema is out of date:")
+            logging.error(f"  Current revision: {current or 'none (legacy database)'}")
+            logging.error(f"  Required revision: {head}")
+            logging.error("")
+            logging.error("IMPORTANT: Backup your database before proceeding!")
+            logging.error("")
+            logging.error("To run migrations:")
+            logging.error("  wnm --force_action wnm-db-migration --confirm")
+
         logging.error("")
         logging.error("To backup your database:")
         if "sqlite:///" in db_url:
