@@ -69,6 +69,7 @@ class Machine(Base):
     delay_upgrade: Mapped[int] = mapped_column(Integer)
     delay_remove: Mapped[int] = mapped_column(Integer)
     survey_delay: Mapped[int] = mapped_column(Integer, default=0)  # milliseconds
+    action_delay: Mapped[int] = mapped_column(Integer, default=0)  # milliseconds
 
     # Node configuration
     node_storage: Mapped[str] = mapped_column(UnicodeText)
@@ -173,6 +174,7 @@ class Machine(Base):
         no_upnp=True,
         antnode_path="~/.local/bin/antnode",
         survey_delay=0,
+        action_delay=0,
     ):
         self.cpu_count = cpu_count
         self.node_cap = node_cap
@@ -187,6 +189,7 @@ class Machine(Base):
         self.delay_upgrade = delay_upgrade
         self.delay_remove = delay_remove
         self.survey_delay = survey_delay
+        self.action_delay = action_delay
         self.node_storage = node_storage
         self.rewards_address = rewards_address
         self.donate_address = donate_address
@@ -250,6 +253,7 @@ class Machine(Base):
             "delay_upgrade": self.delay_upgrade,
             "delay_remove": self.delay_remove,
             "survey_delay": self.survey_delay,
+            "action_delay": self.action_delay,
             "node_storage": f"{self.node_storage}",
             "rewards_address": f"{self.rewards_address}",
             "donate_address": f"{self.donate_address}",

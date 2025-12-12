@@ -301,6 +301,24 @@ def load_config():
     c.add("--delay_remove", env_var="DELAY_REMOVE", help="Delay Remove Timer")
     c.add("--survey_delay", env_var="SURVEY_DELAY", help="Survey Delay between nodes (milliseconds)")
     c.add(
+        "--action_delay",
+        env_var="ACTION_DELAY",
+        help="Delay between node operations in milliseconds (default: 0)",
+        type=int,
+    )
+    c.add(
+        "--this_action_delay",
+        env_var="THIS_ACTION_DELAY",
+        help="Override action_delay for this execution only (milliseconds)",
+        type=int,
+    )
+    c.add(
+        "--interval",
+        env_var="INTERVAL",
+        help="Override action_delay for this execution only (milliseconds), compatible with antctl",
+        type=int,
+    )
+    c.add(
         "--max_concurrent_upgrades",
         env_var="MAX_CONCURRENT_UPGRADES",
         help="Maximum number of nodes that can be upgrading simultaneously (default: 1)",
@@ -539,6 +557,11 @@ def merge_config_changes(options, machine_config):
     ):
         cfg["survey_delay"] = int(options.survey_delay)
     if (
+        options.action_delay is not None
+        and int(options.action_delay) != machine_config.action_delay
+    ):
+        cfg["action_delay"] = int(options.action_delay)
+    if (
         options.max_concurrent_upgrades
         and int(options.max_concurrent_upgrades) != machine_config.max_concurrent_upgrades
     ):
@@ -724,6 +747,7 @@ def load_anm_config(options):
         os.getenv("DelayRemove") or _get_option(options, "delay_remove") or 300
     )
     anm_config["survey_delay"] = int(_get_option(options, "survey_delay") or 0)
+    anm_config["action_delay"] = int(_get_option(options, "action_delay") or 0)
     anm_config["node_storage"] = (
         os.getenv("NodeStorage") or _get_option(options, "node_storage") or NODE_STORAGE
     )
@@ -867,6 +891,7 @@ def define_machine(options):
         "delay_upgrade": int(_get_option(options, "delay_upgrade") or 300),
         "delay_remove": int(_get_option(options, "delay_remove") or 300),
         "survey_delay": int(_get_option(options, "survey_delay") or 0),
+        "action_delay": int(_get_option(options, "action_delay") or 0),
         "node_storage": _get_option(options, "node_storage") or NODE_STORAGE,
         "rewards_address": _get_option(options, "rewards_address"),
         "donate_address": _get_option(options, "donate_address") or FAUCET,
@@ -993,9 +1018,11 @@ else:
 # Remember if we init a new machine
 did_we_init = False
 
-# Skip machine configuration check in test mode or when using --version/--remove_lockfile
-if os.getenv("WNM_TEST_MODE") or _SKIP_DB_INIT:
-    # In test mode or with --version/--remove_lockfile, use a minimal machine config or None
+# Skip machine configuration check in test mode, when using --version/--remove_lockfile, or when running migrations
+if os.getenv("WNM_TEST_MODE") or _SKIP_DB_INIT or (
+    hasattr(options, "force_action") and options.force_action == "wnm-db-migration"
+):
+    # In test mode, with --version/--remove_lockfile, or running migrations, use a minimal machine config or None
     machine_config = None
 else:
     # Check if we have a defined machine
@@ -1009,7 +1036,12 @@ else:
         machine_config = None
 
 # No machine configured
-if not machine_config and not os.getenv("WNM_TEST_MODE") and not _SKIP_DB_INIT:
+if (
+    not machine_config
+    and not os.getenv("WNM_TEST_MODE")
+    and not _SKIP_DB_INIT
+    and not (hasattr(options, "force_action") and options.force_action == "wnm-db-migration")
+):
     # Are we initializing a new machine?
     if options.init:
         # Init and dry-run are mutually exclusive
@@ -1059,8 +1091,12 @@ else:
     if options.init:
         logging.warning("Machine already initialized")
         sys.exit(1)
-    # Get Machine from Row (skip in test mode or when using --version/--remove_lockfile)
-    if not os.getenv("WNM_TEST_MODE") and not _SKIP_DB_INIT:
+    # Get Machine from Row (skip in test mode, when using --version/--remove_lockfile, or when running migrations)
+    if (
+        not os.getenv("WNM_TEST_MODE")
+        and not _SKIP_DB_INIT
+        and not (hasattr(options, "force_action") and options.force_action == "wnm-db-migration")
+    ):
         machine_config = machine_config[0]
 
 # Collect the proposed changes unless we are initializing (skip in test mode or when using --version/--remove_lockfile)

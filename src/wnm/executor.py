@@ -97,6 +97,28 @@ class ActionExecutor:
             logging.error(f"Failed to set node status for {node_id}: {e}")
             return False
 
+    def _get_action_delay_ms(self, machine_config: Dict[str, Any]) -> int:
+        """Get the effective action delay in milliseconds.
+
+        Checks for transient override first, then falls back to persistent setting.
+
+        Args:
+            machine_config: Machine configuration dict (can be None)
+
+        Returns:
+            Delay in milliseconds (default: 0)
+        """
+        # Handle None or missing machine_config
+        if not machine_config:
+            return 0
+
+        # Check for transient override (this_action_delay)
+        if "this_action_delay" in machine_config and machine_config["this_action_delay"] is not None:
+            return int(machine_config["this_action_delay"])
+
+        # Fall back to persistent setting
+        return machine_config.get("action_delay", 0)
+
     def _upgrade_node_binary(self, node: Node, new_version: str) -> bool:
         """Upgrade a node's binary by stopping it, copying the new binary, and starting it again.
 
@@ -690,7 +712,16 @@ class ActionExecutor:
         # Track the start time to identify newly created nodes
         start_time = int(time.time())
 
+        # Get action delay setting
+        delay_ms = self._get_action_delay_ms(machine_config)
+
         for i in range(count):
+            # Insert delay between operations (skip before first)
+            if i > 0 and delay_ms > 0:
+                delay_seconds = delay_ms / 1000.0
+                logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node additions")
+                time.sleep(delay_seconds)
+
             result = self._execute_add_node(machine_config, metrics, dry_run)
             if result["status"] in ["added-node", "add-node"]:
                 # Get the node that was just added (youngest by age >= start_time)
@@ -739,7 +770,16 @@ class ActionExecutor:
             removed_nodes = []
             failed_nodes = []
 
-            for name in service_names:
+            # Get action delay setting
+            delay_ms = self._get_action_delay_ms(self.machine_config)
+
+            for idx, name in enumerate(service_names):
+                # Insert delay between operations (skip before first)
+                if idx > 0 and delay_ms > 0:
+                    delay_seconds = delay_ms / 1000.0
+                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node removals")
+                    time.sleep(delay_seconds)
+
                 node = self._get_node_by_name(name)
                 if not node:
                     failed_nodes.append({"service": name, "error": "not found"})
@@ -791,7 +831,16 @@ class ActionExecutor:
             removed_nodes = []
             failed_nodes = []
 
-            for row in youngest_nodes:
+            # Get action delay setting
+            delay_ms = self._get_action_delay_ms(self.machine_config)
+
+            for idx, row in enumerate(youngest_nodes):
+                # Insert delay between operations (skip before first)
+                if idx > 0 and delay_ms > 0:
+                    delay_seconds = delay_ms / 1000.0
+                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node removals")
+                    time.sleep(delay_seconds)
+
                 node = row[0]
                 if dry_run:
                     logging.warning(f"DRYRUN: Remove youngest node {node.node_name}")
@@ -845,7 +894,16 @@ class ActionExecutor:
             upgraded_nodes = []
             failed_nodes = []
 
-            for name in service_names:
+            # Get action delay setting
+            delay_ms = self._get_action_delay_ms(self.machine_config)
+
+            for idx, name in enumerate(service_names):
+                # Insert delay between operations (skip before first)
+                if idx > 0 and delay_ms > 0:
+                    delay_seconds = delay_ms / 1000.0
+                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node upgrades")
+                    time.sleep(delay_seconds)
+
                 node = self._get_node_by_name(name)
                 if not node:
                     failed_nodes.append({"service": name, "error": "not found"})
@@ -897,7 +955,16 @@ class ActionExecutor:
             upgraded_nodes = []
             failed_nodes = []
 
-            for row in oldest_nodes:
+            # Get action delay setting
+            delay_ms = self._get_action_delay_ms(self.machine_config)
+
+            for idx, row in enumerate(oldest_nodes):
+                # Insert delay between operations (skip before first)
+                if idx > 0 and delay_ms > 0:
+                    delay_seconds = delay_ms / 1000.0
+                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node upgrades")
+                    time.sleep(delay_seconds)
+
                 node = row[0]
                 if dry_run:
                     logging.warning(f"DRYRUN: Upgrade oldest node {node.node_name}")
@@ -947,7 +1014,16 @@ class ActionExecutor:
             stopped_nodes = []
             failed_nodes = []
 
-            for name in service_names:
+            # Get action delay setting
+            delay_ms = self._get_action_delay_ms(self.machine_config)
+
+            for idx, name in enumerate(service_names):
+                # Insert delay between operations (skip before first)
+                if idx > 0 and delay_ms > 0:
+                    delay_seconds = delay_ms / 1000.0
+                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node stops")
+                    time.sleep(delay_seconds)
+
                 node = self._get_node_by_name(name)
                 if not node:
                     failed_nodes.append({"service": name, "error": "not found"})
@@ -999,7 +1075,16 @@ class ActionExecutor:
             stopped_nodes = []
             failed_nodes = []
 
-            for row in youngest_nodes:
+            # Get action delay setting
+            delay_ms = self._get_action_delay_ms(self.machine_config)
+
+            for idx, row in enumerate(youngest_nodes):
+                # Insert delay between operations (skip before first)
+                if idx > 0 and delay_ms > 0:
+                    delay_seconds = delay_ms / 1000.0
+                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node stops")
+                    time.sleep(delay_seconds)
+
                 node = row[0]
                 if dry_run:
                     logging.warning(f"DRYRUN: Stop youngest node {node.node_name}")
@@ -1051,7 +1136,16 @@ class ActionExecutor:
             upgraded_nodes = []
             failed_nodes = []
 
-            for name in service_names:
+            # Get action delay setting
+            delay_ms = self._get_action_delay_ms(self.machine_config)
+
+            for idx, name in enumerate(service_names):
+                # Insert delay between operations (skip before first)
+                if idx > 0 and delay_ms > 0:
+                    delay_seconds = delay_ms / 1000.0
+                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node starts")
+                    time.sleep(delay_seconds)
+
                 node = self._get_node_by_name(name)
                 if not node:
                     failed_nodes.append({"service": name, "error": "not found"})
@@ -1123,7 +1217,16 @@ class ActionExecutor:
             upgraded_nodes = []
             failed_nodes = []
 
-            for row in oldest_nodes:
+            # Get action delay setting
+            delay_ms = self._get_action_delay_ms(self.machine_config)
+
+            for idx, row in enumerate(oldest_nodes):
+                # Insert delay between operations (skip before first)
+                if idx > 0 and delay_ms > 0:
+                    delay_seconds = delay_ms / 1000.0
+                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node starts")
+                    time.sleep(delay_seconds)
+
                 node = row[0]
                 if dry_run:
                     logging.warning(f"DRYRUN: Start oldest stopped node {node.node_name}")

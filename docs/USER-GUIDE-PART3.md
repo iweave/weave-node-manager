@@ -292,6 +292,44 @@ All delay values are in **seconds** (not minutes).
   - Useful values: 100-500ms for servers with 20+ nodes
 - Example: `--survey_delay 250` inserts 250ms delay between each node survey
 
+**`--action_delay`**
+- Environment variable: `ACTION_DELAY`
+- Type: Integer (milliseconds)
+- Default: `0` (no delay)
+- Description: Delay in milliseconds between node operations (start, stop, upgrade, remove)
+- Use case: Rate-limits node operations to prevent overwhelming the system during rapid scaling
+- Notes:
+  - Applies to all node lifecycle operations
+  - Delay is inserted BETWEEN operations, not after the last operation
+  - Set to 0 to disable (performs operations as fast as possible)
+  - Useful for systems with many concurrent operations enabled
+  - Does not apply to surveying (use `--survey_delay` for that)
+- Example: `--action_delay 1000` inserts 1 second delay between each node operation
+
+**`--this_action_delay`**
+- Environment variable: `THIS_ACTION_DELAY`
+- Type: Integer (milliseconds)
+- Default: None (uses `--action_delay` value)
+- Description: Temporary override for `--action_delay` for a single execution only
+- Use case: Test different delay values without updating the database configuration
+- Notes:
+  - Takes precedence over `--action_delay` for the current run only
+  - Does not update the database value
+  - Useful for one-time adjustments or testing
+- Example: `--this_action_delay 500` uses 500ms delay for this run only
+
+**`--interval`**
+- Environment variable: `INTERVAL`
+- Type: Integer (milliseconds)
+- Default: None (uses `--action_delay` value)
+- Description: Alias for `--this_action_delay`, provided for antctl compatibility
+- Use case: Same as `--this_action_delay`, compatible with antctl command syntax
+- Notes:
+  - Takes precedence over both `--this_action_delay` and `--action_delay`
+  - Does not update the database value
+  - Useful for users familiar with antctl
+- Example: `--interval 2000` uses 2 second delay for this run only
+
 ### Crisis Bytes Threshold
 
 **`--crisis_bytes`**

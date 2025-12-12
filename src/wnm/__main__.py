@@ -86,6 +86,13 @@ def choose_action(machine_config, metrics, dry_run):
     if options.show_decisions or options.v:
         logging.info(json.dumps(engine.get_features(), indent=2))
 
+    # Inject transient action delay override into machine_config if provided
+    # Priority: --interval takes precedence over --this_action_delay
+    if options.interval is not None:
+        machine_config["this_action_delay"] = options.interval
+    elif options.this_action_delay is not None:
+        machine_config["this_action_delay"] = options.this_action_delay
+
     # Use ActionExecutor to execute the planned actions
     executor = ActionExecutor(S)
     result = executor.execute(actions, machine_config, metrics, dry_run)
@@ -125,6 +132,46 @@ def main():
     except (PermissionError, OSError) as e:
         logging.error(f"Unable to create lock file: {e}")
         sys.exit(1)
+
+    # Handle database migration command first (before any config checks)
+    if options.force_action == "wnm-db-migration":
+        if not options.confirm:
+            logging.error("Database migration requires --confirm flag for safety")
+            logging.info("Use: wnm --force_action wnm-db-migration --confirm")
+            os.remove(LOCK_FILE)
+            sys.exit(1)
+
+        # Import migration utilities
+        from wnm.db_migration import run_migrations, has_pending_migrations
+
+        # Check if there are pending migrations
+        pending, current, head = has_pending_migrations(engine, options.dbpath)
+
+        if not pending:
+            logging.info("Database is already up to date!")
+            logging.info(f"Current revision: {current}")
+            os.remove(LOCK_FILE)
+            sys.exit(0)
+
+        logging.info("=" * 70)
+        logging.info("RUNNING DATABASE MIGRATIONS")
+        logging.info("=" * 70)
+        logging.info(
+            f"Upgrading database from {current or 'unversioned'} to {head}"
+        )
+
+        try:
+            run_migrations(engine, options.dbpath)
+            logging.info("Database migration completed successfully!")
+            logging.info("=" * 70)
+            os.remove(LOCK_FILE)
+            sys.exit(0)
+        except Exception as e:
+            logging.error(f"Migration failed: {e}")
+            logging.error("Please restore from backup and report this issue.")
+            logging.info("=" * 70)
+            os.remove(LOCK_FILE)
+            sys.exit(1)
 
     # Config should have loaded the machine_config
     if machine_config:
@@ -313,46 +360,6 @@ def main():
 
     # Check for forced actions
     if options.force_action:
-        # Handle database migration command specially
-        if options.force_action == "wnm-db-migration":
-            if not options.confirm:
-                logging.error("Database migration requires --confirm flag for safety")
-                logging.info("Use: wnm --force_action wnm-db-migration --confirm")
-                os.remove(LOCK_FILE)
-                sys.exit(1)
-
-            # Import migration utilities
-            from wnm.db_migration import run_migrations, has_pending_migrations
-
-            # Check if there are pending migrations
-            pending, current, head = has_pending_migrations(engine, options.dbpath)
-
-            if not pending:
-                logging.info("Database is already up to date!")
-                logging.info(f"Current revision: {current}")
-                os.remove(LOCK_FILE)
-                sys.exit(0)
-
-            logging.info("=" * 70)
-            logging.info("RUNNING DATABASE MIGRATIONS")
-            logging.info("=" * 70)
-            logging.info(
-                f"Upgrading database from {current or 'unversioned'} to {head}"
-            )
-
-            try:
-                run_migrations(engine, options.dbpath)
-                logging.info("Database migration completed successfully!")
-                logging.info("=" * 70)
-                os.remove(LOCK_FILE)
-                sys.exit(0)
-            except Exception as e:
-                logging.error(f"Migration failed: {e}")
-                logging.error("Please restore from backup and report this issue.")
-                logging.info("=" * 70)
-                os.remove(LOCK_FILE)
-                sys.exit(1)
-
         # Teardown requires confirmation for safety
         if options.force_action == "teardown" and not options.confirm:
             logging.error("Teardown requires --confirm flag for safety")

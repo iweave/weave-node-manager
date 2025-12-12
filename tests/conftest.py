@@ -65,6 +65,7 @@ def sample_machine_config():
         "delay_restart": 300,  # 5 minutes in seconds
         "delay_upgrade": 600,  # 10 minutes in seconds
         "delay_remove": 900,  # 15 minutes in seconds
+        "action_delay": 0,  # milliseconds between node operations (default: 0)
         "node_storage": "/tmp/test_nodes",
         "rewards_address": "0x1234567890123456789012345678901234567890",
         "donate_address": "0x0987654321098765432109876543210987654321",
