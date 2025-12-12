@@ -17,10 +17,12 @@ from wnm.models import Base
 # access to the values within the .ini file in use.
 config = context.config
 
-# Set database URL from environment or use default
+# Set database URL from config (if already set) or environment or use default
 # This allows migrations to work with different database paths
-db_url = os.getenv('WNM_DATABASE_URL', 'sqlite:///~/.local/share/autonomi/colony.db')
-config.set_main_option('sqlalchemy.url', db_url)
+db_url = config.get_main_option('sqlalchemy.url')
+if not db_url:
+    db_url = os.getenv('WNM_DATABASE_URL', 'sqlite:///~/.local/share/autonomi/colony.db')
+    config.set_main_option('sqlalchemy.url', db_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

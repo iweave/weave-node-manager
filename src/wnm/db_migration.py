@@ -123,10 +123,23 @@ def has_pending_migrations(engine, db_url: str) -> tuple[bool, str | None, str |
     head = get_head_revision(config)
 
     # If current is None, either:
-    # 1. New database (no alembic_version table)
-    # 2. Legacy database (needs stamping)
+    # 1. New database (no alembic_version table, no data) - will be auto-stamped
+    # 2. Legacy database (no alembic_version table, has data) - needs migration
     if current is None:
-        return False, current, head  # Will be handled by auto-stamp
+        # Check if this is a legacy database with existing data
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT COUNT(*) FROM machine"))
+                row_count = result.scalar()
+                if row_count > 0:
+                    # Legacy database - has pending migrations
+                    return True, current, head
+        except Exception:
+            # If we can't check the machine table, assume it's a new database
+            pass
+
+        # New database - will be handled by auto-stamp
+        return False, current, head
 
     # If head is a list (multiple heads), we always have pending migrations
     if isinstance(head, list):
@@ -232,8 +245,26 @@ def check_and_warn_migrations(engine, db_url: str):
             logging.error("")
             logging.error("IMPORTANT: Backup your database before proceeding!")
             logging.error("")
-            logging.error("To run migrations:")
-            logging.error("  wnm --force_action wnm-db-migration --confirm")
+
+            # Provide different instructions for legacy databases vs normal migrations
+            if current is None:
+                # Legacy database - needs stamping first
+                logging.error("This appears to be a legacy database without migration tracking.")
+                logging.error("Before running migrations, you must first identify which version")
+                logging.error("your database corresponds to and stamp it.")
+                logging.error("")
+                logging.error("For a v0.2.0 database, run:")
+                logging.error("  alembic stamp fa0ca0abff5c")
+                logging.error("")
+                logging.error("Then run migrations:")
+                logging.error("  wnm --force_action wnm-db-migration --confirm")
+                logging.error("")
+                logging.error("If you're unsure of your database version, please ask for help at:")
+                logging.error("  https://github.com/iweave/weave-node-manager/issues")
+            else:
+                # Normal migration - already tracked
+                logging.error("To run migrations:")
+                logging.error("  wnm --force_action wnm-db-migration --confirm")
 
         logging.error("")
         logging.error("To backup your database:")
@@ -251,6 +282,8 @@ def auto_stamp_new_database(engine, db_url: str):
     Auto-stamp a new database with the HEAD revision.
 
     This should be called after Base.metadata.create_all() for new databases.
+    IMPORTANT: This will NOT stamp legacy databases (databases with existing data
+    but no alembic_version table). Those require manual stamping or migration.
 
     Args:
         engine: SQLAlchemy engine
@@ -260,6 +293,21 @@ def auto_stamp_new_database(engine, db_url: str):
 
     # Only stamp if alembic_version table doesn't exist
     if current is None:
+        # Check if this is a legacy database (has data but no alembic_version table)
+        # Legacy databases should not be auto-stamped
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT COUNT(*) FROM machine"))
+                row_count = result.scalar()
+                if row_count > 0:
+                    # This is a legacy database with data, don't auto-stamp
+                    logging.debug("Legacy database detected (has data but no alembic_version), skipping auto-stamp")
+                    return
+        except Exception as e:
+            # If we can't check the machine table, assume it's not a legacy database
+            logging.debug(f"Could not check for legacy database: {e}")
+            pass
+
         # Skip stamping for relative paths (./colony.db) or when alembic.ini not found
         # Stamping will fail for relative paths during module import
         try:
