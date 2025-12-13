@@ -828,20 +828,116 @@ wnm --force_action nullop --node_cap 40 --delay_start 600 --survey_delay 250
 **`--report`**
 - Environment variable: `REPORT`
 - Type: String
-- Choices: `node-status`, `node-status-details`, `influx-resources`
+- Choices: `node-status`, `node-status-details`, `influx-resources`, `machine-config`, `machine-metrics`
 - Description: Generate a status report instead of managing nodes
 - Report types:
   - `node-status`: Tabular summary with service name, peer ID, status, and connected peers
   - `node-status-details`: Detailed information for each node including paths, version, and metrics
   - `influx-resources`: InfluxDB line protocol format for metrics integration
+  - `machine-config`: Machine configuration with database path (text, JSON, or env format)
+  - `machine-metrics`: Current system metrics (text or JSON format)
 
 **`--report_format`**
 - Environment variable: `REPORT_FORMAT`
 - Type: String
-- Choices: `text`, `json`
+- Choices: `text`, `json`, `env`
 - Default: `text`
 - Description: Output format for reports
-- Note: `influx-resources` report only supports InfluxDB line protocol format (no json/text option)
+- Format details:
+  - `text`: Human-readable key: value format
+  - `json`: JSON format for programmatic parsing
+  - `env`: Environment variable format (UPPER_CASE_KEY=value) - only supported for `machine-config` report
+- Note: `influx-resources` report only supports InfluxDB line protocol format (no json/text/env option)
+
+### Machine Config Report Examples
+
+The `machine-config` report displays your cluster's configuration settings. It supports three output formats.
+
+**Text Format (default):**
+```bash
+wnm --report machine-config
+
+# Output:
+# cpu_count: 8
+# node_cap: 50
+# cpu_less_than: 70
+# rewards_address: 0x00455d78f850b0358E8cea5be24d415E01E107CF
+# ...
+```
+
+**JSON Format:**
+```bash
+wnm --report machine-config --report_format json
+
+# Output:
+# {
+#   "cpu_count": 8,
+#   "node_cap": 50,
+#   "cpu_less_than": 70,
+#   "rewards_address": "0x00455d78f850b0358E8cea5be24d415E01E107CF",
+#   ...
+# }
+```
+
+**Environment Variable Format:**
+
+The `env` format outputs configuration as shell environment variables (unquoted values):
+
+```bash
+wnm --report machine-config --report_format env
+
+# Output:
+# CPU_COUNT=8
+# NODE_CAP=50
+# CPU_LESS_THAN=70
+# REWARDS_ADDRESS=0x00455d78f850b0358E8cea5be24d415E01E107CF
+# ...
+```
+
+**Using env format in shell scripts:**
+
+```bash
+# Save configuration to file
+wnm --report machine-config --report_format env > ~/wnm-config.env
+
+# Source the file to load variables
+source ~/wnm-config.env
+
+# Now you can use the variables
+echo "Current node capacity: $NODE_CAP"
+echo "Rewards address: $REWARDS_ADDRESS"
+```
+
+**Inline usage with eval:**
+
+```bash
+# Load config directly into current shell
+eval $(wnm --report machine-config --report_format env)
+
+# Use the variables immediately
+if [ "$NODE_CAP" -lt 50 ]; then
+    echo "Node capacity is below 50"
+fi
+```
+
+**Example script using machine config:**
+
+```bash
+#!/bin/bash
+# Load WNM configuration
+eval $(wnm --report machine-config --report_format env)
+
+# Display current settings
+echo "=== WNM Configuration ==="
+echo "Node Capacity: $NODE_CAP"
+echo "CPU Add Threshold: $CPU_LESS_THAN%"
+echo "CPU Remove Threshold: $CPU_REMOVE%"
+echo "Memory Add Threshold: $MEM_LESS_THAN%"
+echo "Memory Remove Threshold: $MEM_REMOVE%"
+echo "Rewards Address: $REWARDS_ADDRESS"
+echo "Node Storage: $NODE_STORAGE"
+echo "Database: $DBPATH"
+```
 
 ### InfluxDB Resources Report Export Examples
 

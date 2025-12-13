@@ -66,7 +66,7 @@
   - `--show_decisions`: Log decision engine features on each run (default: disabled)
   - All three flags also enabled when `-v` (verbose) flag is set
 - **New report types**: Added two new report options for on-demand data access
-  - `--report machine-config`: Output machine configuration with database path (text or JSON)
+  - `--report machine-config`: Output machine configuration with database path (text, JSON, or env format)
   - `--report machine-metrics`: Output current system metrics (text or JSON)
 
 ### Changed

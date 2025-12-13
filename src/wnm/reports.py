@@ -419,7 +419,7 @@ def generate_machine_config_report(
     Args:
         session_factory: SQLAlchemy scoped_session factory
         dbpath: Path to the database
-        report_format: Output format ("text" or "json")
+        report_format: Output format ("text", "json", or "env")
 
     Returns:
         Formatted report string
@@ -440,6 +440,13 @@ def generate_machine_config_report(
 
         if report_format == "json":
             return json.dumps(config_dict, indent=2)
+        elif report_format == "env":
+            # Environment variable format: UPPER_CASE_KEY="value"
+            lines = []
+            for key, value in config_dict.items():
+                upper_key = key.upper()
+                lines.append(f'{upper_key}={value}')
+            return "\n".join(lines)
         else:
             # Text format: one entry per line
             lines = []

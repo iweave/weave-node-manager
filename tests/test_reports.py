@@ -403,3 +403,48 @@ class TestConvenienceFunctions:
         data = json.loads(report)
         assert isinstance(data, list)
         assert len(data) == 3
+
+
+class TestMachineConfigReport:
+    """Test machine config report generation."""
+
+    def test_generate_machine_config_report_text(self, db_session):
+        """Test machine-config report in text format."""
+        from wnm.reports import generate_machine_config_report
+
+        report = generate_machine_config_report(db_session, "/tmp/test.db", "text")
+        assert "cpu_count: 4" in report
+        assert "node_cap: 50" in report
+        assert "cpu_less_than: 70" in report
+        assert "rewards_address: 0x00455d78f850b0358E8cea5be24d415E01E107CF" in report
+        assert "dbpath: /tmp/test.db" in report
+
+    def test_generate_machine_config_report_json(self, db_session):
+        """Test machine-config report in JSON format."""
+        from wnm.reports import generate_machine_config_report
+
+        report = generate_machine_config_report(db_session, "/tmp/test.db", "json")
+        data = json.loads(report)
+        assert isinstance(data, dict)
+        assert data["cpu_count"] == 4
+        assert data["node_cap"] == 50
+        assert data["cpu_less_than"] == 70
+        assert data["rewards_address"] == "0x00455d78f850b0358E8cea5be24d415E01E107CF"
+        assert data["dbpath"] == "/tmp/test.db"
+
+    def test_generate_machine_config_report_env(self, db_session):
+        """Test machine-config report in env format."""
+        from wnm.reports import generate_machine_config_report
+
+        report = generate_machine_config_report(db_session, "/tmp/test.db", "env")
+
+        # Check that variables are uppercase
+        assert 'CPU_COUNT=4' in report
+        assert 'NODE_CAP=50' in report
+        assert 'CPU_LESS_THAN=70' in report
+        assert 'CPU_REMOVE=80' in report
+        assert 'MEM_LESS_THAN=70' in report
+        assert 'MEM_REMOVE=80' in report
+        assert 'REWARDS_ADDRESS=0x00455d78f850b0358E8cea5be24d415E01E107CF' in report
+        assert 'DBPATH=/tmp/test.db' in report
+
