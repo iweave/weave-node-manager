@@ -301,6 +301,12 @@ def load_config():
     c.add("--delay_remove", env_var="DELAY_REMOVE", help="Delay Remove Timer")
     c.add("--survey_delay", env_var="SURVEY_DELAY", help="Survey Delay between nodes (milliseconds)")
     c.add(
+        "--this_survey_delay",
+        env_var="THIS_SURVEY_DELAY",
+        help="Override survey_delay for this execution only (milliseconds)",
+        type=int,
+    )
+    c.add(
         "--action_delay",
         env_var="ACTION_DELAY",
         help="Delay between node operations in milliseconds (default: 0)",

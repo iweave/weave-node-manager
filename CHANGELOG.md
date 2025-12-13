@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.3.8] - 2025-12-12
+
+### Added
+- **Non-persistent survey delay override**: Added `--this_survey_delay` parameter for temporary survey delay adjustments
+  - New `--this_survey_delay` command-line flag accepting milliseconds (no default)
+  - Environment variable: `THIS_SURVEY_DELAY`
+  - Temporary override for `--survey_delay` that applies only to current execution
+  - Does not update database value (non-persistent)
+  - Takes precedence over `--survey_delay` when specified
+
 ## [0.3.6] - 2025-12-12
 
 ### Fixed

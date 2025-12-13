@@ -119,6 +119,28 @@ class ActionExecutor:
         # Fall back to persistent setting
         return machine_config.get("action_delay", 0)
 
+    def _get_survey_delay_ms(self, machine_config: Dict[str, Any]) -> int:
+        """Get the effective survey delay in milliseconds.
+
+        Checks for transient override first, then falls back to persistent setting.
+
+        Args:
+            machine_config: Machine configuration dict (can be None)
+
+        Returns:
+            Delay in milliseconds (default: 0)
+        """
+        # Handle None or missing machine_config
+        if not machine_config:
+            return 0
+
+        # Check for transient override (this_survey_delay)
+        if "this_survey_delay" in machine_config and machine_config["this_survey_delay"] is not None:
+            return int(machine_config["this_survey_delay"])
+
+        # Fall back to persistent setting
+        return machine_config.get("survey_delay", 0)
+
     def _upgrade_node_binary(self, node: Node, new_version: str) -> bool:
         """Upgrade a node's binary by stopping it, copying the new binary, and starting it again.
 
@@ -289,7 +311,8 @@ class ActionExecutor:
         if dry_run:
             logging.warning("DRYRUN: System rebooted, survey nodes")
         else:
-            update_nodes(self.S, survey_delay_ms=machine_config.get("survey_delay", 0))
+            survey_delay_ms = self._get_survey_delay_ms(machine_config)
+            update_nodes(self.S, survey_delay_ms=survey_delay_ms)
             # Update the last stopped time
             with self.S() as session:
                 session.query(Machine).filter(Machine.id == 1).update(
@@ -602,8 +625,8 @@ class ActionExecutor:
         if dry_run:
             logging.warning("DRYRUN: Update nodes")
         else:
-            survey_delay = self.machine_config.get("survey_delay", 0) if self.machine_config else 0
-            update_nodes(self.S, survey_delay_ms=survey_delay)
+            survey_delay_ms = self._get_survey_delay_ms(self.machine_config)
+            update_nodes(self.S, survey_delay_ms=survey_delay_ms)
         return {"status": "idle"}
 
     def _parse_node_name(self, service_name: str) -> Optional[int]:
@@ -1394,7 +1417,7 @@ class ActionExecutor:
 
         surveyed_nodes = []
         failed_nodes = []
-        survey_delay_ms = self.machine_config.survey_delay
+        survey_delay_ms = self._get_survey_delay_ms(self.machine_config)
 
         for idx, service_name in enumerate(service_names):
             node = self._get_node_by_name(service_name)
@@ -1480,8 +1503,8 @@ class ActionExecutor:
                 return {"status": "survey-dryrun", "node_count": node_count}
 
             # Update all nodes
-            survey_delay = self.machine_config.get("survey_delay", 0) if self.machine_config else 0
-            update_nodes(self.S, survey_delay_ms=survey_delay)
+            survey_delay_ms = self._get_survey_delay_ms(self.machine_config)
+            update_nodes(self.S, survey_delay_ms=survey_delay_ms)
 
             # Get updated count
             with self.S() as session:

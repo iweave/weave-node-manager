@@ -93,6 +93,10 @@ def choose_action(machine_config, metrics, dry_run):
     elif options.this_action_delay is not None:
         machine_config["this_action_delay"] = options.this_action_delay
 
+    # Inject transient survey delay override into machine_config if provided
+    if options.this_survey_delay is not None:
+        machine_config["this_survey_delay"] = options.this_survey_delay
+
     # Use ActionExecutor to execute the planned actions
     executor = ActionExecutor(S)
     result = executor.execute(actions, machine_config, metrics, dry_run)

@@ -292,6 +292,18 @@ All delay values are in **seconds** (not minutes).
   - Useful values: 100-500ms for servers with 20+ nodes
 - Example: `--survey_delay 250` inserts 250ms delay between each node survey
 
+**`--this_survey_delay`**
+- Environment variable: `THIS_SURVEY_DELAY`
+- Type: Integer (milliseconds)
+- Default: None (uses `--survey_delay` value)
+- Description: Temporary override for `--survey_delay` for a single execution only
+- Use case: Test different delay values without updating the database configuration
+- Notes:
+  - Takes precedence over `--survey_delay` for the current run only
+  - Does not update the database value
+  - Useful for one-time adjustments or testing
+- Example: `--this_survey_delay 500` uses 500ms delay for this run only
+
 **`--action_delay`**
 - Environment variable: `ACTION_DELAY`
 - Type: Integer (milliseconds)
