@@ -1105,14 +1105,19 @@ config_updates = (
     if not os.getenv("WNM_TEST_MODE") and not _SKIP_DB_INIT
     else {}
 )
-# Failfirst on invalid config change
-if (
-    "port_start" in config_updates
-    or "metrics_port_start" in config_updates
-    or "process_manager" in config_updates
-) and not did_we_init:
+# Failfirst on invalid config change - only error if values are actually different
+immutable_changes = []
+if not did_we_init and machine_config:
+    if options.port_start and int(options.port_start) != machine_config.port_start:
+        immutable_changes.append(f"port_start (trying to change from {machine_config.port_start} to {options.port_start})")
+    if options.metrics_port_start and int(options.metrics_port_start) != machine_config.metrics_port_start:
+        immutable_changes.append(f"metrics_port_start (trying to change from {machine_config.metrics_port_start} to {options.metrics_port_start})")
+    if options.process_manager and options.process_manager != machine_config.process_manager:
+        immutable_changes.append(f"process_manager (trying to change from {machine_config.process_manager} to {options.process_manager})")
+
+if immutable_changes:
     logging.warning(
-        "Cannot change port_start, metrics_port_start, or process_manager on an active machine"
+        f"Cannot change immutable settings on an active machine: {', '.join(immutable_changes)}"
     )
     sys.exit(1)
 

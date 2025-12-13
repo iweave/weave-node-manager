@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.3.6] - 2025-12-12
+
+### Fixed
+- **Immutable settings validation**: Changed validation logic to only error when values are different
+  - `--port_start`, `--metrics_port_start`, and `--process_manager` can now be safely included in config files
+  - Error only raised when provided values differ from database (not just when present)
+  - Improved error messages showing old and new values: "port_start (trying to change from 55 to 56)"
+  - More explicit and maintainable validation code
+  - Allows users to document complete cluster configuration in config files
+
 ## [0.2.0] - 2025-11-20
 
 ### Fixed
