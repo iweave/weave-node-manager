@@ -6,7 +6,7 @@ Weave Node Manager uses a multi-layered configuration system with the following 
 
 1. **Command-line arguments** - Direct flags passed when running `wnm`
 2. **Environment variables** - Set in `.env` files or system environment
-3. **Configuration files** - Read from default locations
+3. **Config files** - `~/.local/share/wnm/config`, `~/wnm/config`, or `-c/--config`
 4. **Database-stored values** - Persisted in the SQLite database
 5. **Built-in defaults** - Hardcoded fallback values
 

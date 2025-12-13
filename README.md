@@ -177,11 +177,8 @@ sudo crontab -e
 Configuration follows a multi-layer priority system (highest to lowest):
 
 1. **Command-line arguments**: `wnm --cpu_less_than 70 --node_cap 50`
-2. **Environment variables**: Set in `.env` file or shell
-3. **Config files**:
-   - macOS: `~/Library/Application Support/autonomi/config`
-   - Linux (user): `~/.local/share/autonomi/config`
-   - Linux (root): `/var/antctl/config`
+2. **Environment variables**: Set in `.env` file or shell environment
+3. **Config files**: `~/.local/share/wnm/config`, `~/wnm/config`, or `-c/--config`
 4. **Database-stored config**: Persisted in `colony.db` after initialization
 5. **Default values**: Built-in defaults
 
