@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.3.9] - 2025-12-12
+
+### Changed
+- **Changelog documentation**: Filled in missing release notes for versions 0.3.0 through 0.3.7
+  - Added v0.3.7: Configuration documentation corrections
+  - Added v0.3.5: Environment variable format for machine config report
+  - Added v0.3.4: Action delay feature and migration fixes
+  - Added v0.3.3: Critical database migration bug fixes
+  - Added v0.3.2: Migration error handling improvements
+  - Added v0.3.1: Lightweight config update action (nullop/update_config)
+  - Added v0.3.0: Concurrent operations support (major feature)
+  - Complete changelog coverage from v0.2.0 through v0.3.9
+
 ## [0.3.8] - 2025-12-12
 
 ### Added
@@ -12,6 +25,14 @@
   - Does not update database value (non-persistent)
   - Takes precedence over `--survey_delay` when specified
 
+## [0.3.7] - 2025-12-12
+
+### Fixed
+- **Configuration documentation**: Corrected config file paths in documentation to reflect actual defaults
+  - Updated README.md and USER-GUIDE-PART3.md with accurate config file locations
+  - Changed from platform-specific paths to actual configargparse defaults
+  - Config files: `~/.local/share/wnm/config`, `~/wnm/config`, or `-c/--config`
+
 ## [0.3.6] - 2025-12-12
 
 ### Fixed
@@ -21,6 +42,82 @@
   - Improved error messages showing old and new values: "port_start (trying to change from 55 to 56)"
   - More explicit and maintainable validation code
   - Allows users to document complete cluster configuration in config files
+
+## [0.3.5] - 2025-12-11
+
+### Added
+- **Environment variable format for machine config**: New `env` output format for `--report machine-config`
+  - Outputs configuration in shell environment variable format (`UPPER_CASE_KEY=value`)
+  - Suitable for sourcing in shell scripts: `eval $(wnm --report machine-config --report_format env)`
+  - Can be saved to file: `wnm --report machine-config --report_format env > config.env`
+  - Added to `--report_format` parameter choices alongside `text` and `json`
+
+## [0.3.4] - 2025-12-11
+
+### Added
+- **Action delay feature**: Added configurable delays between node operations to reduce system load
+  - New `--action_delay` parameter (milliseconds between operations, default: 0)
+  - Environment variable: `ACTION_DELAY`
+  - New `--this_action_delay` for temporary override (non-persistent)
+  - New `--interval` alias for antctl compatibility
+  - Implemented delay enforcement in ActionExecutor for all node operations
+  - Database migration: `67fe02809d26_add_action_delay.py`
+
+### Fixed
+- **Database migration handling**: Fixed critical issues preventing proper migration execution
+  - Migration command now runs before config loading
+  - Skip machine_config loading when running `wnm-db-migration`
+  - Prevents "unable to open database file" errors during migration
+
+## [0.3.3] - 2025-12-11
+
+### Fixed
+- **Critical database migration bugs**: Fixed three critical issues preventing proper migration handling
+  - **Database URL override**: `alembic/env.py` now checks if URL is already configured before setting default
+  - **Legacy database auto-stamping**: Now correctly detects legacy databases (with data but no alembic_version)
+  - **Migration detection**: `has_pending_migrations()` now correctly returns True for legacy databases
+  - **Error messaging**: Added specific instructions for stamping legacy databases with clear guidance
+
+## [0.3.2] - 2025-12-11
+
+### Fixed
+- **Migration error handling**: Improved handling when Alembic migration history has multiple heads
+  - Catches `CommandError` when multiple heads are detected
+  - Returns all heads as list from `get_head_revision()`
+  - Provides clear user-friendly error message explaining the issue
+  - Shows which heads are present and directs users to update installation
+  - Prevents crash when running with branched migration history
+
+## [0.3.1] - 2025-12-11
+
+### Added
+- **Lightweight config update action**: New `nullop`/`update_config` force action for quick config changes
+  - Addressable as either `--force_action nullop` or `--force_action update_config`
+  - Bypasses decision engine and metrics collection for minimal resource usage
+  - Only loads configuration and applies parameter changes to database
+  - Supports dry-run mode for testing config changes
+  - Example: `wnm --force_action nullop --node_cap 30`
+  - Example: `wnm --force_action update_config --cpu_less_than 60 --dry_run`
+  - Documentation added to USER-GUIDE-PART3.md
+
+## [0.3.0] - 2025-12-10
+
+### Added
+- **Concurrent operations support**: Aggressive concurrent operations for powerful machines
+  - New global limit: `--max_concurrent_operations` (default: 1)
+  - Per-operation limits: `--max_concurrent_upgrades`, `--max_concurrent_starts`, `--max_concurrent_removals` (default: 1 each)
+  - Aggressive scaling: jumps to capacity immediately each cycle
+  - Respects both per-type and global concurrency limits
+  - Honors actual node availability (no impossible actions)
+  - Each action selects different node (no duplicates)
+  - Backward compatible: defaults to 1 (conservative behavior)
+  - Database migration: `00dd80bcd645_add_max_concurrent_operations.py`
+  - Example: `wnm --max_concurrent_upgrades 4 --max_concurrent_starts 4 --max_concurrent_operations 8`
+
+### Changed
+- **Documentation updates**: Updated README.md, CLAUDE.md, and USER-GUIDE for concurrent operations
+  - Added conservative, aggressive, and very aggressive configuration examples
+  - Clarified default single-operation behavior
 
 ## [0.2.0] - 2025-11-20
 
