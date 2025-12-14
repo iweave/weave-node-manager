@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.3.15] - 2025-12-14
+
+### Fixed
+- **Decision engine test failures**: Fixed 5 failing tests in `test_decision_engine.py`
+  - Added missing concurrent operations configuration keys to test configs
+  - Added `max_concurrent_upgrades`, `max_concurrent_starts`, `max_concurrent_removals`, `max_concurrent_operations` to all test configurations
+  - Added missing metrics keys: `upgrading_nodes`, `removing_nodes` to test data
+  - Updated test assertion in `test_plan_wait_for_restarting` to correctly check for "capacity" message
+  - All 286 tests now passing (7 Linux-only tests skipped on macOS)
+
 ## [0.3.14] - 2025-12-14
 
 ### Fixed

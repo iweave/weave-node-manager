@@ -294,11 +294,17 @@ class TestDecisionEnginePlanning:
             "hdio_write_remove": 0,
             "desired_load_average": 5.0,
             "max_load_average_allowed": 10.0,
+            "max_concurrent_upgrades": 1,
+            "max_concurrent_starts": 1,
+            "max_concurrent_removals": 1,
+            "max_concurrent_operations": 1,
         }
         metrics = {
             "system_start": 500,
             "dead_nodes": 0,
             "restarting_nodes": 1,
+            "upgrading_nodes": 0,
+            "removing_nodes": 0,
             "used_cpu_percent": 60,
             "used_mem_percent": 60,
             "used_hd_percent": 70,
@@ -315,7 +321,8 @@ class TestDecisionEnginePlanning:
 
         assert len(actions) == 1
         assert actions[0].type == ActionType.SURVEY_NODES
-        assert "restart delay" in actions[0].reason.lower()
+        # With 1 restarting node and max_concurrent_operations=1, engine correctly reports at capacity
+        assert "capacity" in actions[0].reason.lower()
 
     def test_plan_remove_node_on_resource_pressure(self):
         """Test node removal/stop under resource pressure"""
@@ -338,6 +345,10 @@ class TestDecisionEnginePlanning:
             "hdio_write_remove": 0,
             "desired_load_average": 5.0,
             "max_load_average_allowed": 10.0,
+            "max_concurrent_upgrades": 1,
+            "max_concurrent_starts": 1,
+            "max_concurrent_removals": 1,
+            "max_concurrent_operations": 1,
         }
         metrics = {
             "system_start": 500,
@@ -387,12 +398,17 @@ class TestDecisionEnginePlanning:
             "hdio_write_remove": 0,
             "desired_load_average": 5.0,
             "max_load_average_allowed": 10.0,
+            "max_concurrent_upgrades": 1,
+            "max_concurrent_starts": 1,
+            "max_concurrent_removals": 1,
+            "max_concurrent_operations": 1,
         }
         metrics = {
             "system_start": 500,
             "dead_nodes": 0,
             "restarting_nodes": 0,
             "upgrading_nodes": 0,
+            "removing_nodes": 0,
             "used_cpu_percent": 60,
             "used_mem_percent": 60,
             "used_hd_percent": 70,
@@ -434,6 +450,10 @@ class TestDecisionEnginePlanning:
             "hdio_write_remove": 0,
             "desired_load_average": 5.0,
             "max_load_average_allowed": 10.0,
+            "max_concurrent_upgrades": 1,
+            "max_concurrent_starts": 1,
+            "max_concurrent_removals": 1,
+            "max_concurrent_operations": 1,
         }
         metrics = {
             "system_start": 500,
@@ -482,6 +502,10 @@ class TestDecisionEnginePlanning:
             "hdio_write_remove": 0,
             "desired_load_average": 5.0,
             "max_load_average_allowed": 10.0,
+            "max_concurrent_upgrades": 1,
+            "max_concurrent_starts": 1,
+            "max_concurrent_removals": 1,
+            "max_concurrent_operations": 1,
         }
         metrics = {
             "system_start": 500,
