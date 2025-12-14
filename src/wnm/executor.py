@@ -280,7 +280,7 @@ class ActionExecutor:
             Dictionary with execution result
         """
         if action.type == ActionType.RESURVEY_NODES:
-            return self._execute_resurvey(machine_config, dry_run)
+            return self._execute_resurvey(action, machine_config, dry_run)
 
         elif action.type == ActionType.REMOVE_NODE:
             return self._execute_remove_node(action, dry_run)
@@ -305,11 +305,26 @@ class ActionExecutor:
             return {"status": "unknown-action", "action": action.type.value}
 
     def _execute_resurvey(
-        self, machine_config: Dict[str, Any], dry_run: bool
+        self, action: Action, machine_config: Dict[str, Any], dry_run: bool
     ) -> Dict[str, Any]:
-        """Execute node resurvey after system reboot."""
+        """Execute node resurvey after system reboot or initialization.
+
+        Args:
+            action: The action to execute (contains reason field)
+            machine_config: Machine configuration
+            dry_run: If True, log without executing
+
+        Returns:
+            Dictionary with status based on action reason
+        """
+        # Determine if this is an init or reboot based on action reason
+        is_init = "initialized" in action.reason.lower()
+
         if dry_run:
-            logging.warning("DRYRUN: System rebooted, survey nodes")
+            if is_init:
+                logging.warning("DRYRUN: System initialized, survey nodes")
+            else:
+                logging.warning("DRYRUN: System rebooted, survey nodes")
         else:
             survey_delay_ms = self._get_survey_delay_ms(machine_config)
             update_nodes(self.S, survey_delay_ms=survey_delay_ms)
@@ -320,7 +335,7 @@ class ActionExecutor:
                 )
                 session.commit()
 
-        return {"status": "system-rebooted"}
+        return {"status": "system-initialized" if is_init else "system-rebooted"}
 
     def _execute_remove_node(self, action: Action, dry_run: bool) -> Dict[str, Any]:
         """Execute node removal.

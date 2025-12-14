@@ -22,15 +22,19 @@ class DecisionEngine:
     to perform.
     """
 
-    def __init__(self, machine_config: Dict[str, Any], metrics: Dict[str, Any]):
+    def __init__(self, machine_config: Dict[str, Any], metrics: Dict[str, Any], is_init: bool = False, should_survey_init: bool = False):
         """Initialize the decision engine.
 
         Args:
             machine_config: Machine configuration dictionary with thresholds
             metrics: Current system metrics and node status
+            is_init: Whether this is an --init operation
+            should_survey_init: Whether to survey nodes during init (only if --import or --migrate_anm)
         """
         self.config = machine_config
         self.metrics = metrics
+        self.is_init = is_init
+        self.should_survey_init = should_survey_init
         self.features = self._compute_features()
 
     def _compute_features(self) -> Dict[str, bool]:
@@ -194,15 +198,37 @@ class DecisionEngine:
         """
         actions = []
 
-        # Priority 1: System reboot detection
+        # Priority 1: System initialization or reboot detection
         if int(self.metrics["system_start"]) > int(self.config["last_stopped_at"]):
-            return [
-                Action(
-                    type=ActionType.RESURVEY_NODES,
-                    priority=100,
-                    reason="system rebooted",
-                )
-            ]
+            # If this is an --init operation, handle it specially
+            if self.is_init:
+                # Only survey if we imported nodes (--import or --migrate_anm)
+                if self.should_survey_init:
+                    return [
+                        Action(
+                            type=ActionType.RESURVEY_NODES,
+                            priority=100,
+                            reason="system initialized",
+                        )
+                    ]
+                else:
+                    # No nodes to survey during init, just report initialized
+                    return [
+                        Action(
+                            type=ActionType.SURVEY_NODES,
+                            priority=0,
+                            reason="system initialized",
+                        )
+                    ]
+            else:
+                # Normal system reboot detection
+                return [
+                    Action(
+                        type=ActionType.RESURVEY_NODES,
+                        priority=100,
+                        reason="system rebooted",
+                    )
+                ]
 
         # Priority 2: Remove dead nodes
         if self.metrics["dead_nodes"] > 0:

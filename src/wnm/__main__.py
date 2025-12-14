@@ -78,8 +78,15 @@ def choose_action(machine_config, metrics, dry_run):
                     )
                     session.commit()
 
+    # Determine if this is an --init operation and whether we should survey
+    is_init = getattr(options, 'init', False)
+    should_survey_init = is_init and (
+        getattr(options, 'migrate_anm', False) or
+        getattr(options, 'import_nodes', False)
+    )
+
     # Use the new DecisionEngine to plan actions
-    engine = DecisionEngine(machine_config, metrics)
+    engine = DecisionEngine(machine_config, metrics, is_init=is_init, should_survey_init=should_survey_init)
     actions = engine.plan_actions()
 
     # Log the computed features for debugging

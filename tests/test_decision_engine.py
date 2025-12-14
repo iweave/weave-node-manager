@@ -228,6 +228,97 @@ class TestDecisionEnginePlanning:
         assert len(actions) == 1
         assert actions[0].type == ActionType.RESURVEY_NODES
         assert actions[0].priority == 100
+        assert "rebooted" in actions[0].reason.lower()
+
+    def test_plan_resurvey_on_init_with_import(self):
+        """Test that system init with import triggers resurvey"""
+        config = {
+            "last_stopped_at": 0,
+            "cpu_less_than": 70,
+            "cpu_remove": 85,
+            "mem_less_than": 70,
+            "mem_remove": 85,
+            "hd_less_than": 80,
+            "hd_remove": 90,
+            "node_cap": 10,
+            "netio_read_less_than": 0,
+            "netio_read_remove": 0,
+            "netio_write_less_than": 0,
+            "netio_write_remove": 0,
+            "hdio_read_less_than": 0,
+            "hdio_read_remove": 0,
+            "hdio_write_less_than": 0,
+            "hdio_write_remove": 0,
+            "desired_load_average": 5.0,
+            "max_load_average_allowed": 10.0,
+        }
+        metrics = {
+            "system_start": 2000,  # System start > last_stopped_at
+            "used_cpu_percent": 60,
+            "used_mem_percent": 60,
+            "used_hd_percent": 70,
+            "running_nodes": 0,
+            "total_nodes": 0,
+            "load_average_1": 3.0,
+            "load_average_5": 3.5,
+            "load_average_15": 4.0,
+            "nodes_to_upgrade": 0,
+            "dead_nodes": 0,
+        }
+
+        # Test with --init and --import (should survey)
+        engine = DecisionEngine(config, metrics, is_init=True, should_survey_init=True)
+        actions = engine.plan_actions()
+
+        assert len(actions) == 1
+        assert actions[0].type == ActionType.RESURVEY_NODES
+        assert actions[0].priority == 100
+        assert "initialized" in actions[0].reason.lower()
+
+    def test_plan_survey_on_init_without_import(self):
+        """Test that system init without import returns survey action"""
+        config = {
+            "last_stopped_at": 0,
+            "cpu_less_than": 70,
+            "cpu_remove": 85,
+            "mem_less_than": 70,
+            "mem_remove": 85,
+            "hd_less_than": 80,
+            "hd_remove": 90,
+            "node_cap": 10,
+            "netio_read_less_than": 0,
+            "netio_read_remove": 0,
+            "netio_write_less_than": 0,
+            "netio_write_remove": 0,
+            "hdio_read_less_than": 0,
+            "hdio_read_remove": 0,
+            "hdio_write_less_than": 0,
+            "hdio_write_remove": 0,
+            "desired_load_average": 5.0,
+            "max_load_average_allowed": 10.0,
+        }
+        metrics = {
+            "system_start": 2000,  # System start > last_stopped_at
+            "used_cpu_percent": 60,
+            "used_mem_percent": 60,
+            "used_hd_percent": 70,
+            "running_nodes": 0,
+            "total_nodes": 0,
+            "load_average_1": 3.0,
+            "load_average_5": 3.5,
+            "load_average_15": 4.0,
+            "nodes_to_upgrade": 0,
+            "dead_nodes": 0,
+        }
+
+        # Test with --init but no import (should NOT resurvey, just idle survey)
+        engine = DecisionEngine(config, metrics, is_init=True, should_survey_init=False)
+        actions = engine.plan_actions()
+
+        assert len(actions) == 1
+        assert actions[0].type == ActionType.SURVEY_NODES
+        assert actions[0].priority == 0
+        assert "initialized" in actions[0].reason.lower()
 
     def test_plan_dead_node_removal(self):
         """Test that dead nodes are planned for removal"""
@@ -724,14 +815,14 @@ class TestActionExecutor:
     """Test ActionExecutor execution logic"""
 
     @patch("wnm.executor.update_nodes")
-    def test_execute_resurvey(self, mock_update_nodes):
-        """Test executing resurvey action"""
+    def test_execute_resurvey_reboot(self, mock_update_nodes):
+        """Test executing resurvey action for system reboot"""
         from wnm.executor import ActionExecutor
 
         S = MagicMock()
         executor = ActionExecutor(S)
 
-        actions = [Action(type=ActionType.RESURVEY_NODES, priority=100, reason="reboot")]
+        actions = [Action(type=ActionType.RESURVEY_NODES, priority=100, reason="system rebooted")]
         config = {"last_stopped_at": 1000}
         metrics = {"system_start": 2000}
 
@@ -739,6 +830,23 @@ class TestActionExecutor:
 
         mock_update_nodes.assert_called_once()
         assert result["status"] == "system-rebooted"
+
+    @patch("wnm.executor.update_nodes")
+    def test_execute_resurvey_init(self, mock_update_nodes):
+        """Test executing resurvey action for system initialization"""
+        from wnm.executor import ActionExecutor
+
+        S = MagicMock()
+        executor = ActionExecutor(S)
+
+        actions = [Action(type=ActionType.RESURVEY_NODES, priority=100, reason="system initialized")]
+        config = {"last_stopped_at": 0}
+        metrics = {"system_start": 2000}
+
+        result = executor.execute(actions, config, metrics, dry_run=False)
+
+        mock_update_nodes.assert_called_once()
+        assert result["status"] == "system-initialized"
 
     def test_execute_dry_run(self):
         """Test that dry_run prevents actual execution"""

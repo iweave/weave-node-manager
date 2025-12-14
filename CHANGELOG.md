@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.3.16] - 2025-12-14
+
+### Changed
+- **Improved --init user experience**: Enhanced initialization status reporting to distinguish from system reboots
+  - New `status: "system-initialized"` when running `--init` (was previously `"system-rebooted"`)
+  - Only surveys nodes during init when `--import` or `--migrate_anm` flags are used
+  - Skips unnecessary node survey when initializing without importing existing nodes
+  - Preserves `status: "system-rebooted"` for actual system reboot detection
+  - Added test coverage for new init-specific behavior
+  - Improved decision engine logic to handle initialization vs reboot scenarios
+
 ## [0.3.15] - 2025-12-14
 
 ### Fixed
