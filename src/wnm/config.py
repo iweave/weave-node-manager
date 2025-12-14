@@ -1096,6 +1096,22 @@ if (
                 else:
                     logging.error("Failed to create machine")
                     sys.exit(1)
+
+            # If we just initialized, set last_stopped_at to current system start time
+            # This prevents the next execution from incorrectly detecting a reboot
+            if did_we_init:
+                from wnm.utils import get_system_start_time
+                system_start = get_system_start_time()
+                logging.info(f"Setting last_stopped_at to system start time: {system_start}")
+                with S() as session:
+                    session.query(Machine).filter(Machine.id == 1).update(
+                        {"last_stopped_at": system_start}
+                    )
+                    session.commit()
+                    # Reload machine config to reflect the update
+                    machine_config = session.execute(select(Machine)).first()
+                    if machine_config:
+                        machine_config = machine_config[0]
     else:
         logging.error("No config found")
         sys.exit(1)

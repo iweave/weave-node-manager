@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.3.17] - 2025-12-14
+
+### Fixed
+- **Initialization reboot detection**: Fixed false reboot detection on first execution after `--init`
+  - During initialization, `last_stopped_at` is now set to the current system start time instead of 0
+  - Prevents the next execution from incorrectly detecting a reboot and wasting a cycle on node resurvey
+  - Added `get_system_start_time()` helper function for consistent boot time detection across macOS and Linux
+  - Refactored `get_machine_metrics()` to use the new helper function for cleaner code
+
 ## [0.3.16] - 2025-12-14
 
 ### Changed

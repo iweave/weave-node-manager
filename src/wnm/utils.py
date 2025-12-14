@@ -216,14 +216,13 @@ def get_node_age(root_dir):
         return 0
 
 
-# Survey nodes by reading metadata from metrics ports or binary --version
-def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
-    metrics = {}
+# Get the system start time (boot time) as a Unix timestamp
+def get_system_start_time():
+    """Get system boot time as Unix timestamp.
 
-    with S() as session:
-        db_nodes = session.execute(select(Node.status, Node.version)).all()
-
-    # Get system start time before we probe metrics
+    Returns:
+        int: Unix timestamp of system boot time, or 0 on error
+    """
     try:
         if PLATFORM == "Darwin":
             # macOS: use sysctl kern.boottime
@@ -236,7 +235,7 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
             # Parse: { sec = 1234567890, usec = 0 }
             match = re.search(r"sec = (\d+)", p)
             if match:
-                metrics["system_start"] = int(match.group(1))
+                return int(match.group(1))
             else:
                 raise ValueError("Could not parse kern.boottime")
         else:
@@ -247,12 +246,25 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
                 stderr=subprocess.STDOUT,
             ).stdout.decode("utf-8")
             if re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", p):
-                metrics["system_start"] = int(
+                return int(
                     time.mktime(time.strptime(p.strip(), "%Y-%m-%d %H:%M:%S"))
                 )
     except (subprocess.CalledProcessError, ValueError) as err:
-        logging.error("GMM ERROR:", err)
-        metrics["system_start"] = 0
+        logging.error(f"Error getting system start time: {err}")
+        return 0
+
+    return 0
+
+
+# Survey nodes by reading metadata from metrics ports or binary --version
+def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
+    metrics = {}
+
+    with S() as session:
+        db_nodes = session.execute(select(Node.status, Node.version)).all()
+
+    # Get system start time before we probe metrics
+    metrics["system_start"] = get_system_start_time()
 
     # Get some initial stats for comparing after a few seconds
     # We start these counters AFTER reading the database
