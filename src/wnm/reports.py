@@ -438,12 +438,13 @@ def generate_machine_config_report(
         # Add dbpath to the config
         config_dict["dbpath"] = dbpath
 
+        # Fields that need quoting (paths and args with special characters)
+        quoted_fields = {'node_storage', 'environment', 'start_args', 'antnode_path', 'dbpath'}
+
         if report_format == "json":
             return json.dumps(config_dict, indent=2)
         elif report_format == "env":
             # Environment variable format: UPPER_CASE_KEY="value"
-            # Fields that need quoting (paths and args with special characters)
-            quoted_fields = {'node_storage', 'environment', 'start_args', 'antnode_path', 'dbpath'}
             lines = []
             for key, value in config_dict.items():
                 upper_key = key.upper()
@@ -452,6 +453,16 @@ def generate_machine_config_report(
                     lines.append(f'{upper_key}="{value}"')
                 else:
                     lines.append(f'{upper_key}={value}')
+            return "\n".join(lines)
+        elif report_format == "config":
+            # Config file format: lower_snake_case_key="value"
+            lines = []
+            for key, value in config_dict.items():
+                # Quote fields that may contain spaces or special characters
+                if key in quoted_fields:
+                    lines.append(f'{key}="{value}"')
+                else:
+                    lines.append(f'{key}={value}')
             return "\n".join(lines)
         else:
             # Text format: one entry per line

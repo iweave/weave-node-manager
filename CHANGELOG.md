@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.3.19] - 2025-12-14
+
+### Added
+- **Config format for reports**: Added `--report_format config` option for machine-config reports
+  - Uses lower_snake_case parameter names (same as command-line arguments)
+  - Suitable for use in config files that are read by configargparse
+  - Preserves quoting logic for paths and special characters
+  - Key difference from `env` format: `config` uses lower_snake_case (e.g., `node_cap=50`), `env` uses UPPER_CASE (e.g., `NODE_CAP=50`)
+  - Updated documentation in USER-GUIDE-PART3.md with comprehensive examples
+
 ## [0.3.18] - 2025-12-14
 
 ### Changed

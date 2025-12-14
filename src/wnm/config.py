@@ -448,8 +448,8 @@ def load_config():
     c.add(
         "--report_format",
         env_var="REPORT_FORMAT",
-        help="Report output format: text, json, or env (default: text). The env format is only supported for machine-config reports.",
-        choices=["text", "json", "env"],
+        help="Report output format: text, json, env, or config (default: text). The env and config formats are only supported for machine-config and machine-metrics reports.",
+        choices=["text", "json", "env", "config"],
         default="text",
     )
     c.add(

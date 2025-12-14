@@ -852,14 +852,19 @@ wnm --force_action nullop --node_cap 40 --delay_start 600 --survey_delay 250
 **`--report_format`**
 - Environment variable: `REPORT_FORMAT`
 - Type: String
-- Choices: `text`, `json`, `env`
+- Choices: `text`, `json`, `env`, `config`
 - Default: `text`
 - Description: Output format for reports
 - Format details:
   - `text`: Human-readable key: value format
   - `json`: JSON format for programmatic parsing
-  - `env`: Environment variable format (UPPER_CASE_KEY=value) - supported for `machine-config` and `machine-metrics` reports
-- Note: `influx-resources` report only supports InfluxDB line protocol format (no json/text/env option)
+  - `env`: Environment variable format (UPPER_CASE_KEY=value) - for shell environment variables
+  - `config`: Config file format (lower_snake_case_key=value) - for use in config files that are read by configargparse
+- Format support:
+  - `machine-config` report: Supports all formats (text, json, env, config)
+  - `machine-metrics` report: Supports text, json, and env formats
+  - `node-status` and `node-status-details` reports: Support text and json formats only
+- Note: `influx-resources` report only supports InfluxDB line protocol format (no json/text/env/config option)
 
 **`--json`**
 - Type: Boolean flag (shortcut)
@@ -872,7 +877,7 @@ wnm --force_action nullop --node_cap 40 --delay_start 600 --survey_delay 250
 
 ### Machine Config Report Examples
 
-The `machine-config` report displays your cluster's configuration settings. It supports three output formats.
+The `machine-config` report displays your cluster's configuration settings. It supports four output formats.
 
 **Text Format (default):**
 ```bash
@@ -958,6 +963,52 @@ echo "Memory Remove Threshold: $MEM_REMOVE%"
 echo "Rewards Address: $REWARDS_ADDRESS"
 echo "Node Storage: $NODE_STORAGE"
 echo "Database: $DBPATH"
+```
+
+**Config File Format:**
+
+The `config` format outputs configuration in a format suitable for WNM config files. Unlike the `env` format (which uses UPPER_CASE for shell environment variables), the `config` format uses lower_snake_case parameter names that match command-line arguments.
+
+```bash
+wnm --report machine-config --report_format config
+
+# Output:
+# cpu_count=8
+# node_cap=50
+# cpu_less_than=70
+# rewards_address=0x00455d78f850b0358E8cea5be24d415E01E107CF
+# node_storage="/Users/dawn/Library/Application Support/autonomi/node"
+# ...
+```
+
+**Using config format to save/load configuration:**
+
+```bash
+# Export current configuration to a config file
+wnm --report machine-config --report_format config > ~/.local/share/wnm/config
+
+# Now wnm will automatically load these settings from the config file
+# You can override individual values via command line:
+wnm --node_cap 60  # Uses config file values except node_cap
+
+# Or create a custom config file
+wnm --report machine-config --report_format config > ~/my-custom-config
+wnm --config ~/my-custom-config
+```
+
+**Example: Saving and modifying configuration:**
+
+```bash
+# 1. Export current config
+wnm --report machine-config --report_format config > /tmp/wnm-backup.config
+
+# 2. Edit the file to adjust settings (edit cpu_less_than, mem_less_than, etc.)
+nano /tmp/wnm-backup.config
+
+# 3. Load the modified config
+wnm --config /tmp/wnm-backup.config
+
+# The config file will update the database with any changed values
 ```
 
 ### Machine Metrics Report Examples
