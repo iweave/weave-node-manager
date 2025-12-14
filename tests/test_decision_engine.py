@@ -509,6 +509,193 @@ class TestDecisionEnginePlanning:
         assert "idle" in actions[0].reason.lower()
 
 
+class TestDecisionEngineConcurrency:
+    """Test concurrent operations in DecisionEngine"""
+
+    def test_concurrent_upgrades(self):
+        """Test that decision engine returns multiple upgrade actions"""
+        config = {
+            "cpu_less_than": 70,
+            "mem_less_than": 70,
+            "hd_less_than": 70,
+            "cpu_remove": 80,
+            "mem_remove": 80,
+            "hd_remove": 80,
+            "netio_read_less_than": 0,
+            "netio_read_remove": 0,
+            "netio_write_less_than": 0,
+            "netio_write_remove": 0,
+            "hdio_read_less_than": 0,
+            "hdio_read_remove": 0,
+            "hdio_write_less_than": 0,
+            "hdio_write_remove": 0,
+            "desired_load_average": 10,
+            "max_load_average_allowed": 20,
+            "node_cap": 50,
+            "last_stopped_at": 0,
+            "max_concurrent_upgrades": 4,
+            "max_concurrent_starts": 4,
+            "max_concurrent_removals": 2,
+            "max_concurrent_operations": 8,
+        }
+
+        metrics = {
+            "system_start": 0,
+            "dead_nodes": 0,
+            "upgrading_nodes": 0,
+            "restarting_nodes": 0,
+            "removing_nodes": 0,
+            "migrating_nodes": 0,
+            "running_nodes": 10,
+            "stopped_nodes": 0,
+            "total_nodes": 10,
+            "nodes_to_upgrade": 8,
+            "antnode_version": "1.0.0",
+            "queen_node_version": "1.0.0",
+            "used_cpu_percent": 50,
+            "used_mem_percent": 50,
+            "used_hd_percent": 50,
+            "load_average_1": 5,
+            "load_average_5": 5,
+            "load_average_15": 5,
+            "netio_read_bytes": 0,
+            "netio_write_bytes": 0,
+            "hdio_read_bytes": 0,
+            "hdio_write_bytes": 0,
+        }
+
+        engine = DecisionEngine(config, metrics)
+        actions = engine.plan_actions()
+
+        # Should plan 4 upgrade actions (limited by max_concurrent_upgrades)
+        assert len(actions) == 4
+        assert all(a.type == ActionType.UPGRADE_NODE for a in actions)
+
+    def test_concurrent_starts(self):
+        """Test that decision engine returns multiple start actions"""
+        config = {
+            "cpu_less_than": 70,
+            "mem_less_than": 70,
+            "hd_less_than": 70,
+            "cpu_remove": 80,
+            "mem_remove": 80,
+            "hd_remove": 80,
+            "netio_read_less_than": 0,
+            "netio_read_remove": 0,
+            "netio_write_less_than": 0,
+            "netio_write_remove": 0,
+            "hdio_read_less_than": 0,
+            "hdio_read_remove": 0,
+            "hdio_write_less_than": 0,
+            "hdio_write_remove": 0,
+            "desired_load_average": 10,
+            "max_load_average_allowed": 20,
+            "node_cap": 50,
+            "last_stopped_at": 0,
+            "max_concurrent_upgrades": 4,
+            "max_concurrent_starts": 4,
+            "max_concurrent_removals": 2,
+            "max_concurrent_operations": 8,
+        }
+
+        metrics = {
+            "system_start": 0,
+            "dead_nodes": 0,
+            "upgrading_nodes": 0,
+            "restarting_nodes": 0,
+            "removing_nodes": 0,
+            "migrating_nodes": 0,
+            "running_nodes": 5,
+            "stopped_nodes": 3,
+            "total_nodes": 8,
+            "nodes_to_upgrade": 0,
+            "antnode_version": "1.0.0",
+            "queen_node_version": "1.0.0",
+            "used_cpu_percent": 50,
+            "used_mem_percent": 50,
+            "used_hd_percent": 50,
+            "load_average_1": 5,
+            "load_average_5": 5,
+            "load_average_15": 5,
+            "netio_read_bytes": 0,
+            "netio_write_bytes": 0,
+            "hdio_read_bytes": 0,
+            "hdio_write_bytes": 0,
+        }
+
+        engine = DecisionEngine(config, metrics)
+        actions = engine.plan_actions()
+
+        # Should plan 3 start actions (limited by stopped_nodes=3) + 1 add action
+        assert len(actions) == 4
+
+        start_actions = [a for a in actions if a.type == ActionType.START_NODE]
+        add_actions = [a for a in actions if a.type == ActionType.ADD_NODE]
+
+        assert len(start_actions) == 3
+        assert len(add_actions) == 1
+
+    def test_global_capacity_limit(self):
+        """Test that global capacity limit is respected"""
+        config = {
+            "cpu_less_than": 70,
+            "mem_less_than": 70,
+            "hd_less_than": 70,
+            "cpu_remove": 80,
+            "mem_remove": 80,
+            "hd_remove": 80,
+            "netio_read_less_than": 0,
+            "netio_read_remove": 0,
+            "netio_write_less_than": 0,
+            "netio_write_remove": 0,
+            "hdio_read_less_than": 0,
+            "hdio_read_remove": 0,
+            "hdio_write_less_than": 0,
+            "hdio_write_remove": 0,
+            "desired_load_average": 10,
+            "max_load_average_allowed": 20,
+            "node_cap": 50,
+            "last_stopped_at": 0,
+            "max_concurrent_upgrades": 10,
+            "max_concurrent_starts": 10,
+            "max_concurrent_removals": 10,
+            "max_concurrent_operations": 3,
+        }
+
+        metrics = {
+            "system_start": 0,
+            "dead_nodes": 0,
+            "upgrading_nodes": 2,
+            "restarting_nodes": 1,
+            "removing_nodes": 0,
+            "migrating_nodes": 0,
+            "running_nodes": 10,
+            "stopped_nodes": 5,
+            "total_nodes": 15,
+            "nodes_to_upgrade": 8,
+            "antnode_version": "1.0.0",
+            "queen_node_version": "1.0.0",
+            "used_cpu_percent": 50,
+            "used_mem_percent": 50,
+            "used_hd_percent": 50,
+            "load_average_1": 5,
+            "load_average_5": 5,
+            "load_average_15": 5,
+            "netio_read_bytes": 0,
+            "netio_write_bytes": 0,
+            "hdio_read_bytes": 0,
+            "hdio_write_bytes": 0,
+        }
+
+        engine = DecisionEngine(config, metrics)
+        actions = engine.plan_actions()
+
+        # Should return SURVEY_NODES because at global capacity (2+1=3, limit=3)
+        assert len(actions) == 1
+        assert actions[0].type == ActionType.SURVEY_NODES
+        assert "global capacity" in actions[0].reason or "capacity" in actions[0].reason
+
+
 class TestActionExecutor:
     """Test ActionExecutor execution logic"""
 

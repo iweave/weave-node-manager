@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.3.11] - 2025-12-13
+
+### Changed
+- **Test organization**: Reorganized test files for better structure
+  - Moved `test_antctl_integration.py` from root to `scripts/` directory (manual integration test)
+  - Converted `test_concurrent_ops.py` to pytest format and merged into `tests/test_decision_engine.py`
+  - Added new `TestDecisionEngineConcurrency` test class with comprehensive concurrent operations tests
+  - All concurrent operations functionality now has proper automated test coverage
+
 ## [0.3.10] - 2025-12-13
 
 ### Added
