@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.3.13] - 2025-12-13
+
+### Fixed
+- **Machine-metrics env format**: Fixed `NODES_BY_VERSION` value to be env-safe by quoting dictionary values
+  - Dictionary values like `NODES_BY_VERSION` are now properly quoted: `NODES_BY_VERSION="{'0.4.7': 3}"`
+  - Numeric values remain unquoted for proper type handling: `CPU=45.2`, `NODES_RUNNING=5`
+  - Ensures compatibility with `eval $(wnm --report machine-metrics --report_format env)` in shell scripts
+
 ## [0.3.12] - 2025-12-13
 
 ### Added

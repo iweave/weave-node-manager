@@ -448,3 +448,100 @@ class TestMachineConfigReport:
         assert 'REWARDS_ADDRESS=0x00455d78f850b0358E8cea5be24d415E01E107CF' in report
         assert 'DBPATH=/tmp/test.db' in report
 
+
+class TestMachineMetricsReport:
+    """Test machine metrics report generation."""
+
+    def test_generate_machine_metrics_report_text(self):
+        """Test machine-metrics report in text format."""
+        from collections import Counter
+        from wnm.reports import generate_machine_metrics_report
+
+        metrics = {
+            "cpu": 45.2,
+            "mem": 62.8,
+            "nodes_running": 5,
+            "nodes_stopped": 2,
+            "nodes_by_version": Counter({"0.4.7": 3, "0.4.8": 2}),
+        }
+
+        report = generate_machine_metrics_report(metrics, "text")
+        assert "cpu: 45.2" in report
+        assert "mem: 62.8" in report
+        assert "nodes_running: 5" in report
+        assert "nodes_stopped: 2" in report
+
+    def test_generate_machine_metrics_report_json(self):
+        """Test machine-metrics report in JSON format."""
+        from collections import Counter
+        from wnm.reports import generate_machine_metrics_report
+
+        metrics = {
+            "cpu": 45.2,
+            "mem": 62.8,
+            "nodes_running": 5,
+            "nodes_stopped": 2,
+            "nodes_by_version": Counter({"0.4.7": 3, "0.4.8": 2}),
+        }
+
+        report = generate_machine_metrics_report(metrics, "json")
+        data = json.loads(report)
+        assert data["cpu"] == 45.2
+        assert data["mem"] == 62.8
+        assert data["nodes_running"] == 5
+        assert data["nodes_stopped"] == 2
+        assert isinstance(data["nodes_by_version"], dict)
+        assert data["nodes_by_version"]["0.4.7"] == 3
+        assert data["nodes_by_version"]["0.4.8"] == 2
+
+    def test_generate_machine_metrics_report_env(self):
+        """Test machine-metrics report in env format."""
+        from collections import Counter
+        from wnm.reports import generate_machine_metrics_report
+
+        metrics = {
+            "cpu": 45.2,
+            "mem": 62.8,
+            "nodes_running": 5,
+            "nodes_stopped": 2,
+            "nodes_by_version": Counter({"0.4.7": 3, "0.4.8": 2}),
+        }
+
+        report = generate_machine_metrics_report(metrics, "env")
+
+        # Check that variables are uppercase
+        assert 'CPU=45.2' in report
+        assert 'MEM=62.8' in report
+        assert 'NODES_RUNNING=5' in report
+        assert 'NODES_STOPPED=2' in report
+
+        # Check that dictionary values are quoted for env-safety
+        assert 'NODES_BY_VERSION="' in report
+        # The dict should be quoted
+        lines = report.split('\n')
+        nodes_by_version_line = next(line for line in lines if line.startswith('NODES_BY_VERSION='))
+        # Should start with quote after =
+        assert nodes_by_version_line.startswith('NODES_BY_VERSION="')
+        # Should end with quote
+        assert nodes_by_version_line.endswith('"')
+
+    def test_generate_machine_metrics_report_env_no_quotes_on_numbers(self):
+        """Test that env format doesn't quote numeric values."""
+        from wnm.reports import generate_machine_metrics_report
+
+        metrics = {
+            "cpu": 45.2,
+            "mem": 62.8,
+            "nodes_running": 5,
+        }
+
+        report = generate_machine_metrics_report(metrics, "env")
+
+        # Numeric values should NOT have quotes
+        assert 'CPU=45.2' in report
+        assert 'CPU="45.2"' not in report
+        assert 'MEM=62.8' in report
+        assert 'MEM="62.8"' not in report
+        assert 'NODES_RUNNING=5' in report
+        assert 'NODES_RUNNING="5"' not in report
+

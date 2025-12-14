@@ -484,11 +484,15 @@ def generate_machine_metrics_report(
     if report_format == "json":
         return json.dumps(metrics_output, indent=2)
     elif report_format == "env":
-        # Environment variable format: UPPER_CASE_KEY=value
+        # Environment variable format: UPPER_CASE_KEY=value (quote dicts/complex values)
         lines = []
         for key, value in metrics_output.items():
             upper_key = key.upper()
-            lines.append(f'{upper_key}={value}')
+            # Quote dictionary values to make them env-safe
+            if isinstance(value, dict):
+                lines.append(f'{upper_key}="{value}"')
+            else:
+                lines.append(f'{upper_key}={value}')
         return "\n".join(lines)
     else:
         # Text format: one entry per line
