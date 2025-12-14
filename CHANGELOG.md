@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.3.18] - 2025-12-14
+
+### Changed
+- **Initialization behavior**: `--init` now exits immediately after initialization (and optional survey)
+  - Decision engine no longer runs during `--init` operations
+  - After `--init` completes configuration setup and optional node import, the program exits cleanly
+  - Prevents unnecessary resource checks and node management actions during initialization
+  - Makes `--init` a true initialization-only operation
+
 ## [0.3.17] - 2025-12-14
 
 ### Fixed

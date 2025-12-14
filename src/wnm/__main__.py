@@ -321,6 +321,12 @@ def main():
             "Found {counter} nodes configured".format(counter=metrics["total_nodes"])
         )
 
+    # Handle --init flag: exit after initialization (and optional survey)
+    if options.init:
+        logging.info("Initialization complete")
+        os.remove(LOCK_FILE)
+        sys.exit(0)
+
     # Check for reports
     if options.report:
         from wnm.reports import (
