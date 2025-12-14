@@ -442,10 +442,16 @@ def generate_machine_config_report(
             return json.dumps(config_dict, indent=2)
         elif report_format == "env":
             # Environment variable format: UPPER_CASE_KEY="value"
+            # Fields that need quoting (paths and args with special characters)
+            quoted_fields = {'node_storage', 'environment', 'start_args', 'antnode_path', 'dbpath'}
             lines = []
             for key, value in config_dict.items():
                 upper_key = key.upper()
-                lines.append(f'{upper_key}={value}')
+                # Quote fields that may contain spaces or special characters
+                if key in quoted_fields:
+                    lines.append(f'{upper_key}="{value}"')
+                else:
+                    lines.append(f'{upper_key}={value}')
             return "\n".join(lines)
         else:
             # Text format: one entry per line
@@ -485,11 +491,13 @@ def generate_machine_metrics_report(
         return json.dumps(metrics_output, indent=2)
     elif report_format == "env":
         # Environment variable format: UPPER_CASE_KEY=value (quote dicts/complex values)
+        # Fields that need quoting (paths with special characters)
+        quoted_fields = {'antnode'}
         lines = []
         for key, value in metrics_output.items():
             upper_key = key.upper()
-            # Quote dictionary values to make them env-safe
-            if isinstance(value, dict):
+            # Quote dictionary values and path fields to make them env-safe
+            if isinstance(value, dict) or key in quoted_fields:
                 lines.append(f'{upper_key}="{value}"')
             else:
                 lines.append(f'{upper_key}={value}')

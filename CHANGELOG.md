@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.3.14] - 2025-12-14
+
+### Fixed
+- **Env format quoting (as easy as pie!)**: Added proper quoting for paths and arguments with special characters in env format outputs
+  - Machine-config report now quotes: `NODE_STORAGE`, `ENVIRONMENT`, `START_ARGS`, `ANTNODE_PATH`, `DBPATH`
+  - Machine-metrics report now quotes: `ANTNODE` binary path
+  - Ensures shell-safe parsing of paths with spaces or special characters
+  - Examples:
+    - `NODE_STORAGE="/path/with spaces/node/"` (properly quoted)
+    - `ANTNODE="/usr/local/bin/antnode"` (properly quoted)
+  - Fixes issues when sourcing env output: `eval $(wnm --report machine-config --report_format env)`
+  - Added comprehensive test coverage for quoted fields and paths with spaces
+
 ## [0.3.13] - 2025-12-13
 
 ### Fixed

@@ -446,7 +446,15 @@ class TestMachineConfigReport:
         assert 'MEM_LESS_THAN=70' in report
         assert 'MEM_REMOVE=80' in report
         assert 'REWARDS_ADDRESS=0x00455d78f850b0358E8cea5be24d415E01E107CF' in report
-        assert 'DBPATH=/tmp/test.db' in report
+
+        # Check that path fields are quoted
+        assert 'DBPATH="/tmp/test.db"' in report
+        assert 'NODE_STORAGE="/tmp/test"' in report
+        # ANTNODE_PATH should be quoted (has default value)
+        assert 'ANTNODE_PATH="' in report
+        # ENVIRONMENT and START_ARGS should be quoted even if None
+        assert 'ENVIRONMENT="None"' in report
+        assert 'START_ARGS="None"' in report
 
 
 class TestMachineMetricsReport:
@@ -544,4 +552,32 @@ class TestMachineMetricsReport:
         assert 'MEM="62.8"' not in report
         assert 'NODES_RUNNING=5' in report
         assert 'NODES_RUNNING="5"' not in report
+
+    def test_generate_machine_metrics_report_env_antnode_quoted(self):
+        """Test that env format quotes the ANTNODE path field."""
+        from wnm.reports import generate_machine_metrics_report
+
+        metrics = {
+            "cpu": 45.2,
+            "antnode": "/usr/local/bin/antnode",
+        }
+
+        report = generate_machine_metrics_report(metrics, "env")
+
+        # ANTNODE path should be quoted
+        assert 'ANTNODE="/usr/local/bin/antnode"' in report
+
+    def test_generate_machine_metrics_report_env_antnode_with_spaces(self):
+        """Test that env format quotes ANTNODE path with spaces."""
+        from wnm.reports import generate_machine_metrics_report
+
+        metrics = {
+            "cpu": 45.2,
+            "antnode": "/path/with spaces/antnode",
+        }
+
+        report = generate_machine_metrics_report(metrics, "env")
+
+        # ANTNODE path with spaces should be quoted
+        assert 'ANTNODE="/path/with spaces/antnode"' in report
 
