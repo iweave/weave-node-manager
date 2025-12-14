@@ -453,6 +453,13 @@ def load_config():
         default="text",
     )
     c.add(
+        "--json",
+        help="Shortcut for --report_format json",
+        action="store_const",
+        const="json",
+        dest="report_format",
+    )
+    c.add(
         "--count",
         env_var="COUNT",
         help="Number of nodes to affect when using --force_action (default: 1). Works with add, remove, start, stop, upgrade actions.",

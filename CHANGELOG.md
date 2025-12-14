@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.3.10] - 2025-12-13
+
+### Added
+- **JSON output shortcut**: Added `--json` flag as a convenient shortcut for `--report_format json`
+  - New `--json` command-line flag for requesting JSON output format
+  - Equivalent to `--report_format json` but shorter and easier to type
+  - Compatible with antctl command syntax for users familiar with that tool
+  - Works with all report types: `node-status`, `node-status-details`, `machine-config`, `machine-metrics`
+  - Examples:
+    - `wnm --report node-status --json`
+    - `wnm --report machine-config --json`
+    - `wnm --report machine-metrics --json`
+
 ## [0.3.9] - 2025-12-12
 
 ### Changed

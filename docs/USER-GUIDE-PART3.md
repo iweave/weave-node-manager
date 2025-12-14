@@ -861,6 +861,15 @@ wnm --force_action nullop --node_cap 40 --delay_start 600 --survey_delay 250
   - `env`: Environment variable format (UPPER_CASE_KEY=value) - only supported for `machine-config` report
 - Note: `influx-resources` report only supports InfluxDB line protocol format (no json/text/env option)
 
+**`--json`**
+- Type: Boolean flag (shortcut)
+- Description: Shortcut for `--report_format json`
+- Use case: Convenient way to request JSON output that is compatible with antctl
+- Examples:
+  - `wnm --report node-status --json` (equivalent to `--report_format json`)
+  - `wnm --report machine-config --json`
+  - `wnm --report machine-metrics --json`
+
 ### Machine Config Report Examples
 
 The `machine-config` report displays your cluster's configuration settings. It supports three output formats.
