@@ -847,7 +847,7 @@ wnm --force_action nullop --node_cap 40 --delay_start 600 --survey_delay 250
   - `node-status-details`: Detailed information for each node including paths, version, and metrics
   - `influx-resources`: InfluxDB line protocol format for metrics integration
   - `machine-config`: Machine configuration with database path (text, JSON, or env format)
-  - `machine-metrics`: Current system metrics (text or JSON format)
+  - `machine-metrics`: Current system metrics (text, JSON, or env format)
 
 **`--report_format`**
 - Environment variable: `REPORT_FORMAT`
@@ -858,7 +858,7 @@ wnm --force_action nullop --node_cap 40 --delay_start 600 --survey_delay 250
 - Format details:
   - `text`: Human-readable key: value format
   - `json`: JSON format for programmatic parsing
-  - `env`: Environment variable format (UPPER_CASE_KEY=value) - only supported for `machine-config` report
+  - `env`: Environment variable format (UPPER_CASE_KEY=value) - supported for `machine-config` and `machine-metrics` reports
 - Note: `influx-resources` report only supports InfluxDB line protocol format (no json/text/env option)
 
 **`--json`**
@@ -958,6 +958,147 @@ echo "Memory Remove Threshold: $MEM_REMOVE%"
 echo "Rewards Address: $REWARDS_ADDRESS"
 echo "Node Storage: $NODE_STORAGE"
 echo "Database: $DBPATH"
+```
+
+### Machine Metrics Report Examples
+
+The `machine-metrics` report displays current system resource usage and node statistics. It supports three output formats.
+
+**Text Format (default):**
+```bash
+wnm --report machine-metrics
+
+# Output:
+# system_start: 1762763731
+# total_nodes: 5
+# running_nodes: 4
+# stopped_nodes: 1
+# cpu_percent: 45.3
+# mem_percent: 62.1
+# ...
+```
+
+**JSON Format:**
+```bash
+wnm --report machine-metrics --report_format json
+
+# Output:
+# {
+#   "system_start": 1762763731,
+#   "total_nodes": 5,
+#   "running_nodes": 4,
+#   "stopped_nodes": 1,
+#   "cpu_percent": 45.3,
+#   "mem_percent": 62.1,
+#   ...
+# }
+```
+
+**Environment Variable Format:**
+
+The `env` format outputs metrics as shell environment variables (unquoted values):
+
+```bash
+wnm --report machine-metrics --report_format env
+
+# Output:
+# SYSTEM_START=1762763731
+# TOTAL_NODES=5
+# RUNNING_NODES=4
+# STOPPED_NODES=1
+# CPU_PERCENT=45.3
+# MEM_PERCENT=62.1
+# ...
+```
+
+**Using env format in shell scripts:**
+
+```bash
+# Load metrics into current shell environment
+eval $(wnm --report machine-metrics --report_format env)
+
+# Now you can use the metrics as variables
+echo "Running nodes: $RUNNING_NODES out of $TOTAL_NODES"
+echo "CPU usage: $CPU_PERCENT%"
+echo "Memory usage: $MEM_PERCENT%"
+```
+
+**Example monitoring script:**
+
+```bash
+#!/bin/bash
+# Load current system metrics
+eval $(wnm --report machine-metrics --report_format env)
+
+# Display resource usage
+echo "=== System Resource Usage ==="
+echo "CPU: ${CPU_PERCENT}%"
+echo "Memory: ${MEM_PERCENT}%"
+echo "Disk: ${HD_PERCENT}%"
+echo "Load Average (1min): ${LOAD_AVERAGE_1}"
+echo ""
+echo "=== Node Status ==="
+echo "Total Nodes: $TOTAL_NODES"
+echo "Running: $RUNNING_NODES"
+echo "Stopped: $STOPPED_NODES"
+echo "Upgrading: $UPGRADING_NODES"
+echo "Needs Upgrade: $NODES_TO_UPGRADE"
+```
+
+**Conditional actions based on metrics:**
+
+```bash
+#!/bin/bash
+# Load metrics
+eval $(wnm --report machine-metrics --report_format env)
+
+# Check if system is under pressure
+if (( $(echo "$CPU_PERCENT > 80" | bc -l) )); then
+    echo "WARNING: High CPU usage detected: ${CPU_PERCENT}%"
+    # Take action, e.g., alert, scale down, etc.
+fi
+
+if (( $(echo "$MEM_PERCENT > 85" | bc -l) )); then
+    echo "WARNING: High memory usage detected: ${MEM_PERCENT}%"
+fi
+
+# Check node health
+if [ "$STOPPED_NODES" -gt 0 ]; then
+    echo "Notice: $STOPPED_NODES node(s) are stopped"
+fi
+
+if [ "$NODES_TO_UPGRADE" -gt 0 ]; then
+    echo "Notice: $NODES_TO_UPGRADE node(s) need upgrade"
+fi
+```
+
+**Combining config and metrics:**
+
+```bash
+#!/bin/bash
+# Load both configuration and current metrics
+eval $(wnm --report machine-config --report_format env)
+eval $(wnm --report machine-metrics --report_format env)
+
+# Compare current usage against thresholds
+echo "=== Threshold Analysis ==="
+echo "CPU: ${CPU_PERCENT}% (Add < ${CPU_LESS_THAN}%, Remove > ${CPU_REMOVE}%)"
+echo "Memory: ${MEM_PERCENT}% (Add < ${MEM_LESS_THAN}%, Remove > ${MEM_REMOVE}%)"
+echo "Disk: ${HD_PERCENT}% (Add < ${HD_LESS_THAN}%, Remove > ${HD_REMOVE}%)"
+echo ""
+echo "Nodes: ${TOTAL_NODES} / ${NODE_CAP} (capacity)"
+
+# Determine if we're in add or remove territory
+if (( $(echo "$CPU_PERCENT < $CPU_LESS_THAN" | bc -l) )) && \
+   (( $(echo "$MEM_PERCENT < $MEM_LESS_THAN" | bc -l) )) && \
+   [ "$TOTAL_NODES" -lt "$NODE_CAP" ]; then
+    echo "Status: System can ADD nodes"
+elif (( $(echo "$CPU_PERCENT > $CPU_REMOVE" | bc -l) )) || \
+     (( $(echo "$MEM_PERCENT > $MEM_REMOVE" | bc -l) )); then
+    echo "Status: System may REMOVE nodes"
+else
+    echo "Status: System is in stable range"
+fi
 ```
 
 ### InfluxDB Resources Report Export Examples

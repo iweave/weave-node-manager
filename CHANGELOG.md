@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [0.3.12] - 2025-12-13
+
+### Added
+- **Environment variable format for machine-metrics report**: Added `env` output format support for `--report machine-metrics`
+  - New format option: `--report machine-metrics --report_format env`
+  - Outputs system metrics as shell environment variables in `UPPER_CASE_KEY=value` format
+  - Enables using metrics in shell scripts with `eval $(wnm --report machine-metrics --report_format env)`
+  - Provides access to all metrics as shell variables: `$CPU_PERCENT`, `$MEM_PERCENT`, `$TOTAL_NODES`, etc.
+  - Consistent with existing `env` format support for `machine-config` report
+  - Documentation includes comprehensive examples:
+    - Loading metrics into current shell environment
+    - Building monitoring scripts with threshold checks
+    - Conditional actions based on system metrics
+    - Combining config and metrics for intelligent decision-making
+
 ## [0.3.11] - 2025-12-13
 
 ### Changed
