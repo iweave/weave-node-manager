@@ -1004,9 +1004,25 @@ _SKIP_DB_INIT = (
 
 # Setup Database engine (skip if --version, --remove_lockfile, or test mode)
 if not _SKIP_DB_INIT:
+    # Extract the actual file path from the database URL
+    db_file_path = options.dbpath
+    if db_file_path.startswith("sqlite:///"):
+        db_file_path = db_file_path[10:]
+
+    # Check if database exists
+    db_exists = os.path.exists(db_file_path)
+
+    # If database doesn't exist and we're not initializing, exit with helpful message
+    if not db_exists and not getattr(options, "init", False):
+        logging.error("No database found. Please initialize wnm first:")
+        logging.error("  wnm --init --rewards_address YOUR_ETH_ADDRESS")
+        logging.error("")
+        logging.error("For more information, run: wnm --help")
+        sys.exit(1)
+
     # Disable SQLAlchemy's echo to prevent it from reconfiguring logging
     engine = create_engine(options.dbpath, echo=False)
-    # Generate ORM
+    # Generate ORM (this will create the database file if it doesn't exist)
     Base.metadata.create_all(engine)
     # Create a connection to the ORM
     session_factory = sessionmaker(bind=engine)

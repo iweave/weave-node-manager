@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.3.20] - 2025-12-14
+
+### Fixed
+- **Database initialization check**: Prevent empty database creation when running without `--init`
+  - Running `wnm` without `--init` on a non-existent database now exits with a helpful error message
+  - Error message guides users to run `wnm --init --rewards_address YOUR_ETH_ADDRESS`
+  - Prevents creation of broken/unconfigured databases that block subsequent initialization
+  - Database only created when either: (1) `--init` flag is provided, or (2) database already exists
+  - Fixes issue where accidental runs without `--init` would create empty databases
+
 ## [0.3.19] - 2025-12-14
 
 ### Added
