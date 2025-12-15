@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.3.23] - 2025-12-15
+
+### Fixed
+- **Robust lock file cleanup**: Implemented guaranteed lock file cleanup using signal handlers and atexit
+  - Added `atexit.register()` to ensure lock file cleanup on normal exit
+  - Added SIGTERM and SIGINT signal handlers for graceful shutdown on interruption (Ctrl+C, kill)
+  - Lock file now always cleaned up even if WNM crashes or is interrupted
+  - Prevents stuck lock files from blocking subsequent runs
+  - Tracks lock file creation with `_lock_file_created` flag to only clean up files created by this process
+  - Centralized cleanup logic in `cleanup_lock_file()` function
+  - Removed 5 manual `os.remove(LOCK_FILE)` calls - now handled automatically
+  - `--remove_lockfile` flag still available for manual cleanup if needed
+
 ## [0.3.22] - 2025-12-14
 
 ### Fixed

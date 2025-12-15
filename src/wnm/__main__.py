@@ -1,6 +1,8 @@
+import atexit
 import json
 import logging
 import os
+import signal
 import sys
 import time
 
@@ -33,7 +35,37 @@ from wnm.utils import (
 # A storage place for ant node data
 Workers = []
 
+# Track whether we created the lock file
+_lock_file_created = False
+
 # Detect ANM
+
+
+def cleanup_lock_file():
+    """Safely remove lock file if it was created by this process."""
+    global _lock_file_created
+    if _lock_file_created and os.path.exists(LOCK_FILE):
+        try:
+            os.remove(LOCK_FILE)
+            logging.debug("Lock file removed during cleanup")
+        except (PermissionError, OSError) as e:
+            logging.error(f"Error removing lock file during cleanup: {e}")
+
+
+def signal_handler(signum, frame):
+    """Handle termination signals by cleaning up and exiting."""
+    signal_name = signal.Signals(signum).name
+    logging.info(f"Received {signal_name}, cleaning up...")
+    cleanup_lock_file()
+    sys.exit(1)
+
+
+# Register signal handlers for graceful shutdown
+signal.signal(signal.SIGTERM, signal_handler)
+signal.signal(signal.SIGINT, signal_handler)
+
+# Register cleanup function to run on normal exit
+atexit.register(cleanup_lock_file)
 
 
 # Make a decision about what to do (new implementation using DecisionEngine)
@@ -138,9 +170,12 @@ def main():
         sys.exit(1)
 
     # We're starting, so lets create a lock file
+    global _lock_file_created
     try:
         with open(LOCK_FILE, "w") as file:
             file.write(str(int(time.time())))
+        _lock_file_created = True
+        logging.debug(f"Lock file created: {LOCK_FILE}")
     except (PermissionError, OSError) as e:
         logging.error(f"Unable to create lock file: {e}")
         sys.exit(1)
@@ -150,7 +185,6 @@ def main():
         if not options.confirm:
             logging.error("Database migration requires --confirm flag for safety")
             logging.info("Use: wnm --force_action wnm-db-migration --confirm")
-            os.remove(LOCK_FILE)
             sys.exit(1)
 
         # Import migration utilities
@@ -162,7 +196,6 @@ def main():
         if not pending:
             logging.info("Database is already up to date!")
             logging.info(f"Current revision: {current}")
-            os.remove(LOCK_FILE)
             sys.exit(0)
 
         logging.info("=" * 70)
@@ -176,13 +209,11 @@ def main():
             run_migrations(engine, options.dbpath)
             logging.info("Database migration completed successfully!")
             logging.info("=" * 70)
-            os.remove(LOCK_FILE)
             sys.exit(0)
         except Exception as e:
             logging.error(f"Migration failed: {e}")
             logging.error("Please restore from backup and report this issue.")
             logging.info("=" * 70)
-            os.remove(LOCK_FILE)
             sys.exit(1)
 
     # Config should have loaded the machine_config
@@ -208,8 +239,7 @@ def main():
                 logging.info("Configuration updated successfully")
         else:
             logging.info("No configuration changes detected")
-        # Clean up and exit immediately
-        os.remove(LOCK_FILE)
+        # Exit immediately (atexit will clean up lock file)
         sys.exit(0)
 
     # Check for config updates
@@ -324,7 +354,6 @@ def main():
     # Handle --init flag: exit after initialization (and optional survey)
     if options.init:
         logging.info("Initialization complete")
-        os.remove(LOCK_FILE)
         sys.exit(0)
 
     # Check for reports
@@ -373,7 +402,6 @@ def main():
             report_output = f"Unknown report type: {options.report}"
 
         print(report_output)
-        os.remove(LOCK_FILE)
         sys.exit(0)
 
     # Check for forced actions
@@ -381,7 +409,6 @@ def main():
         # Teardown requires confirmation for safety
         if options.force_action == "teardown" and not options.confirm:
             logging.error("Teardown requires --confirm flag for safety")
-            os.remove(LOCK_FILE)
             sys.exit(1)
 
         logging.info(f"Executing forced action: {options.force_action}")
@@ -399,7 +426,7 @@ def main():
 
     logging.info("Action: " + json.dumps(this_action, indent=2))
 
-    os.remove(LOCK_FILE)
+    # Exit normally (atexit will clean up lock file)
     sys.exit(0)
 
 
