@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.3.22] - 2025-12-14
+
+### Fixed
+- **Port configuration bug in node creation**: Fixed metrics and RPC port assignment to use configured values
+  - `executor.py` was using hardcoded constants `METRICS_PORT_BASE` (13000) and `RPC_PORT_BASE` (30000) instead of configured values
+  - Now correctly uses `machine_config["metrics_port_start"] * 1000 + node_id` for metrics port
+  - Now correctly uses `machine_config["rpc_port_start"] * 1000 + node_id` for RPC port
+  - Fixes issue where nodes created with custom `--metrics_port_start` or `--rpc_port_start` would ignore the configured values
+  - Consistent with how regular ports are calculated: `machine_config["port_start"] * 1000 + node_id`
+
 ## [0.3.21] - 2025-12-14
 
 ### Added
