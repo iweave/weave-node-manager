@@ -29,6 +29,46 @@ from wnm.models import Base, Machine, Node
 from wnm.wallets import validate_rewards_address
 
 # ============================================================================
+# Port Normalization Utilities
+# ============================================================================
+
+
+def normalize_port_start(value):
+    """
+    Normalize port start values to thousands format.
+
+    Accepts both abbreviated (55) and full port numbers (55000, 55001) and
+    converts them to the thousands digit format used internally.
+
+    Args:
+        value: Port start value as string, int, or None
+
+    Returns:
+        int: Normalized port start in thousands format (e.g., 55 for 55000)
+        None: If value is None
+
+    Examples:
+        normalize_port_start(55) -> 55
+        normalize_port_start(55000) -> 55
+        normalize_port_start(55001) -> 55  (rounds down)
+        normalize_port_start("13000") -> 13
+    """
+    if value is None:
+        return None
+
+    # Convert to int if string
+    if isinstance(value, str):
+        value = int(value)
+
+    # If value >= 1000, it's likely a full port number - truncate to thousands
+    if value >= 1000:
+        return value // 1000
+
+    # Otherwise, use as-is (already in thousands format)
+    return value
+
+
+# ============================================================================
 # Platform Detection and Path Constants
 # ============================================================================
 
@@ -366,6 +406,11 @@ def load_config():
         help="Range to begin Metrics port assignment",
     )  # Only allowed during init
     c.add(
+        "--rpc_port_start",
+        env_var="RPC_PORT_START",
+        help="Range to begin RPC port assignment",
+    )  # Only allowed during init
+    c.add(
         "--hdio_read_less_than",
         env_var="HDIO_READ_LESS_THAN",
         help="Hard Drive IO Read Add Threshold",
@@ -624,8 +669,8 @@ def merge_config_changes(options, machine_config):
         and float(options.desired_load_average) != machine_config.desired_load_average
     ):
         cfg["desired_load_average"] = float(options.desired_load_average)
-    if options.port_start and int(options.port_start) != machine_config.port_start:
-        cfg["port_start"] = int(options.port_start)
+    if options.port_start and normalize_port_start(options.port_start) != machine_config.port_start:
+        cfg["port_start"] = normalize_port_start(options.port_start)
     if (
         options.hdio_read_less_than
         and int(options.hdio_read_less_than) != machine_config.hdio_read_less_than
@@ -673,9 +718,14 @@ def merge_config_changes(options, machine_config):
         cfg["crisis_bytes"] = int(options.crisis_bytes)
     if (
         options.metrics_port_start
-        and int(options.metrics_port_start) != machine_config.metrics_port_start
+        and normalize_port_start(options.metrics_port_start) != machine_config.metrics_port_start
     ):
-        cfg["metrics_port_start"] = int(options.metrics_port_start)
+        cfg["metrics_port_start"] = normalize_port_start(options.metrics_port_start)
+    if (
+        options.rpc_port_start
+        and normalize_port_start(options.rpc_port_start) != machine_config.rpc_port_start
+    ):
+        cfg["rpc_port_start"] = normalize_port_start(options.rpc_port_start)
     if options.environment and options.environment != machine_config.environment:
         cfg["environment"] = options.environment
     if options.start_args and options.start_args != machine_config.start_args:
@@ -793,14 +843,18 @@ def load_anm_config(options):
     try:
         with open("/usr/bin/anms.sh", "r") as file:
             data = file.read()
-        anm_config["port_start"] = int(re.findall(r"ntpr\=(\d+)", data)[0])
+        anm_config["port_start"] = normalize_port_start(int(re.findall(r"ntpr\=(\d+)", data)[0]))
     except (FileNotFoundError, IndexError, ValueError) as e:
         logging.debug(f"Unable to read PortStart from anms.sh: {e}")
-        anm_config["port_start"] = _get_option(options, "port_start") or 55
+        anm_config["port_start"] = normalize_port_start(_get_option(options, "port_start") or 55)
 
-    anm_config["metrics_port_start"] = (
+    anm_config["metrics_port_start"] = normalize_port_start(
         _get_option(options, "metrics_port_start") or 13
     )  # This is hardcoded in the anm.sh script
+
+    anm_config["rpc_port_start"] = normalize_port_start(
+        _get_option(options, "rpc_port_start") or 30
+    )
 
     anm_config["hdio_read_less_than"] = int(os.getenv("HDIOReadLessThan") or 0)
     anm_config["hdio_read_remove"] = int(os.getenv("HDIOReadRemove") or 0)
@@ -914,7 +968,7 @@ def define_machine(options):
         "desired_load_average": float(
             _get_option(options, "desired_load_average") or cpucount * 0.6
         ),
-        "port_start": int(_get_option(options, "port_start") or 55),
+        "port_start": normalize_port_start(_get_option(options, "port_start") or 55),
         "hdio_read_less_than": int(_get_option(options, "hdio_read_less_than") or 0),
         "hdio_read_remove": int(_get_option(options, "hdio_read_remove") or 0),
         "hdio_write_less_than": int(_get_option(options, "hdio_write_less_than") or 0),
@@ -930,7 +984,8 @@ def define_machine(options):
         "crisis_bytes": int(
             _get_option(options, "crisis_bytes") or DEFAULT_CRISIS_BYTES
         ),
-        "metrics_port_start": int(_get_option(options, "metrics_port_start") or 13),
+        "metrics_port_start": normalize_port_start(_get_option(options, "metrics_port_start") or 13),
+        "rpc_port_start": normalize_port_start(_get_option(options, "rpc_port_start") or 30),
         "environment": _get_option(options, "environment") or "",
         "start_args": _get_option(options, "start_args") or "",
         "max_concurrent_upgrades": int(_get_option(options, "max_concurrent_upgrades") or 1),
@@ -1153,10 +1208,12 @@ config_updates = (
 # Failfirst on invalid config change - only error if values are actually different
 immutable_changes = []
 if not did_we_init and machine_config:
-    if options.port_start and int(options.port_start) != machine_config.port_start:
-        immutable_changes.append(f"port_start (trying to change from {machine_config.port_start} to {options.port_start})")
-    if options.metrics_port_start and int(options.metrics_port_start) != machine_config.metrics_port_start:
-        immutable_changes.append(f"metrics_port_start (trying to change from {machine_config.metrics_port_start} to {options.metrics_port_start})")
+    if options.port_start and normalize_port_start(options.port_start) != machine_config.port_start:
+        immutable_changes.append(f"port_start (trying to change from {machine_config.port_start} to {normalize_port_start(options.port_start)})")
+    if options.metrics_port_start and normalize_port_start(options.metrics_port_start) != machine_config.metrics_port_start:
+        immutable_changes.append(f"metrics_port_start (trying to change from {machine_config.metrics_port_start} to {normalize_port_start(options.metrics_port_start)})")
+    if options.rpc_port_start and normalize_port_start(options.rpc_port_start) != machine_config.rpc_port_start:
+        immutable_changes.append(f"rpc_port_start (trying to change from {machine_config.rpc_port_start} to {normalize_port_start(options.rpc_port_start)})")
     if options.process_manager and options.process_manager != machine_config.process_manager:
         immutable_changes.append(f"process_manager (trying to change from {machine_config.process_manager} to {options.process_manager})")
 

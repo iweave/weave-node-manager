@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.3.21] - 2025-12-14
+
+### Added
+- **Port configuration flexibility**: Port start settings now accept both abbreviated and full port numbers
+  - `--port_start`, `--metrics_port_start`, and `--rpc_port_start` now accept full port numbers (e.g., 55000) in addition to abbreviated format (e.g., 55)
+  - Full port numbers are automatically truncated to thousands digit for storage (55000 → 55, 13500 → 13)
+  - Prevents accidental misconfiguration when entering full port numbers
+  - Works with command-line arguments, environment variables, and config files
+  - Added `normalize_port_start()` function to handle conversion
+  - Applied normalization in `define_machine()`, `load_anm_config()`, and `merge_config_changes()`
+  - Updated immutable settings validation to use normalized values
+- **RPC port configuration**: Added missing `--rpc_port_start` command-line argument
+  - Environment variable: `RPC_PORT_START`
+  - Completes support for RPC port configuration (was in database but not CLI)
+  - Default: 30 (port range 30000-30999)
+
 ## [0.3.20] - 2025-12-14
 
 ### Fixed
