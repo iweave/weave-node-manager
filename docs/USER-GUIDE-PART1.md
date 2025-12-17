@@ -507,12 +507,10 @@ curl -sSL https://raw.githubusercontent.com/maidsafe/antup/main/install.sh | bas
 
 # Download antnode
 ~/.local/bin/antup node
-~/.local/bin/antup antctl
 
 # Copy to system location if not running as the 'ant' user
 sudo cp ~/.local/bin/antnode /usr/local/bin/
-sudo cp ~/.local/bin/antctl /usr/local/bin
-sudo chmod +x /usr/local/bin/{antnode,antctl}
+sudo chmod +x /usr/local/bin/antnode
 
 # Verify
 antnode --version
