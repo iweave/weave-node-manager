@@ -123,7 +123,7 @@ def choose_action(machine_config, metrics, dry_run):
     actions = engine.plan_actions()
 
     # Log the computed features for debugging
-    if options.show_decisions or options.v:
+    if options.show_decisions or options.v or logging.getLogger().isEnabledFor(logging.DEBUG):
         logging.info(json.dumps(engine.get_features(), indent=2))
 
     # Inject transient action delay override into machine_config if provided
@@ -219,7 +219,7 @@ def main():
     # Config should have loaded the machine_config
     if machine_config:
         # Only log machine config at INFO level if --show_machine_config or -v is set
-        if options.show_machine_config or options.v:
+        if options.show_machine_config or options.v or logging.getLogger().isEnabledFor(logging.DEBUG):
             logging.info("Machine: " + json.dumps(machine_config))
     else:
         logging.error("Unable to load machine config, exiting")
@@ -270,7 +270,7 @@ def main():
         local_config["crisis_bytes"],
     )
     # Only log metrics at INFO level if --show_machine_metrics or -v is set
-    if options.show_machine_metrics or options.v:
+    if options.show_machine_metrics or options.v or logging.getLogger().isEnabledFor(logging.DEBUG):
         logging.info(json.dumps(metrics, indent=2))
 
     # Do we already have nodes
