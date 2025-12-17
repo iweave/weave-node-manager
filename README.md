@@ -36,6 +36,11 @@ curl -sSL https://raw.githubusercontent.com/maidsafe/antup/main/install.sh | bas
 ~/.local/bin/antup node
 ```
 
+#### 3. Activate a pyenv environment
+```bash
+pyenv shell 3.14.0
+```
+
 #### 3. Install WNM from PyPI
 ```bash
 pip3 install wnm
@@ -65,8 +70,9 @@ wnm
 # Add to crontab (runs every minute)
 crontab -e
 
-# Add this line:
-*/1 * * * * /usr/local/bin/wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
+# Add these lines:
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+*/1 * * * * /Users/dawn/.pyenv/versions/3.14.0/bin/wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
 ```
 
 **macOS Notes:**
@@ -139,22 +145,29 @@ sudo apt install -y python3.12-venv python3-pip
 #### 2. Install antup and antnode
 ```bash
 curl -sSL https://raw.githubusercontent.com/maidsafe/antup/main/install.sh | bash
-~/.local/bin/antup node
+~/.local/bin/antup node antctl
 sudo cp ~/.local/bin/antnode /usr/local/bin/
+sudo cp ~/.locl/bin/antctl /usr/local/bin/
+sudo chmod +x /usr/local/bin/{antnode,antctl}
+```
+
+#### 3. setup a virtual environment
+```bash
+sudo python3 -m venv /opt/wnm/.venv
 ```
 
 #### 3. Install WNM
 ```bash
-sudo pip3 install wnm
+sudo /opt/wnm/.venv/bin/pip3 install wnm
 ```
 
 #### 4. Initialize as root
 ```bash
 # Migrate from existing anm installation
-sudo wnm --init --migrate_anm
+sudo /opt/wnm/.venv/bin/wnm --init --migrate_anm --dbpath /opt/wnm/colony.db
 
 # Or initialize fresh
-sudo wnm --init --rewards_address 0xYourEthereumAddress
+sudo /opt/wnm/.venv/bin/wnm --init --rewards_address 0xYourEthereumAddress --dbpath /opt/wnm/colony.db
 ```
 
 #### 5. Add to cron
@@ -162,7 +175,8 @@ sudo wnm --init --rewards_address 0xYourEthereumAddress
 sudo crontab -e
 
 # Add this line:
-*/1 * * * * /usr/local/bin/wnm >> /var/log/antnode/wnm-cron.log 2>&1
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+*/1 * * * * /opt/wnm/.venv/bin/wnm --dbpath /opt/wnm/colony.db >> /var/log/wnm-cron.log 2>&1
 ```
 
 **Linux Root-Level Notes:**
@@ -276,19 +290,19 @@ WNM is designed to run every minute via cron. By default it performs one operati
 **macOS:**
 ```bash
 crontab -e
-# Add: */1 * * * * /usr/local/bin/wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
+# Add: */1 * * * * /Users/dawn/.pyenv/versions/3.14.0/bin/wnm>> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
 ```
 
 **Linux (user):**
 ```bash
 crontab -e
-# Add: */1 * * * * ~/.local/bin/wnm >> ~/.local/share/autonomi/logs/wnm-cron.log 2>&1
+# Add: */1 * * * * ~/.venv/bin/wnm >> ~/.local/share/autonomi/logs/wnm-cron.log 2>&1
 ```
 
 **Linux (root):**
 ```bash
 sudo crontab -e
-# Add: */1 * * * * /usr/local/bin/wnm >> /var/log/antnode/wnm-cron.log 2>&1
+# Add: */1 * * * * /opt/wnm/.venv/bin/wnm >> /var/log/wnm-cron.log 2>&1
 ```
 
 ### Development Mode

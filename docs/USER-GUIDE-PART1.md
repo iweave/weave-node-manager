@@ -507,32 +507,33 @@ curl -sSL https://raw.githubusercontent.com/maidsafe/antup/main/install.sh | bas
 
 # Download antnode
 ~/.local/bin/antup node
+~/.local/bin/antup antctl
 
 # Copy to system location if not running as the 'ant' user
 sudo cp ~/.local/bin/antnode /usr/local/bin/
-sudo chmod +x /usr/local/bin/antnode
+sudo cp ~/.local/bin/antctl /usr/local/bin
+sudo chmod +x /usr/local/bin/{antnode,antctl}
 
 # Verify
 antnode --version
 ```
 
+#### Step 3: Setup virtual environment
+```bash
+sudo python3 -m venv /opt/wnm/.venv
+```
+
 #### Step 3: Install WNM System-Wide
 
 ```bash
-sudo pip3 install wnm
-```
-
-Verify:
-```bash
-which wnm
-# Should show /usr/local/bin/wnm
+sudo /opt/wnm/.venv/bin/pip3 install wnm
 ```
 
 #### Step 4: Initialize
 
 **If migrating from anm (actual anm installation):**
 ```bash
-wnm --init --migrate_anm
+sudo /opt/wnm/.venv/bin/wnm --init --migrate_anm --dbpath /opt/wnm/colony.db
 ```
 
 This will:
@@ -545,7 +546,7 @@ This will:
 
 **If rebuilding database from existing wnm systemd+sudo cluster:**
 ```bash
-wnm --init --process_manager systemd+sudo --rewards_address 0xYourEthereumAddress
+sudo /opt/wnm/.venv/bin/wnm --init --process_manager systemd+sudo --rewards_address 0xYourEthereumAddress --dbpath /opt/wnm/colony.db
 ```
 
 This will:
@@ -558,7 +559,7 @@ This will:
 
 **If starting fresh:**
 ```bash
-wnm --init --rewards_address 0xYourEthereumAddress --process_manager systemd+sudo
+sudo /opt/wnm/.venv/bin/wnm --init --rewards_address 0xYourEthereumAddress --process_manager systemd+sudo --dbpath /opt/wnm/colony.db
 ```
 
 This creates:
@@ -569,7 +570,7 @@ This creates:
 #### Step 5: Test in Dry-Run Mode
 
 ```bash
-sudo wnm --dry_run
+sudo /opt/wnm/.venv/bin/wnm --dry_run --dbpath /opt/wnm/colony.db
 ```
 
 If you migrated from anm, you should see your existing nodes in the output.
@@ -577,7 +578,7 @@ If you migrated from anm, you should see your existing nodes in the output.
 #### Step 6: Run Normally
 
 ```bash
-sudo wnm
+sudo /opt/wnm/.venv/bin/wnm --dbpath /opt/wnm/colony.db
 ```
 
 **Check systemd services:**
@@ -600,17 +601,12 @@ sudo crontab -e
 
 Add (adjust Python path as needed):
 ```cron
-*/1 * * * * /usr/bin/python3 -m wnm >> /var/antctl/wnm-cron.log 2>&1
-```
-
-**Note:** If you installed wnm in a virtual environment, activate it first:
-```cron
-*/1 * * * * . /opt/venv/bin/activate && wnm >> /var/antctl/wnm-cron.log 2>&1
+*/1 * * * * /opt/wnm/.venv/bin/python3 -m wnm --dbpath /opt/wnm/colony.db >> /var/antctl/wnm-cron.log 2>&1
 ```
 
 **Monitor:**
 ```bash
-sudo tail -f /var/antctl/wnm-cron.log
+tail -f /var/antctl/wnm-cron.log
 ```
 
 ---
@@ -654,7 +650,7 @@ sqlite3 -line ~/Library/Application\ Support/autonomi/colony.db "SELECT * FROM m
 sqlite3 -line ~/.local/share/autonomi/colony.db "SELECT * FROM machine;"
 
 # Linux (root)
-sudo sqlite3 -line /var/antctl/colony.db "SELECT * FROM machine;"
+sudo sqlite3 -line /opt/wnm/colony.db "SELECT * FROM machine;"
 ```
 
 The `-line` flag displays each column name with its corresponding value on a separate line, making the configuration easy to read.
@@ -869,11 +865,6 @@ PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 */1 * * * * /Users/username/.pyenv/versions/3.14.0/bin/wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
 ```
 
-*macOS (system Python):*
-```cron
-PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-*/1 * * * * /usr/local/bin/python3 -m wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
-```
 
 *Linux (user with venv):*
 ```cron
@@ -1036,7 +1027,7 @@ Cron runs with a minimal environment. If wnm works in your shell but not in cron
 
 ```cron
 PATH=/usr/local/bin:/usr/bin:/bin
-*/1 * * * * /usr/local/bin/wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
+*/1 * * * * /home/dawn/.venv/bin/wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
 ```
 
 ---
