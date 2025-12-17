@@ -584,6 +584,28 @@ No user configuration is currently needed.
   - All nodes will use this binary path for cloning
 - Example: `--antnode_path /usr/local/bin/antnode`
 
+### Antctl Binary Path
+
+**`--antctl_path`**
+- Environment variable: `ANTCTL_PATH`
+- Type: String (file path)
+- Default: `~/.local/bin/antctl`
+- Description: Path to the antctl binary executable (required when using `antctl+user` or `antctl+sudo` process manager)
+- Use cases:
+  - **macOS cron compatibility**: Children of cron tasks on macOS cannot inherit PATH environment, causing `antctl` command not found errors. Set this to the full path to resolve.
+  - Using a custom-built antctl binary
+  - Testing different antctl versions
+  - Using antctl from a non-standard installation location
+- Notes:
+  - Path is expanded (tilde `~` and environment variables)
+  - Binary must be executable
+  - Only used when `--process_manager` is set to `antctl+user` or `antctl+sudo`
+  - Critical for macOS cron jobs to work reliably
+- Examples:
+  - `--antctl_path ~/.local/bin/antctl` (default)
+  - `--antctl_path /usr/local/bin/antctl`
+  - `--antctl_path /opt/homebrew/bin/antctl` (Homebrew on Apple Silicon)
+
 ### Process Manager Selection
 
 **`--process_manager`**

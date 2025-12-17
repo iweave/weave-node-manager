@@ -4,8 +4,8 @@
 Weave Node Manager (wnm) is a Python application designed to manage Autonomi nodes on Linux and macOS systems.
 
 **Platforms**:
-- **Linux**: systemd or setsid for process management, UFW for firewall
-- **macOS**: launchd for process management (native support)
+- **Linux**: systemd or antctl for process management, UFW for firewall
+- **macOS**: launchd for process management (native support) or antctl
 - **Python 3.12.3+** required
 
 ## Features
@@ -72,7 +72,7 @@ crontab -e
 
 # Add these lines:
 PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-*/1 * * * * /Users/dawn/.pyenv/versions/3.14.0/bin/wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
+*/1 * * * * ~/.pyenv/versions/3.14.0/bin/wnm >> ~/Library/Logs/autonomi/wnm-cron.log 2>&1
 ```
 
 **macOS Notes:**

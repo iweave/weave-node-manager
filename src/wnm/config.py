@@ -537,6 +537,11 @@ def load_config():
         env_var="ANTNODE_PATH",
         help="Path to the antnode binary (default: ~/.local/bin/antnode)",
     )
+    c.add(
+        "--antctl_path",
+        env_var="ANTCTL_PATH",
+        help="Path to the antctl binary (default: ~/.local/bin/antctl)",
+    )
 
     options = c.parse_known_args()[0] or []
 
@@ -747,6 +752,9 @@ def merge_config_changes(options, machine_config):
     # Only update antnode_path if explicitly provided (not None)
     if options.antnode_path and options.antnode_path != machine_config.antnode_path:
         cfg["antnode_path"] = options.antnode_path
+    # Only update antctl_path if explicitly provided (not None)
+    if options.antctl_path and options.antctl_path != machine_config.antctl_path:
+        cfg["antctl_path"] = options.antctl_path
 
     return cfg
 
@@ -893,6 +901,11 @@ def load_anm_config(options):
         _get_option(options, "antnode_path") or "~/.local/bin/antnode"
     )
 
+    # antctl binary path
+    anm_config["antctl_path"] = (
+        _get_option(options, "antctl_path") or "~/.local/bin/antctl"
+    )
+
     return anm_config
 
 
@@ -998,6 +1011,7 @@ def define_machine(options):
         "docker_image": "iweave/antnode:latest",
         "no_upnp": bool(_get_option(options, "no_upnp", False)),
         "antnode_path": _get_option(options, "antnode_path") or "~/.local/bin/antnode",
+        "antctl_path": _get_option(options, "antctl_path") or "~/.local/bin/antctl",
     }
 
     # Set default process manager based on platform if not specified

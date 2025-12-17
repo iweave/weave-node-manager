@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [0.3.25] - 2025-12-16
+
+### Added
+- **Antctl binary path configuration**: Added `--antctl_path` option for antctl process manager
+  - Environment variable: `ANTCTL_PATH`
+  - Default: `~/.local/bin/antctl`
+  - Critical for macOS cron compatibility where children of cron tasks cannot inherit PATH environment
+  - Resolves "antctl command not found" errors when running wnm from cron on macOS
+  - Only used when `--process_manager` is set to `antctl+user` or `antctl+sudo`
+  - Path is expanded (tilde `~` and environment variables)
+  - Added to Machine model with database migration (revision: ba757077b6b0)
+  - Added command-line option and configuration system support
+  - Updated AntctlManager to use configured path instead of relying on PATH
+  - Documentation added to USER-GUIDE-PART3.md with usage examples
+
 ## [0.3.23] - 2025-12-15
 
 ### Fixed

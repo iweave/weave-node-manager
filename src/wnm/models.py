@@ -118,6 +118,9 @@ class Machine(Base):
     antnode_path: Mapped[Optional[str]] = mapped_column(
         UnicodeText, default="~/.local/bin/antnode"
     )
+    antctl_path: Mapped[Optional[str]] = mapped_column(
+        UnicodeText, default="~/.local/bin/antctl"
+    )
 
     # Relationships
     containers: Mapped[list["Container"]] = relationship(
@@ -173,6 +176,7 @@ class Machine(Base):
         docker_image="autonomi/node:latest",
         no_upnp=True,
         antnode_path="~/.local/bin/antnode",
+        antctl_path="~/.local/bin/antctl",
         survey_delay=0,
         action_delay=0,
     ):
@@ -222,6 +226,7 @@ class Machine(Base):
         self.docker_image = docker_image
         self.no_upnp = no_upnp
         self.antnode_path = antnode_path
+        self.antctl_path = antctl_path
 
     def __repr__(self):
         return (
@@ -285,6 +290,7 @@ class Machine(Base):
             ),
             "no_upnp": bool(self.no_upnp),
             "antnode_path": f"{self.antnode_path}" if self.antnode_path else None,
+            "antctl_path": f"{self.antctl_path}" if self.antctl_path else None,
         }
 
 

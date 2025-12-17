@@ -14,6 +14,7 @@ import subprocess
 from typing import Optional
 
 from wnm.common import DEAD, RESTARTING, RUNNING, STOPPED
+from wnm.config import machine_config
 from wnm.models import Node
 from wnm.process_managers.base import NodeProcess, ProcessManager
 from wnm.utils import read_node_metadata
@@ -60,11 +61,17 @@ class AntctlManager(ProcessManager):
         super().__init__(firewall_type)
         self.S = session_factory
 
+        # Get antctl path from machine config
+        antctl_path = "antctl"  # Default fallback
+        if machine_config and hasattr(machine_config, 'antctl_path') and machine_config.antctl_path:
+            # Expand ~ to user home directory
+            antctl_path = os.path.expanduser(machine_config.antctl_path)
+
         # Build base antctl command
         if self.use_sudo:
-            self.antctl_cmd = ["sudo", "antctl"]
+            self.antctl_cmd = ["sudo", antctl_path]
         else:
-            self.antctl_cmd = ["antctl"]
+            self.antctl_cmd = [antctl_path]
 
     def _run_antctl(
         self, args: list, capture_output: bool = True
