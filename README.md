@@ -83,7 +83,7 @@ PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 
 ### Linux (User-Level, Recommended)
 
-Non-root installation using setsid for process management.
+Non-root installation using systemd for process management.
 
 #### 1. Install antup (Autonomi binary manager)
 ```bash
@@ -94,17 +94,22 @@ curl -sSL https://raw.githubusercontent.com/maidsafe/antup/main/install.sh | bas
 ```bash
 ~/.local/bin/antup node
 ```
+#### 3. Activate a Python virtual environment
+```bash
+python3 -m venv .venv
+. ~/.venv/bin/activate
+```
 
 #### 3. Install WNM from PyPI
 ```bash
-pip3 install wnm
+~/.venv/bin/pip3 install wnm
 ```
 
 #### 4. Or install from source
 ```bash
 git clone https://github.com/iweave/weave-node-manager.git
 cd weave-node-manager
-pip3 install -e .
+~/.venv/bin/pip3 install -e .
 ```
 
 #### 5. Initialize and configure
@@ -124,11 +129,12 @@ wnm
 crontab -e
 
 # Add this line:
-*/1 * * * * ~/.local/bin/wnm >> ~/.local/share/autonomi/logs/wnm-cron.log 2>&1
+export PATH=/usr/local/bin:/usr/sbin:/usr/bin:/bin
+*/1 * * * * ~/.venv/bin/wnm >> ~/.local/share/autonomi/logs/wnm-cron.log 2>&1
 ```
 
 **Linux User-Level Notes:**
-- Uses `~/.local/share/autonomi/node/` for data (XDG spec)
+- Uses `~/.local/share/autonomi/node/` for data
 - Uses `~/.local/share/autonomi/logs/` for logs
 - Nodes run as background processes (setsid)
 - No root/sudo required
@@ -147,8 +153,7 @@ sudo apt install -y python3.12-venv python3-pip
 curl -sSL https://raw.githubusercontent.com/maidsafe/antup/main/install.sh | bash
 ~/.local/bin/antup node antctl
 sudo cp ~/.local/bin/antnode /usr/local/bin/
-sudo cp ~/.locl/bin/antctl /usr/local/bin/
-sudo chmod +x /usr/local/bin/{antnode,antctl}
+sudo chmod +x /usr/local/bin/antnode
 ```
 
 #### 3. setup a virtual environment
@@ -175,7 +180,7 @@ sudo /opt/wnm/.venv/bin/wnm --init --rewards_address 0xYourEthereumAddress --dbp
 sudo crontab -e
 
 # Add this line:
-PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+PATH=/usr/local/bin:/usr/sbin:/bin:/usr/bin:/sbin:/bin
 */1 * * * * /opt/wnm/.venv/bin/wnm --dbpath /opt/wnm/colony.db >> /var/log/wnm-cron.log 2>&1
 ```
 
