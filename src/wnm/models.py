@@ -121,6 +121,9 @@ class Machine(Base):
     antctl_path: Mapped[Optional[str]] = mapped_column(
         UnicodeText, default="~/.local/bin/antctl"
     )
+    antctl_debug: Mapped[bool] = mapped_column(
+        Integer, default=0
+    )  # SQLite uses 0/1 for boolean
 
     # Relationships
     containers: Mapped[list["Container"]] = relationship(
@@ -177,6 +180,7 @@ class Machine(Base):
         no_upnp=True,
         antnode_path="~/.local/bin/antnode",
         antctl_path="~/.local/bin/antctl",
+        antctl_debug=False,
         survey_delay=0,
         action_delay=0,
     ):
@@ -227,6 +231,7 @@ class Machine(Base):
         self.no_upnp = no_upnp
         self.antnode_path = antnode_path
         self.antctl_path = antctl_path
+        self.antctl_debug = antctl_debug
 
     def __repr__(self):
         return (

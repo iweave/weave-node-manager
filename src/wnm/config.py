@@ -542,6 +542,12 @@ def load_config():
         env_var="ANTCTL_PATH",
         help="Path to the antctl binary (default: ~/.local/bin/antctl)",
     )
+    c.add(
+        "--antctl_debug",
+        env_var="ANTCTL_DEBUG",
+        help="Enable debug output for antctl commands (also enabled when --loglevel DEBUG is set)",
+        action="store_true",
+    )
 
     options = c.parse_known_args()[0] or []
 
@@ -755,6 +761,11 @@ def merge_config_changes(options, machine_config):
     # Only update antctl_path if explicitly provided (not None)
     if options.antctl_path and options.antctl_path != machine_config.antctl_path:
         cfg["antctl_path"] = options.antctl_path
+    # Only update antctl_debug if explicitly provided (check if in command line or env var)
+    # Don't update based on store_true default value of False
+    if "--antctl_debug" in sys.argv or "--antctl-debug" in sys.argv or os.getenv("ANTCTL_DEBUG"):
+        if bool(options.antctl_debug) != bool(machine_config.antctl_debug):
+            cfg["antctl_debug"] = bool(options.antctl_debug)
 
     return cfg
 
@@ -906,6 +917,9 @@ def load_anm_config(options):
         _get_option(options, "antctl_path") or "~/.local/bin/antctl"
     )
 
+    # antctl debug mode (defaults to False)
+    anm_config["antctl_debug"] = bool(_get_option(options, "antctl_debug", False))
+
     return anm_config
 
 
@@ -1012,6 +1026,7 @@ def define_machine(options):
         "no_upnp": bool(_get_option(options, "no_upnp", False)),
         "antnode_path": _get_option(options, "antnode_path") or "~/.local/bin/antnode",
         "antctl_path": _get_option(options, "antctl_path") or "~/.local/bin/antctl",
+        "antctl_debug": bool(_get_option(options, "antctl_debug", False)),
     }
 
     # Set default process manager based on platform if not specified

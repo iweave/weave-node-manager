@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [0.3.26] - 2025-12-28
+
+### Added
+- **Antctl debug mode configuration**: Added `--antctl_debug` option for antctl process manager
+  - Environment variable: `ANTCTL_DEBUG`
+  - Default: `False` (automatically enabled when `--loglevel DEBUG` is set)
+  - Enables debug output for all antctl commands by adding `--debug` flag to antctl invocations
+  - Automatically enabled when WNM logging level is set to DEBUG
+  - Use cases: Troubleshooting antctl issues, debugging node management problems, development and testing
+  - Only affects `antctl+user` and `antctl+sudo` process managers
+  - Added to Machine model with database field `antctl_debug` (boolean/integer)
+  - Added command-line option and configuration system support
+  - Updated AntctlManager to check debug mode during initialization and add `--debug` to command
+  - Debug mode can be enabled persistently (updates database) or temporarily via command-line
+  - Documentation added to USER-GUIDE-PART3.md with comprehensive usage examples
+  - Examples:
+    - Via flag: `wnm --antctl_debug`
+    - Via env: `export ANTCTL_DEBUG=1; wnm`
+    - Auto with debug logging: `wnm --loglevel DEBUG`
+    - Persistent: `wnm --force_action update_config --antctl_debug`
+
 ## [0.3.25] - 2025-12-16
 
 ### Added

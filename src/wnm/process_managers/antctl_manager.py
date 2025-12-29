@@ -73,6 +73,25 @@ class AntctlManager(ProcessManager):
         else:
             self.antctl_cmd = [antctl_path]
 
+        # Check if we should enable debug mode
+        # Debug is enabled if either:
+        # 1. antctl_debug flag is set in machine config
+        # 2. Current logging level is DEBUG
+        debug_mode = False
+
+        # Check machine config for antctl_debug setting
+        if machine_config and hasattr(machine_config, 'antctl_debug') and machine_config.antctl_debug:
+            debug_mode = True
+
+        # Also enable debug mode if logging level is DEBUG
+        if logging.getLogger().getEffectiveLevel() == logging.DEBUG:
+            debug_mode = True
+
+        # Add --debug flag to command if debug mode is enabled
+        if debug_mode:
+            self.antctl_cmd.append("--debug")
+            logging.debug("AntctlManager: Debug mode enabled for antctl commands")
+
     def _run_antctl(
         self, args: list, capture_output: bool = True
     ) -> subprocess.CompletedProcess:

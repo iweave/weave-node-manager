@@ -606,6 +606,62 @@ No user configuration is currently needed.
   - `--antctl_path /usr/local/bin/antctl`
   - `--antctl_path /opt/homebrew/bin/antctl` (Homebrew on Apple Silicon)
 
+### Antctl Debug Mode
+
+**`--antctl_debug`**
+- Environment variable: `ANTCTL_DEBUG`
+- Type: Boolean flag
+- Default: `False` (automatically enabled when `--loglevel DEBUG` is set)
+- Description: Enable debug output for antctl commands by adding `--debug` flag to all antctl invocations
+- Use cases:
+  - **Troubleshooting antctl issues**: Get detailed output from antctl operations
+  - **Debugging node management problems**: See verbose antctl command execution
+  - **Understanding antctl behavior**: View internal antctl decision-making
+  - **Development and testing**: Monitor antctl operations in detail
+- Notes:
+  - Only affects `antctl+user` and `antctl+sudo` process managers
+  - Automatically enabled when WNM logging level is set to DEBUG
+  - When enabled, all antctl commands run with `--debug` flag (e.g., `antctl --debug start`, `antctl --debug add`)
+  - Debug output from antctl appears in WNM logs
+  - Can be enabled persistently in database or temporarily via command-line
+- Examples:
+
+**Enable debug mode for all antctl operations:**
+```bash
+# Via command-line flag
+wnm --antctl_debug
+
+# Via environment variable
+export ANTCTL_DEBUG=1
+wnm
+
+# Automatically enabled with DEBUG logging
+wnm --loglevel DEBUG
+```
+
+**Persistent debug configuration:**
+```bash
+# Enable for all future runs (updates database)
+wnm --force_action update_config --antctl_debug
+
+# Or add to config file
+echo "antctl_debug=True" >> ~/.local/share/wnm/config
+```
+
+**Temporary debug session:**
+```bash
+# Debug a specific operation
+wnm --antctl_debug --force_action add --count 1
+```
+
+**Disable debug mode:**
+```bash
+# Debug mode stays enabled once set in database
+# To disable, you must explicitly turn it off
+# Setting the environment varialbe to false should persist
+ANTCTL_DEBUG=false
+```
+
 ### Process Manager Selection
 
 **`--process_manager`**
