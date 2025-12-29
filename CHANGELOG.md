@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.3.27] - 2025-12-28
+
+### Fixed
+- **Antctl debug output handling**: Enhanced antctl manager to properly parse JSON from debug output
+  - `survey_nodes()` now extracts JSON block from mixed debug/JSON output using regex pattern
+  - Handles both debug mode (with logging mixed into stdout) and normal mode (JSON only)
+  - Fixes `json.JSONDecodeError` when `--antctl_debug` or `--loglevel DEBUG` is enabled
+  - Uses `re.search(r'^\{$.*?^\}$', result.stdout, re.MULTILINE | re.DOTALL)` to extract JSON between standalone `{` and `}` lines
+- **Enhanced antctl debugging**: Added comprehensive logging of antctl command output
+  - `_run_antctl()` now logs stdout and stderr at DEBUG level for all successful operations
+  - Provides visibility into antctl behavior when running with `--loglevel DEBUG`
+  - Helps troubleshoot node management issues and antctl integration problems
+
 ## [0.3.26] - 2025-12-28
 
 ### Added

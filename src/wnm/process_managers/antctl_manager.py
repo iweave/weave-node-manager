@@ -121,6 +121,11 @@ class AntctlManager(ProcessManager):
                 text=True,
                 check=True,
             )
+            # Log stdout at DEBUG level if available
+            if result.stdout:
+                logging.debug(f"antctl stdout:\n{result.stdout}")
+            if result.stderr:
+                logging.debug(f"antctl stderr:\n{result.stderr}")
             return result
         except FileNotFoundError:
             logging.error(
@@ -417,7 +422,18 @@ class AntctlManager(ProcessManager):
 
         try:
             result = self._run_antctl(["status", "--json"])
-            nodes_data = json.loads(result.stdout)
+
+            # Extract JSON block from debug output
+            # When --debug is enabled, stdout contains logging mixed with JSON
+            # JSON starts with a line containing just "{" and ends with just "}"
+            json_match = re.search(r'^\{$.*?^\}$', result.stdout, re.MULTILINE | re.DOTALL)
+            if json_match:
+                json_str = json_match.group(0)
+            else:
+                # No debug output, use entire stdout
+                json_str = result.stdout
+
+            nodes_data = json.loads(json_str)
         except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError) as err:
             logging.error(f"Failed to get antctl status: {err}")
             return []
