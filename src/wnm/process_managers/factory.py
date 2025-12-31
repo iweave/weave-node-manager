@@ -8,6 +8,7 @@ based on the manager type.
 import logging
 
 from wnm.process_managers.antctl_manager import AntctlManager
+from wnm.process_managers.antctl_zen_manager import AntctlZenManager
 from wnm.process_managers.base import ProcessManager
 from wnm.process_managers.docker_manager import DockerManager
 from wnm.process_managers.launchd_manager import LaunchdManager
@@ -47,13 +48,19 @@ def get_process_manager(
         "antctl": AntctlManager,
     }
 
-    manager_class = managers.get(base_type)
-    if not manager_class:
-        supported = ", ".join(managers.keys())
-        raise ValueError(
-            f"Unsupported manager type: {base_type}. "
-            f"Supported types: {supported}"
-        )
+    # Special case: antctl+zen routes to AntctlZenManager (user mode only)
+    if base_type == "antctl" and mode == "zen":
+        manager_class = AntctlZenManager
+        # Override mode to "user" for AntctlZenManager (zen only supports user mode)
+        mode = "user"
+    else:
+        manager_class = managers.get(base_type)
+        if not manager_class:
+            supported = ", ".join(managers.keys())
+            raise ValueError(
+                f"Unsupported manager type: {base_type}. "
+                f"Supported types: {supported}"
+            )
 
     # Pass the mode to the manager constructor
     if mode:

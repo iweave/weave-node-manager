@@ -2,6 +2,38 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2025-12-31
+
+### Fixed
+- **AntctlZenManager session management**: Fixed SQLAlchemy session error when creating nodes with antctl+zen process manager
+  - `create_node()` now uses `session.merge()` instead of `session.add()` to handle detached node instances
+  - Resolves "Instance is not bound to a Session; attribute refresh operation cannot proceed" error
+  - Occurs when node object is created in one session (executor) then passed to manager for path updates
+  - Fix at `src/wnm/process_managers/antctl_zen_manager.py:233-234`
+
+## [0.4.0] - 2025-12-30
+
+### Added
+- **AntctlZenManager process manager**: New "zen" variant of antctl manager using antctl defaults for paths
+  - Process manager type: `antctl+zen` (user mode only, no sudo support)
+  - Philosophy: Minimal command specification, let antctl choose its own defaults for binary, data, and log paths
+  - Maintains explicit control over ports (node-port, metrics-port, rpc-port) for router port forwarding configuration
+  - Parses antctl add command output to extract actual paths chosen by antctl
+  - Updates database with discovered paths for accurate tracking
+  - Simplified upgrade process: lets antctl download and manage its own binary
+  - Integrated into process manager factory with automatic user mode routing
+  - Added to configuration system with `--process_manager antctl+zen` option
+  - Example usage: `wnm --init --process_manager antctl+zen --rewards_address 0xYourAddress`
+  - Ideal for users who want to leverage antctl's native path management while maintaining network control
+
+### Changed
+- **Process manager factory**: Enhanced to handle special routing for `antctl+zen` manager type
+  - Factory automatically routes "antctl+zen" to AntctlZenManager class
+  - Automatically sets mode to "user" (zen only supports user mode)
+- **Configuration system**: Updated `_detect_process_manager_mode()` to recognize "+zen" suffix as user mode
+  - Ensures proper platform-specific path selection for zen manager
+  - Configuration validates and stores `antctl+zen` as a process manager choice
+
 ## [0.3.27] - 2025-12-28
 
 ### Fixed
