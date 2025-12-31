@@ -97,7 +97,8 @@ def _detect_process_manager_mode():
             pm = sys.argv[i + 1]
             if "+sudo" in pm:
                 return "sudo"
-            elif "+user" in pm:
+            elif "+user" in pm or "+zen" in pm:
+                # antctl+zen is always user mode
                 return "user"
 
     # Check environment variable
@@ -105,7 +106,8 @@ def _detect_process_manager_mode():
     if pm_env:
         if "+sudo" in pm_env:
             return "sudo"
-        elif "+user" in pm_env:
+        elif "+user" in pm_env or "+zen" in pm_env:
+            # antctl+zen is always user mode
             return "user"
 
     # Check if .env file exists and load it
@@ -116,7 +118,8 @@ def _detect_process_manager_mode():
         if pm_env:
             if "+sudo" in pm_env:
                 return "sudo"
-            elif "+user" in pm_env:
+            elif "+user" in pm_env or "+zen" in pm_env:
+                # antctl+zen is always user mode
                 return "user"
 
     # Check for existing databases to auto-detect mode
@@ -514,7 +517,7 @@ def load_config():
     c.add(
         "--process_manager",
         env_var="PROCESS_MANAGER",
-        help="Process manager to use: systemd+sudo, systemd+user, setsid+sudo, setsid+user, launchd+sudo, launchd+user, antctl+sudo, antctl+user",
+        help="Process manager to use: systemd+sudo, systemd+user, setsid+sudo, setsid+user, launchd+sudo, launchd+user, antctl+sudo, antctl+user, antctl+zen (user mode only)",
         choices=[
             "systemd+sudo",
             "systemd+user",
@@ -524,6 +527,7 @@ def load_config():
             "launchd+user",
             "antctl+sudo",
             "antctl+user",
+            "antctl+zen",
         ],
     )
     c.add(
