@@ -230,7 +230,8 @@ class AntctlZenManager(ProcessManager):
             if self.S:
                 try:
                     with self.S() as session:
-                        session.add(node)
+                        # Use merge to handle detached instance from executor
+                        node = session.merge(node)
                         session.commit()
                 except Exception as e:
                     logging.error(f"Failed to update node in database: {e}")

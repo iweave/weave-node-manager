@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2025-12-31
+
+### Fixed
+- **AntctlZenManager session management**: Fixed SQLAlchemy session error when creating nodes with antctl+zen process manager
+  - `create_node()` now uses `session.merge()` instead of `session.add()` to handle detached node instances
+  - Resolves "Instance is not bound to a Session; attribute refresh operation cannot proceed" error
+  - Occurs when node object is created in one session (executor) then passed to manager for path updates
+  - Fix at `src/wnm/process_managers/antctl_zen_manager.py:233-234`
+
 ## [0.4.0] - 2025-12-30
 
 ### Added
