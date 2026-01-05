@@ -205,6 +205,10 @@ class AntctlManager(ProcessManager):
         # Add network
         args.append(node.network or "evm-arbitrum-one")
 
+        # Add --version if antctl_version is configured
+        if machine_config and hasattr(machine_config, 'antctl_version') and machine_config.antctl_version:
+            args.extend(["--version", machine_config.antctl_version])
+
         try:
             result = self._run_antctl(args)
             # Parse output to extract service name
@@ -340,6 +344,10 @@ class AntctlManager(ProcessManager):
             logging.info(f"Using antnode binary from: {antnode_path}")
         else:
             logging.warning("No antnode_path in machine config, antctl will download binary")
+
+        # Add --version if antctl_version is configured
+        if machine_config and hasattr(machine_config, 'antctl_version') and machine_config.antctl_version:
+            args.extend(["--version", machine_config.antctl_version])
 
         # Add --force flag to allow "downgrade" to same version if needed
         args.append("--force")

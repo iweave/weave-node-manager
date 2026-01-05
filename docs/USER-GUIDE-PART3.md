@@ -662,6 +662,58 @@ wnm --antctl_debug --force_action add --count 1
 ANTCTL_DEBUG=false
 ```
 
+### Antctl Version Configuration
+
+**`--antctl_version`**
+- Environment variable: `ANTCTL_VERSION`
+- Type: String (version number)
+- Default: `None` (uses latest version available)
+- Description: Specify the antnode version to use when creating or upgrading nodes via antctl
+- Use cases:
+  - **Pin to specific version**: Lock all nodes to a specific antnode version
+  - **Version consistency**: Ensure all nodes run the same version across the cluster
+  - **Rollback capability**: Downgrade to a previous version if issues occur
+- Notes:
+  - Only affects `antctl+zen`, `antctl+user`, and `antctl+sudo` process managers
+  - Passes `--version <version>` argument to both `antctl add` and `antctl upgrade` commands
+  - When not set (default), antctl uses its latest available version
+  - Version format should match antctl's expected format (e.g., `0.4.11`)
+  - Changes take effect immediately for new operations (add/upgrade)
+- Examples:
+
+**Pin to specific version:**
+```bash
+# Initialize with specific version
+wnm --init --rewards_address 0xYourAddress --antctl_version 0.4.11
+
+# Or update existing cluster to use specific version
+wnm --antctl_version 0.4.11
+
+# Via environment variable
+export ANTCTL_VERSION=0.4.11
+wnm
+```
+
+**Persistent version configuration:**
+```bash
+# Set for all future runs (updates database)
+wnm --force_action update_config --antctl_version 0.4.11
+
+# Or add to config file
+echo "antctl_version=0.4.11" >> ~/.local/share/wnm/config
+```
+
+**Remove version pinning:**
+```bash
+# Clear version setting to use latest (set to empty string)
+wnm --force_action update_config --antctl_version ""
+```
+
+**Behavior:**
+- **Node creation**: When `--antctl_version` is set, `antctl add --version <version>` is used
+- **Node upgrades**: When `--antctl_version` is set, `antctl upgrade --version <version>` is used
+- **Without setting**: antctl determines the version automatically (typically latest)
+
 ### Process Manager Selection
 
 **`--process_manager`**

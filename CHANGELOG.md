@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-01-05
+
+### Added
+- **Antctl version configuration**: Added `--antctl_version` option for pinning antnode version across all antctl operations
+  - Environment variable: `ANTCTL_VERSION`
+  - Default: `None` (uses latest version available from antctl)
+  - Passes `--version <version>` argument to both `antctl add` and `antctl upgrade` commands
+  - Enables version consistency across cluster and rollback capability
+  - Only affects `antctl+zen`, `antctl+user`, and `antctl+sudo` process managers
+  - Added to Machine model with database migration (revision: 752bf4495eaa)
+  - Added command-line option and configuration system support
+  - Updated all three antctl managers (AntctlZenManager, AntctlManager for user/sudo modes)
+  - Documentation added to USER-GUIDE-PART3.md with comprehensive usage examples
+  - Examples:
+    - Pin to version: `wnm --antctl_version 0.4.11`
+    - Initialize with version: `wnm --init --rewards_address 0xAddr --antctl_version 0.4.11`
+    - Persistent config: `wnm --force_action update_config --antctl_version 0.4.11`
+    - Remove pinning: `wnm --force_action update_config --antctl_version ""`
+
 ## [0.4.2] - 2026-01-04
 
 ### Fixed

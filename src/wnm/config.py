@@ -552,6 +552,11 @@ def load_config():
         help="Enable debug output for antctl commands (also enabled when --loglevel DEBUG is set)",
         action="store_true",
     )
+    c.add(
+        "--antctl_version",
+        env_var="ANTCTL_VERSION",
+        help="Antctl version to use (default: None, uses latest)",
+    )
 
     options = c.parse_known_args()[0] or []
 
@@ -770,6 +775,9 @@ def merge_config_changes(options, machine_config):
     if "--antctl_debug" in sys.argv or "--antctl-debug" in sys.argv or os.getenv("ANTCTL_DEBUG"):
         if bool(options.antctl_debug) != bool(machine_config.antctl_debug):
             cfg["antctl_debug"] = bool(options.antctl_debug)
+    # Only update antctl_version if explicitly provided (not None)
+    if options.antctl_version and options.antctl_version != machine_config.antctl_version:
+        cfg["antctl_version"] = options.antctl_version
 
     return cfg
 
@@ -924,6 +932,9 @@ def load_anm_config(options):
     # antctl debug mode (defaults to False)
     anm_config["antctl_debug"] = bool(_get_option(options, "antctl_debug", False))
 
+    # antctl version (defaults to None, uses latest)
+    anm_config["antctl_version"] = _get_option(options, "antctl_version")
+
     return anm_config
 
 
@@ -1031,6 +1042,7 @@ def define_machine(options):
         "antnode_path": _get_option(options, "antnode_path") or "~/.local/bin/antnode",
         "antctl_path": _get_option(options, "antctl_path") or "~/.local/bin/antctl",
         "antctl_debug": bool(_get_option(options, "antctl_debug", False)),
+        "antctl_version": _get_option(options, "antctl_version"),
     }
 
     # Set default process manager based on platform if not specified

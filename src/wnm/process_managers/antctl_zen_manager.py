@@ -200,6 +200,10 @@ class AntctlZenManager(ProcessManager):
         # Add network
         args.append(node.network or "evm-arbitrum-one")
 
+        # Add --version if antctl_version is configured
+        if machine_config and hasattr(machine_config, 'antctl_version') and machine_config.antctl_version:
+            args.extend(["--version", machine_config.antctl_version])
+
         try:
             result = self._run_antctl(args)
 
@@ -336,8 +340,27 @@ class AntctlZenManager(ProcessManager):
         """
         logging.info(f"Upgrading antctl zen node {node.id} ({node.service}) to version {new_version or 'latest (from antctl)'}")
 
+        # Get machine config to check antctl_version setting
+        machine_config = None
+        if self.S:
+            from wnm.config import S
+            from wnm.models import Machine
+            from sqlalchemy import select
+
+            try:
+                with S() as session:
+                    result = session.execute(select(Machine)).first()
+                    if result:
+                        machine_config = result[0]
+            except Exception as e:
+                logging.warning(f"Failed to get machine config: {e}")
+
         # Build minimal antctl upgrade command - let antctl download the binary
         args = ["upgrade", "--service-name", node.service]
+
+        # Add --version if antctl_version is configured
+        if machine_config and hasattr(machine_config, 'antctl_version') and machine_config.antctl_version:
+            args.extend(["--version", machine_config.antctl_version])
 
         try:
             result = self._run_antctl(args)
