@@ -233,6 +233,10 @@ class AntctlZenManager(ProcessManager):
                         # Use merge to handle detached instance from executor
                         node = session.merge(node)
                         session.commit()
+                        # Refresh to reload attributes before session closes
+                        # This prevents "not bound to a Session" errors when accessing
+                        # attributes after the session is closed
+                        session.refresh(node)
                 except Exception as e:
                     logging.error(f"Failed to update node in database: {e}")
                     return None

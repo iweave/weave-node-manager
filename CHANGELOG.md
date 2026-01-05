@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-01-04
+
+### Fixed
+- **AntctlZenManager session management**: Fixed SQLAlchemy detached instance error in `create_node()`
+  - Added `session.refresh(node)` after commit to reload attributes before session closes
+  - Prevents "Instance is not bound to a Session; attribute refresh operation cannot proceed" error
+  - Error occurred when accessing node attributes after session context manager exited
+  - Fix at `src/wnm/process_managers/antctl_zen_manager.py:239`
+
 ## [0.4.1] - 2025-12-31
 
 ### Fixed
