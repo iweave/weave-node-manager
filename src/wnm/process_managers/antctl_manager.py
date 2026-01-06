@@ -14,7 +14,7 @@ import subprocess
 from typing import Optional
 
 from wnm.common import DEAD, RESTARTING, RUNNING, STOPPED
-from wnm.config import machine_config
+from wnm.config import machine_config, options
 from wnm.models import Node
 from wnm.process_managers.base import NodeProcess, ProcessManager
 from wnm.utils import read_node_metadata
@@ -114,12 +114,23 @@ class AntctlManager(ProcessManager):
         import shlex
         logging.debug(f"Running antctl command: {' '.join(shlex.quote(arg) for arg in cmd)}")
 
+        # Check for RUST_BACKTRACE setting (non-persistent, must be invoked each time)
+        # Check both environment variable and command line argument
+        env = None
+        rust_backtrace = os.getenv("RUST_BACKTRACE") or getattr(options, "rust_backtrace", None)
+        if rust_backtrace:
+            # Copy current environment and add RUST_BACKTRACE
+            env = os.environ.copy()
+            env["RUST_BACKTRACE"] = rust_backtrace
+            logging.debug(f"RUST_BACKTRACE={rust_backtrace} enabled for antctl command")
+
         try:
             result = subprocess.run(
                 cmd,
                 capture_output=capture_output,
                 text=True,
                 check=True,
+                env=env,
             )
             # Log stdout at DEBUG level if available
             if result.stdout:

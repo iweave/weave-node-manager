@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-01-06
+
+### Added
+- **Rust backtrace support for antctl subprocess**: Added `--rust_backtrace` option for debugging antctl subprocess operations
+  - Environment variable: `RUST_BACKTRACE`
+  - Non-persistent setting that must be invoked each time (not saved to database)
+  - Accepts values: `1` (short backtrace) or `full` (full backtrace)
+  - Passes RUST_BACKTRACE environment variable to antctl subprocess.run calls
+  - Works with both command-line argument and environment variable
+  - Applies to all antctl operations: add, start, stop, upgrade, remove, status, reset
+  - Only affects `antctl+zen`, `antctl+user`, and `antctl+sudo` process managers
+  - Logs `RUST_BACKTRACE={value} enabled for antctl command` at DEBUG level
+  - Examples:
+    - Via flag: `wnm --rust_backtrace 1`
+    - Via flag (full): `wnm --rust_backtrace full`
+    - Via env: `RUST_BACKTRACE=1 wnm`
+    - Via env (full): `export RUST_BACKTRACE=full; wnm`
+
 ## [0.4.3] - 2026-01-05
 
 ### Added

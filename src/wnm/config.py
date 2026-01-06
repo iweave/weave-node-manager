@@ -557,6 +557,11 @@ def load_config():
         env_var="ANTCTL_VERSION",
         help="Antctl version to use (default: None, uses latest)",
     )
+    c.add(
+        "--rust_backtrace",
+        env_var="RUST_BACKTRACE",
+        help="Enable Rust backtrace for antctl subprocess (1 or full). This is a non-persistent setting.",
+    )
 
     options = c.parse_known_args()[0] or []
 
