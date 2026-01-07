@@ -2,6 +2,43 @@
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-01-07
+
+### Added
+- **Antctl port allocation tracking**: Implemented node ID tracking system to prevent port conflicts in antctl managers
+  - Added `--highest_node_id_used` configuration parameter for manual override of node ID tracking
+  - Environment variable: `HIGHEST_NODE_ID_USED`
+  - Only works with antctl process managers: `antctl+zen`, `antctl+user`, `antctl+sudo`
+  - Can be set during `--init` to start node IDs from a specific number
+  - After initialization, requires `--force_action update_config` to prevent accidental desynchronization
+  - Prevents port conflicts by never reusing node IDs when nodes are removed (antctl doesn't free ports immediately)
+  - Port formula remains: `port = port_start * 1000 + node_id`
+  - Automatically initialized during `--init` for antctl managers (to max existing node ID or 0)
+  - Automatically reset to 0 during `--force_action teardown`
+  - Database migration: `e2f4a512d24c_add_highest_node_id_used_tracking.py`
+  - New module: `src/wnm/node_id_tracker.py` with allocation and initialization logic
+  - Updated executor.py to use ID tracking for antctl managers (no gap-filling)
+  - Updated config.py with parameter validation and initialization logic
+  - Comprehensive test coverage: 12 unit tests in `tests/test_node_id_tracker.py`
+  - Documentation added to USER-GUIDE-PART3.md with detailed examples and use cases
+  - Examples:
+    - Initialize with specific ID: `wnm --init --process_manager antctl+zen --rewards_address 0xAddr --highest_node_id_used 10`
+    - Override after init: `wnm --force_action update_config --highest_node_id_used 20`
+    - Check current value: `wnm --report machine-config | grep highest_node_id_used`
+
+### Changed
+- **Node ID allocation for antctl managers**: Antctl managers now use sequential ID allocation without filling gaps
+  - Previous behavior: Filled gaps in node IDs when nodes were removed (caused port conflicts)
+  - New behavior: Always increments to next unused ID, never reuses deleted IDs
+  - Only affects antctl managers; other managers (systemd, launchd, setsid) continue using gap-filling strategy
+  - Ensures port numbers never conflict with lingering antctl processes
+
+### Fixed
+- **Port conflicts in antctl managers**: Resolved port conflicts caused by antctl not immediately freeing ports after node removal
+  - Antctl won't release a port after removal (requires a reset), keeping ports occupied
+  - Gap-filling node ID allocation would assign new nodes to ports still held by removed nodes
+  - New tracking system prevents ID/port reuse, eliminating conflicts
+
 ## [0.4.4] - 2026-01-06
 
 ### Added

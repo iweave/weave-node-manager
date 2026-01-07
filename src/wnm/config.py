@@ -414,6 +414,11 @@ def load_config():
         help="Range to begin RPC port assignment",
     )  # Only allowed during init
     c.add(
+        "--highest_node_id_used",
+        env_var="HIGHEST_NODE_ID_USED",
+        help="Override highest node ID used for port allocation (only with --force_action update_config). Ports are calculated as: port = port_start * 1000 + node_id",
+    )
+    c.add(
         "--hdio_read_less_than",
         env_var="HDIO_READ_LESS_THAN",
         help="Hard Drive IO Read Add Threshold",
@@ -783,6 +788,13 @@ def merge_config_changes(options, machine_config):
     # Only update antctl_version if explicitly provided (not None)
     if options.antctl_version and options.antctl_version != machine_config.antctl_version:
         cfg["antctl_version"] = options.antctl_version
+
+    # highest_node_id_used override (only with --force_action update_config)
+    if (
+        options.highest_node_id_used
+        and int(options.highest_node_id_used) != machine_config.highest_node_id_used
+    ):
+        cfg["highest_node_id_used"] = int(options.highest_node_id_used)
 
     return cfg
 
@@ -1233,6 +1245,22 @@ if (
                     machine_config = session.execute(select(Machine)).first()
                     if machine_config:
                         machine_config = machine_config[0]
+
+                # Initialize highest_node_id_used for antctl process managers
+                if machine_config and machine_config.process_manager in ["antctl+user", "antctl+sudo", "antctl+zen"]:
+                    from wnm.node_id_tracker import initialize_node_id_tracking
+
+                    with S() as session:
+                        needs_update, initial_value = initialize_node_id_tracking(session, machine_config)
+                        if needs_update:
+                            session.query(Machine).filter(Machine.id == 1).update(
+                                {"highest_node_id_used": initial_value}
+                            )
+                            session.commit()
+                            # Reload machine_config to reflect updates
+                            machine_config = session.execute(select(Machine)).first()
+                            if machine_config:
+                                machine_config = machine_config[0]
     else:
         logging.error("No config found")
         sys.exit(1)
@@ -1272,6 +1300,17 @@ if immutable_changes:
         f"Cannot change immutable settings on an active machine: {', '.join(immutable_changes)}"
     )
     sys.exit(1)
+
+# Validate highest_node_id_used override - only allowed with --force_action update_config
+if not did_we_init and machine_config:
+    if hasattr(options, "highest_node_id_used") and options.highest_node_id_used is not None:
+        if not hasattr(options, "force_action") or options.force_action != "update_config":
+            logging.error(
+                "The parameter --highest_node_id_used can only be used with --force_action update_config"
+            )
+            logging.error("This restriction prevents accidental node ID/port tracking desynchronization.")
+            logging.error(f"To override node ID tracking, use: wnm --force_action update_config --highest_node_id_used <value>")
+            sys.exit(1)
 
 
 if __name__ == "__main__":

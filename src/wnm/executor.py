@@ -30,6 +30,7 @@ from wnm.common import (
 )
 from wnm.config import LOG_DIR
 from wnm.models import Machine, Node
+from wnm.node_id_tracker import allocate_node_id
 from wnm.process_managers.factory import get_default_manager_type, get_process_manager
 from wnm.utils import (
     get_antnode_version,
@@ -511,40 +512,58 @@ class ActionExecutor:
             logging.warning("DRYRUN: Add a node")
             return {"status": "add-node"}
 
-        # Find next available node ID (look for holes first)
-        # First check if node 1 exists
-        with self.S() as session:
-            node_1_exists = session.execute(
-                select(Node.id).where(Node.id == 1)
-            ).first()
-
-        if not node_1_exists:
-            # Node 1 is available, use it
-            node_id = 1
-        else:
-            # Look for holes in the sequence
-            sql = text(
-                "select n1.id + 1 as id from node n1 "
-                + "left join node n2 on n2.id = n1.id + 1 "
-                + "where n2.id is null "
-                + "and n1.id <> (select max(id) from node) "
-                + "order by n1.id;"
-            )
-            with self.S() as session:
-                result = session.execute(sql).first()
-
-            if result:
-                node_id = result[0]
-            else:
-                # No holes, use max + 1
-                with self.S() as session:
-                    result = session.execute(
-                        select(Node.id).order_by(Node.id.desc())
-                    ).first()
-                node_id = result[0] + 1 if result else 1
-
         # Use the machine config's process manager (includes mode like "systemd+sudo")
         manager_type = machine_config.get("process_manager") or get_default_manager_type()
+
+        # Determine node ID allocation strategy based on process manager
+        if manager_type in ["antctl+user", "antctl+sudo", "antctl+zen"]:
+            # antctl managers: Use node ID tracking (IDs/ports don't reuse)
+            # Load machine_config from database to get current highest_node_id_used
+            with self.S() as session:
+                db_machine_config = session.execute(select(Machine)).first()[0]
+
+            node_id, node_id_update = allocate_node_id(db_machine_config)
+
+            # Update machine config BEFORE creating the node to prevent race conditions
+            with self.S() as session:
+                session.query(Machine).filter(Machine.id == 1).update(node_id_update)
+                session.commit()
+
+            logging.info(f"Allocated node ID {node_id} using antctl ID tracking (highest_node_id_used now {node_id_update['highest_node_id_used']})")
+        else:
+            # Other managers: Use legacy node_id allocation (fills gaps)
+            # First check if node 1 exists
+            with self.S() as session:
+                node_1_exists = session.execute(
+                    select(Node.id).where(Node.id == 1)
+                ).first()
+
+            if not node_1_exists:
+                # Node 1 is available, use it
+                node_id = 1
+            else:
+                # Look for holes in the sequence
+                sql = text(
+                    "select n1.id + 1 as id from node n1 "
+                    + "left join node n2 on n2.id = n1.id + 1 "
+                    + "where n2.id is null "
+                    + "and n1.id <> (select max(id) from node) "
+                    + "order by n1.id;"
+                )
+                with self.S() as session:
+                    result = session.execute(sql).first()
+
+                if result:
+                    node_id = result[0]
+                else:
+                    # No holes, use max + 1
+                    with self.S() as session:
+                        result = session.execute(
+                            select(Node.id).order_by(Node.id.desc())
+                        ).first()
+                    node_id = result[0] + 1 if result else 1
+
+            logging.debug(f"Allocated node ID {node_id} using gap-filling strategy")
 
         # Select wallet for this node from weighted distribution
         selected_wallet = select_wallet_for_node(
@@ -1385,6 +1404,17 @@ class ActionExecutor:
                 logging.warning("DRYRUN: Teardown cluster via manager")
             else:
                 if manager.teardown_cluster():
+                    # Check if this is an antctl manager - reset node ID tracking
+                    from wnm.process_managers.antctl_manager import AntctlManager
+                    from wnm.process_managers.antctl_zen_manager import AntctlZenManager
+                    if isinstance(manager, (AntctlManager, AntctlZenManager)):
+                        logging.info("Resetting highest_node_id_used to 0 after antctl reset")
+                        with self.S() as session:
+                            session.query(Machine).filter(Machine.id == 1).update(
+                                {"highest_node_id_used": 0}
+                            )
+                            session.commit()
+
                     # Remove all nodes from database
                     with self.S() as session:
                         session.query(Node).delete()

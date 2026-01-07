@@ -81,6 +81,10 @@ class Machine(Base):
     metrics_port_start: Mapped[int] = mapped_column(Integer)
     rpc_port_start: Mapped[int] = mapped_column(Integer, default=30)
 
+    # Highest node ID tracking (for antctl managers that don't free ports on remove)
+    # Node IDs increment without filling gaps, keeping port formula: port = port_start * 1000 + node_id
+    highest_node_id_used: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
     # System state
     last_stopped_at: Mapped[int] = mapped_column(Integer)
     host: Mapped[str] = mapped_column(UnicodeText)
@@ -187,6 +191,7 @@ class Machine(Base):
         antctl_version=None,
         survey_delay=0,
         action_delay=0,
+        highest_node_id_used=None,
     ):
         self.cpu_count = cpu_count
         self.node_cap = node_cap
@@ -237,6 +242,7 @@ class Machine(Base):
         self.antctl_path = antctl_path
         self.antctl_debug = antctl_debug
         self.antctl_version = antctl_version
+        self.highest_node_id_used = highest_node_id_used
 
     def __repr__(self):
         return (
@@ -301,6 +307,7 @@ class Machine(Base):
             "no_upnp": bool(self.no_upnp),
             "antnode_path": f"{self.antnode_path}" if self.antnode_path else None,
             "antctl_path": f"{self.antctl_path}" if self.antctl_path else None,
+            "highest_node_id_used": self.highest_node_id_used,
         }
 
 

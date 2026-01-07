@@ -714,6 +714,93 @@ wnm --force_action update_config --antctl_version ""
 - **Node upgrades**: When `--antctl_version` is set, `antctl upgrade --version <version>` is used
 - **Without setting**: antctl determines the version automatically (typically latest)
 
+### Antctl Port Allocation Tracking
+
+**`--highest_node_id_used`**
+- Environment variable: `HIGHEST_NODE_ID_USED`
+- Type: Integer
+- Default: `None` (automatically initialized from existing nodes during --init)
+- Description: Override the highest node ID used for port allocation tracking in antctl managers
+- Use cases:
+  - **Initialize with specific starting ID**: Set during --init to start node IDs from a specific number
+  - **Fix port tracking desynchronization**: Manually correct the node ID counter if it gets out of sync
+  - **Skip problematic port ranges**: Jump past port numbers that are blocked or in use
+  - **Recovery from antctl reset**: Manually set tracking after external antctl operations
+- Notes:
+  - **ONLY works with antctl managers**: `antctl+zen`, `antctl+user`, `antctl+sudo`
+  - **After init, requires --force_action update_config**: During normal runs, must use --force_action update_config
+  - **Prevents port conflicts**: Antctl doesn't free ports on node removal, so IDs/ports never reuse
+  - Port formula remains: `port = port_start * 1000 + node_id`
+  - Automatically initialized during --init for antctl managers (if not explicitly set)
+  - Automatically reset to 0 during --force_action teardown
+  - Used internally to allocate node IDs without filling gaps
+
+**How It Works:**
+
+For antctl process managers, wnm tracks the highest node ID ever used instead of filling gaps when nodes are removed. This prevents port conflicts because antctl processes don't immediately free their ports when removed.
+
+**Port Allocation Examples:**
+
+With `--port_start 55` and sequential node creation:
+- Nodes 1, 2, 3 created → highest_node_id_used = 3
+- Node 2 removed → highest_node_id_used still 3
+- New node added → Node ID 4 (port 55004), NOT reusing ID 2
+- Gaps in node IDs (1, 3, 4, 7) → Next node gets ID 8, NOT ID 2, 5, or 6
+
+**Examples:**
+
+**During initialization:**
+```bash
+# Initialize with specific starting node ID
+wnm --init --rewards_address 0xAddr --process_manager antctl+zen --highest_node_id_used 10
+# First node created will be ID 11 (port 55011)
+
+# Initialize normally (automatic initialization from existing nodes or 0)
+wnm --init --rewards_address 0xAddr --process_manager antctl+zen
+# Automatically initialized to max existing node ID or 0
+```
+
+**After initialization:**
+```bash
+# Check current tracking value
+wnm --report machine-config | grep highest_node_id_used
+
+# Override tracking (requires --force_action update_config)
+wnm --force_action update_config --highest_node_id_used 20
+# Next node created will be ID 21 (port 55021)
+
+# Reset tracking after manual cleanup
+wnm --force_action update_config --highest_node_id_used 0
+# Next node will be ID 1 (port 55001)
+```
+
+**When to use this parameter:**
+
+1. **During initialization with existing setup**: Starting a new wnm cluster where antctl nodes already exist at certain IDs
+2. **After external antctl operations**: If you ran `antctl` commands outside of wnm and node IDs got out of sync
+3. **Port conflict recovery**: If you encounter port conflicts and need to skip past problematic port numbers
+4. **Manual cluster reconstruction**: When rebuilding a cluster and want to control node ID assignment
+
+**Validation:**
+
+This parameter has strict validation after initialization to prevent accidental desynchronization:
+```bash
+# ✅ During --init (no restrictions)
+wnm --init --rewards_address 0xAddr --process_manager antctl+zen --highest_node_id_used 10
+
+# ❌ After init - missing --force_action update_config
+wnm --highest_node_id_used 10
+
+# ✅ After init - correct usage
+wnm --force_action update_config --highest_node_id_used 10
+```
+
+**Important:**
+- Setting this incorrectly can cause port conflicts or waste port numbers
+- Only modify if you understand the port allocation system
+- The tracking is automatically managed during normal operations
+- After initialization, this is primarily a troubleshooting/recovery parameter
+
 ### Process Manager Selection
 
 **`--process_manager`**
