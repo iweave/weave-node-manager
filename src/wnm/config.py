@@ -472,7 +472,7 @@ def load_config():
     c.add(
         "--force_action",
         env_var="FORCE_ACTION",
-        help="Force an action: add, remove, upgrade, start, stop, disable, teardown, survey, wnm-db-migration, nullop, update_config",
+        help="Force an action: add, remove, upgrade, start, stop, disable, teardown, survey, wnm-db-migration, nullop, update_config, disable_config",
         choices=[
             "add",
             "remove",
@@ -485,6 +485,7 @@ def load_config():
             "wnm-db-migration",
             "nullop",
             "update_config",
+            "disable_config",
         ],
     )
     c.add(
@@ -795,6 +796,21 @@ def merge_config_changes(options, machine_config):
         and int(options.highest_node_id_used) != machine_config.highest_node_id_used
     ):
         cfg["highest_node_id_used"] = int(options.highest_node_id_used)
+
+    # Special handling for --force_action disable_config
+    # When disable_config is used, specified boolean flags are inverted (set to False)
+    if hasattr(options, "force_action") and options.force_action == "disable_config":
+        # Check for --antctl_debug flag and set it to False
+        if "--antctl_debug" in sys.argv or "--antctl-debug" in sys.argv:
+            if machine_config.antctl_debug != False:
+                cfg["antctl_debug"] = False
+                logging.info("disable_config: Setting antctl_debug to False")
+
+        # Check for --no_upnp flag and set it to False
+        if "--no_upnp" in sys.argv or "--no-upnp" in sys.argv:
+            if machine_config.no_upnp != False:
+                cfg["no_upnp"] = False
+                logging.info("disable_config: Setting no_upnp to False (enabling UPnP)")
 
     return cfg
 

@@ -225,8 +225,8 @@ def main():
         logging.error("Unable to load machine config, exiting")
         sys.exit(1)
 
-    # Handle nullop/update_config force action early (bypasses decision engine)
-    if options.force_action in ["nullop", "update_config"]:
+    # Handle nullop/update_config/disable_config force action early (bypasses decision engine)
+    if options.force_action in ["nullop", "update_config", "disable_config"]:
         logging.info(f"Executing {options.force_action}: updating config only")
         # Check for config updates
         if config_updates:

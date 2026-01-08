@@ -985,7 +985,7 @@ Example: If `max_concurrent_starts=4` but only 2 stopped nodes exist, WNM will:
 **`--force_action`**
 - Environment variable: `FORCE_ACTION`
 - Type: String
-- Choices: `add`, `remove`, `upgrade`, `start`, `stop`, `disable`, `teardown`, `survey`, `wnm-db-migration`, `nullop`, `update_config`
+- Choices: `add`, `remove`, `upgrade`, `start`, `stop`, `disable`, `teardown`, `survey`, `wnm-db-migration`, `nullop`, `update_config`, `disable_config`
 - Description: Force a specific action regardless of resource thresholds
 - Use with: `--service_name` to target specific nodes (for node actions)
 - Use with: `--count` to affect multiple nodes (for node actions)
@@ -1038,6 +1038,52 @@ Update multiple settings at once:
 ```bash
 wnm --force_action nullop --node_cap 40 --delay_start 600 --survey_delay 250
 ```
+
+**`disable_config`**
+- Type: Forced action (bypasses decision engine)
+- Description: Disable boolean configuration flags by setting them to False in the database
+- Use cases:
+  - Disable persistent boolean settings that are difficult to unset
+  - Turn off debug mode or other boolean flags
+  - Fix stuck boolean settings from config files or environment variables
+- Behavior:
+  - Works like `nullop` / `update_config` but **inverts** boolean flags
+  - When used with `--antctl_debug` or `--no_upnp`, sets them to False
+  - Loads minimal resources (config only, no system metrics)
+  - Exits immediately without node surveying or decision engine
+- Supported flags:
+  - `--antctl_debug`: Disable antctl debug mode
+  - `--no_upnp`: Re-enable UPnP (sets no_upnp to False)
+- Notes:
+  - Boolean flags using `action="store_true"` normally can't be disabled once set in the database
+  - This action provides a way to explicitly disable these persistent settings
+  - Only updates configuration values in the database
+  - Does NOT collect system metrics or run the decision engine
+
+**Examples:**
+
+Disable antctl debug mode:
+```bash
+wnm --force_action disable_config --antctl_debug
+```
+
+Re-enable UPnP (disable no_upnp flag):
+```bash
+wnm --force_action disable_config --no_upnp
+```
+
+Disable multiple boolean flags:
+```bash
+wnm --force_action disable_config --antctl_debug --no_upnp
+```
+
+**Why is this needed?**
+
+Some boolean settings use the `store_true` pattern, which means:
+- Providing the flag sets it to True
+- Not providing the flag defaults to False (but doesn't update the database)
+
+Once a `store_true` flag is set in the database, simply omitting it won't change it back to False. The `disable_config` action solves this by explicitly setting these flags to False when specified.
 
 **`--service_name`**
 - Environment variable: `SERVICE_NAME`

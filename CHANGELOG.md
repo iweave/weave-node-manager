@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-01-07
+
+### Added
+- **Boolean config disable action**: Added `--force_action disable_config` for disabling persistent boolean settings
+  - New force action type: `disable_config` (config-only operation, bypasses decision engine)
+  - Inverts boolean flags to False when specified, solving the `store_true` limitation
+  - Supported flags: `--antctl_debug`, `--no_upnp`
+  - Use cases: Disable debug mode, re-enable UPnP, fix stuck boolean settings
+  - Examples:
+    - Disable antctl debug: `wnm --force_action disable_config --antctl_debug`
+    - Re-enable UPnP: `wnm --force_action disable_config --no_upnp`
+    - Multiple flags: `wnm --force_action disable_config --antctl_debug --no_upnp`
+  - Added to config.py with special handling logic (lines 800-814)
+  - Added to __main__.py early exit path alongside nullop/update_config (line 229)
+  - Comprehensive documentation added to USER-GUIDE-PART3.md with detailed explanation
+
+### Fixed
+- **Boolean flag persistence issue**: Solved problem where `store_true` flags couldn't be disabled once set in database
+  - Boolean flags like `--antctl_debug` and `--no_upnp` use `action="store_true"` pattern
+  - Providing the flag sets to True, but omitting it doesn't change database value back to False
+  - New `disable_config` action explicitly sets specified boolean flags to False in database
+  - Eliminates need for manual database editing or complex workarounds
+
 ## [0.4.6] - 2026-01-07
 
 ### Fixed
