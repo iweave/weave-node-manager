@@ -183,6 +183,17 @@ class DockerManager(ProcessManager):
         """
         logging.info(f"Starting docker node {node.id}")
 
+        # Check if node is already responding on metadata port
+        from wnm.utils import read_node_metadata
+        from wnm.common import RUNNING
+        metadata = read_node_metadata(node.host, node.metrics_port)
+        if isinstance(metadata, dict) and metadata.get("status") == RUNNING:
+            logging.warning(
+                f"Node {node.id} already responding on metadata port {node.metrics_port}, "
+                "skipping start to avoid duplicate process"
+            )
+            return True
+
         container_name = self._get_container_name(node)
 
         try:

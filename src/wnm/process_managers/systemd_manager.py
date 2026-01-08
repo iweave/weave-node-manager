@@ -258,6 +258,15 @@ Restart=always
         """
         logging.info(f"Starting systemd node {node.id}")
 
+        # Check if node is already responding on metadata port
+        metadata = read_node_metadata(node.host, node.metrics_port)
+        if isinstance(metadata, dict) and metadata.get("status") == RUNNING:
+            logging.warning(
+                f"Node {node.id} already responding on metadata port {node.metrics_port}, "
+                "skipping start to avoid duplicate process"
+            )
+            return True
+
         # Start service
         try:
             result = subprocess.run(

@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [0.4.8] - 2026-01-07
+
+### Fixed
+- **Process manager start node race condition**: Fixed sync loop where nodes finish starting after manager gives up
+  - All process managers now check metadata port before attempting to start
+  - If node already responding on metadata port, skip start and return success
+  - Prevents attempting to start already-running nodes when antctl/systemd/launchd times out
+  - Eliminates "loss of sync" scenario where node finishes starting after start command returns
+  - Applies to all 6 process managers: LaunchdManager, SystemdManager, SetsidManager, AntctlManager, AntctlZenManager, DockerManager
+  - Added pre-flight check using `read_node_metadata()` to detect already-running nodes
+  - Logs warning when skipping start for already-running node
+  - Example scenario prevented: antctl start times out → node finishes starting → next attempt fails because already running
+  - Changes in: `src/wnm/process_managers/launchd_manager.py:262-268`
+  - Changes in: `src/wnm/process_managers/systemd_manager.py:261-268`
+  - Changes in: `src/wnm/process_managers/setsid_manager.py:122-130`
+  - Changes in: `src/wnm/process_managers/antctl_manager.py:265-272`
+  - Changes in: `src/wnm/process_managers/antctl_zen_manager.py:287-294`
+  - Changes in: `src/wnm/process_managers/docker_manager.py:186-195`
+
 ## [0.4.7] - 2026-01-07
 
 ### Added

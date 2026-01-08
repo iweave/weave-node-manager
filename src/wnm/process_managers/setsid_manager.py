@@ -119,9 +119,19 @@ class SetsidManager(ProcessManager):
         """
         logging.info(f"Starting setsid node {node.id}")
 
-        # Check if already running
+        # Check if node is already responding on metadata port
+        from wnm.utils import read_node_metadata
+        metadata = read_node_metadata(node.host, node.metrics_port)
+        if isinstance(metadata, dict) and metadata.get("status") == RUNNING:
+            logging.warning(
+                f"Node {node.id} already responding on metadata port {node.metrics_port}, "
+                "skipping start to avoid duplicate process"
+            )
+            return True
+
+        # Check if already running via PID file
         if self._read_pid_file(node):
-            logging.warning(f"Node {node.id} already running")
+            logging.warning(f"Node {node.id} already running (PID file exists)")
             return True
 
         # Get machine config to check no_upnp setting

@@ -262,6 +262,15 @@ class AntctlManager(ProcessManager):
         """
         logging.info(f"Starting antctl node {node.id} ({node.service})")
 
+        # Check if node is already responding on metadata port
+        metadata = read_node_metadata(node.host, node.metrics_port)
+        if isinstance(metadata, dict) and metadata.get("status") == RUNNING:
+            logging.warning(
+                f"Node {node.id} already responding on metadata port {node.metrics_port}, "
+                "skipping start to avoid duplicate process"
+            )
+            return True
+
         try:
             self._run_antctl(["start", "--service-name", node.service])
             # Open firewall port
