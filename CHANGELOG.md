@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-01-07
+
+### Fixed
+- **Model serialization completeness**: Fixed missing columns in `__repr__` and `__json__` methods for all model classes
+  - **Machine class**: Added missing fields to both `__repr__` and `__json__` methods
+    - `__repr__`: Added id, delay_restart, survey_delay, action_delay, rpc_port_start, highest_node_id_used, all max_concurrent_* fields, node_removal_strategy, process_manager, max_node_per_container, min_container_count, docker_image, no_upnp, antnode_path, antctl_path, antctl_debug, antctl_version
+    - `__json__`: Added id, delay_restart, max_node_per_container, min_container_count, docker_image, antctl_debug, antctl_version
+  - **Container class**: Added missing fields to both `__repr__` and `__json__` methods
+    - `__repr__`: Added machine_id, port_range_start, port_range_end, metrics_port_range_start, metrics_port_range_end
+    - `__json__`: Added port_range_start, port_range_end, metrics_port_range_start, metrics_port_range_end
+  - **Node class**: Added missing fields to both `__repr__` and `__json__` methods
+    - Added log_dir, rpc_port, and all InfluxDB metrics fields (gets, puts, mem, cpu, open_connections, total_peers, bad_peers, rel_records, max_records, rewards, payment_count, live_time, network_size)
+  - Ensures complete model representation for debugging and JSON serialization
+  - Fixes inconsistencies between database schema and serialized output
+
 ## [0.4.5] - 2026-01-07
 
 ### Added

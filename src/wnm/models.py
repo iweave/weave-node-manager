@@ -246,22 +246,47 @@ class Machine(Base):
 
     def __repr__(self):
         return (
-            f"Machine({self.cpu_count},{self.node_cap},{self.cpu_less_than},{self.cpu_remove}"
-            + f",{self.mem_less_than},{self.mem_remove},{self.hd_less_than}"
-            + f",{self.hd_remove},{self.delay_start},{self.delay_upgrade}"
-            + f",{self.delay_remove}"
-            + f',"{self.node_storage}","{self.rewards_address}","{self.donate_address}"'
-            + f",{self.max_load_average_allowed},{self.desired_load_average}"
-            + f",{self.port_start},{self.hdio_read_less_than},{self.hdio_read_remove}"
-            + f",{self.hdio_write_less_than},{self.hdio_write_remove}"
-            + f",{self.netio_read_less_than},{self.netio_read_remove}"
-            + f",{self.netio_write_less_than},{self.netio_write_remove}"
-            + f",{self.last_stopped_at},{self.host},{self.crisis_bytes}"
-            + f",{self.metrics_port_start},{self.environment},{self.start_args})"
+            f"Machine(id={self.id},cpu_count={self.cpu_count},node_cap={self.node_cap},"
+            + f"cpu_less_than={self.cpu_less_than},cpu_remove={self.cpu_remove},"
+            + f"mem_less_than={self.mem_less_than},mem_remove={self.mem_remove},"
+            + f"hd_less_than={self.hd_less_than},hd_remove={self.hd_remove},"
+            + f"delay_start={self.delay_start},delay_restart={self.delay_restart},"
+            + f"delay_upgrade={self.delay_upgrade},delay_remove={self.delay_remove},"
+            + f"survey_delay={self.survey_delay},action_delay={self.action_delay},"
+            + f'node_storage="{self.node_storage}",rewards_address="{self.rewards_address}",'
+            + f'donate_address="{self.donate_address}",'
+            + f"max_load_average_allowed={self.max_load_average_allowed},"
+            + f"desired_load_average={self.desired_load_average},"
+            + f"port_start={self.port_start},metrics_port_start={self.metrics_port_start},"
+            + f"rpc_port_start={self.rpc_port_start},"
+            + f"highest_node_id_used={self.highest_node_id_used},"
+            + f"hdio_read_less_than={self.hdio_read_less_than},"
+            + f"hdio_read_remove={self.hdio_read_remove},"
+            + f"hdio_write_less_than={self.hdio_write_less_than},"
+            + f"hdio_write_remove={self.hdio_write_remove},"
+            + f"netio_read_less_than={self.netio_read_less_than},"
+            + f"netio_read_remove={self.netio_read_remove},"
+            + f"netio_write_less_than={self.netio_write_less_than},"
+            + f"netio_write_remove={self.netio_write_remove},"
+            + f"last_stopped_at={self.last_stopped_at},host={self.host},"
+            + f"crisis_bytes={self.crisis_bytes},"
+            + f"environment={self.environment},start_args={self.start_args},"
+            + f"max_concurrent_upgrades={self.max_concurrent_upgrades},"
+            + f"max_concurrent_starts={self.max_concurrent_starts},"
+            + f"max_concurrent_removals={self.max_concurrent_removals},"
+            + f"max_concurrent_operations={self.max_concurrent_operations},"
+            + f"node_removal_strategy={self.node_removal_strategy},"
+            + f"process_manager={self.process_manager},"
+            + f"max_node_per_container={self.max_node_per_container},"
+            + f"min_container_count={self.min_container_count},"
+            + f"docker_image={self.docker_image},no_upnp={self.no_upnp},"
+            + f"antnode_path={self.antnode_path},antctl_path={self.antctl_path},"
+            + f"antctl_debug={self.antctl_debug},antctl_version={self.antctl_version})"
         )
 
     def __json__(self):
         return {
+            "id": self.id,
             "cpu_count": self.cpu_count,
             "node_cap": self.node_cap,
             "cpu_less_than": self.cpu_less_than,
@@ -271,6 +296,7 @@ class Machine(Base):
             "hd_less_than": self.hd_less_than,
             "hd_remove": self.hd_remove,
             "delay_start": self.delay_start,
+            "delay_restart": self.delay_restart,
             "delay_upgrade": self.delay_upgrade,
             "delay_remove": self.delay_remove,
             "survey_delay": self.survey_delay,
@@ -304,9 +330,14 @@ class Machine(Base):
             "process_manager": (
                 f"{self.process_manager}" if self.process_manager else None
             ),
+            "max_node_per_container": self.max_node_per_container,
+            "min_container_count": self.min_container_count,
+            "docker_image": f"{self.docker_image}" if self.docker_image else None,
             "no_upnp": bool(self.no_upnp),
             "antnode_path": f"{self.antnode_path}" if self.antnode_path else None,
             "antctl_path": f"{self.antctl_path}" if self.antctl_path else None,
+            "antctl_debug": bool(self.antctl_debug),
+            "antctl_version": f"{self.antctl_version}" if self.antctl_version else None,
             "highest_node_id_used": self.highest_node_id_used,
         }
 
@@ -370,19 +401,29 @@ class Container(Base):
 
     def __repr__(self):
         return (
-            f'Container({self.id},"{self.container_id}","{self.name}","{self.image}"'
-            + f',"{self.status}",{self.created_at})'
+            f'Container(id={self.id},machine_id={self.machine_id},'
+            + f'container_id="{self.container_id}",name="{self.name}",'
+            + f'image="{self.image}",status="{self.status}",'
+            + f'created_at={self.created_at},'
+            + f'port_range_start={self.port_range_start},'
+            + f'port_range_end={self.port_range_end},'
+            + f'metrics_port_range_start={self.metrics_port_range_start},'
+            + f'metrics_port_range_end={self.metrics_port_range_end})'
         )
 
     def __json__(self):
         return {
             "id": self.id,
+            "machine_id": self.machine_id,
             "container_id": f"{self.container_id}",
             "name": f"{self.name}",
             "image": f"{self.image}",
             "status": f"{self.status}",
             "created_at": self.created_at,
-            "machine_id": self.machine_id,
+            "port_range_start": self.port_range_start,
+            "port_range_end": self.port_range_end,
+            "metrics_port_range_start": self.metrics_port_range_start,
+            "metrics_port_range_end": self.metrics_port_range_end,
         }
 
 
@@ -552,25 +593,41 @@ class Node(Base):
 
     def __repr__(self):
         return (
-            f'Node({self.id},"{self.node_name}","{self.service}","{self.user},"{self.binary}"'
-            + f',"{self.version}","{self.root_dir}",{self.port},{self.metrics_port}'
-            + f',"{self.network}","{self.wallet}","{self.peer_id}","{self.status}",{self.timestamp}'
-            + f',{self.records},{self.uptime},{self.shunned},{self.connected_peers},{self.age},"{self.host}"'
-            + f',{self.method},{self.layout},"{self.environment}"'
-            + f',{self.machine_id},{self.container_id},"{self.manager_type}")'
+            f'Node(id={self.id},machine_id={self.machine_id},container_id={self.container_id},'
+            + f'manager_type="{self.manager_type}",node_name="{self.node_name}",'
+            + f'service="{self.service}",user="{self.user}",binary="{self.binary}",'
+            + f'version="{self.version}",root_dir="{self.root_dir}",log_dir="{self.log_dir}",'
+            + f'port={self.port},metrics_port={self.metrics_port},rpc_port={self.rpc_port},'
+            + f'network="{self.network}",wallet="{self.wallet}",peer_id="{self.peer_id}",'
+            + f'status="{self.status}",timestamp={self.timestamp},'
+            + f'records={self.records},uptime={self.uptime},shunned={self.shunned},'
+            + f'connected_peers={self.connected_peers},'
+            + f'gets={self.gets},puts={self.puts},mem={self.mem},cpu={self.cpu},'
+            + f'open_connections={self.open_connections},total_peers={self.total_peers},'
+            + f'bad_peers={self.bad_peers},rel_records={self.rel_records},'
+            + f'max_records={self.max_records},rewards="{self.rewards}",'
+            + f'payment_count={self.payment_count},live_time={self.live_time},'
+            + f'network_size={self.network_size},'
+            + f'age={self.age},host="{self.host}",method="{self.method}",'
+            + f'layout="{self.layout}",environment="{self.environment}")'
         )
 
     def __json__(self):
         return {
             "id": self.id,
+            "machine_id": self.machine_id,
+            "container_id": self.container_id,
+            "manager_type": f"{self.manager_type}",
             "node_name": f"{self.node_name}",
             "service": f"{self.service}",
             "user": f"{self.user}",
             "binary": f"{self.binary}",
             "version": f"{self.version}",
             "root_dir": f"{self.root_dir}",
+            "log_dir": f"{self.log_dir}" if self.log_dir else None,
             "port": self.port,
             "metrics_port": self.metrics_port,
+            "rpc_port": self.rpc_port,
             "network": f"{self.network}",
             "wallet": f"{self.wallet}",
             "peer_id": f"{self.peer_id}",
@@ -580,12 +637,22 @@ class Node(Base):
             "uptime": self.uptime,
             "shunned": self.shunned,
             "connected_peers": self.connected_peers,
+            "gets": self.gets,
+            "puts": self.puts,
+            "mem": self.mem,
+            "cpu": self.cpu,
+            "open_connections": self.open_connections,
+            "total_peers": self.total_peers,
+            "bad_peers": self.bad_peers,
+            "rel_records": self.rel_records,
+            "max_records": self.max_records,
+            "rewards": f"{self.rewards}" if self.rewards else "0",
+            "payment_count": self.payment_count,
+            "live_time": self.live_time,
+            "network_size": self.network_size,
             "age": self.age,
             "host": f"{self.host}",
             "method": f"{self.method}",
             "layout": f"{self.layout}",
             "environment": f"{self.environment}",
-            "machine_id": self.machine_id,
-            "container_id": self.container_id,
-            "manager_type": f"{self.manager_type}",
         }
