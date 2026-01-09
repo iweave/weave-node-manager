@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.4.9] - 2026-01-09
+
+### Fixed
+- **AntctlZenManager upgrade support**: Fixed upgrade failure for nodes using antctl+zen process manager
+  - Error: `'dict' object has no attribute 'antnode_path'` during upgrade operations
+  - Root cause: `_upgrade_node_binary()` in executor.py didn't recognize AntctlZenManager as having its own upgrade method
+  - AntctlZenManager fell through to manual upgrade path (designed for systemd/launchd/setsid), which incorrectly tried to access `machine_config.antnode_path`
+  - Solution: Added AntctlZenManager to isinstance check alongside AntctlManager (line 163)
+  - Both managers now correctly use antctl's built-in upgrade command instead of manual binary copying
+  - Also fixed teardown_cluster method to include AntctlZenManager in isinstance check for node ID tracking reset (line 1411)
+  - Changes in: `src/wnm/executor.py:148,161-163,1411`
+
 ## [0.4.8] - 2026-01-07
 
 ### Fixed

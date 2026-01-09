@@ -145,7 +145,7 @@ class ActionExecutor:
     def _upgrade_node_binary(self, node: Node, new_version: str) -> bool:
         """Upgrade a node's binary by stopping it, copying the new binary, and starting it again.
 
-        For AntctlManager, this delegates to antctl's built-in upgrade command.
+        For AntctlManager and AntctlZenManager, this delegates to antctl's built-in upgrade command.
         For other managers, this manually stops, copies binary, and starts the node.
 
         Args:
@@ -157,9 +157,10 @@ class ActionExecutor:
         """
         manager = self._get_process_manager(node)
 
-        # Check if this is an AntctlManager - it has its own upgrade method
+        # Check if this is an AntctlManager or AntctlZenManager - they have their own upgrade methods
         from wnm.process_managers.antctl_manager import AntctlManager
-        if isinstance(manager, AntctlManager):
+        from wnm.process_managers.antctl_zen_manager import AntctlZenManager
+        if isinstance(manager, (AntctlManager, AntctlZenManager)):
             # Use antctl's built-in upgrade command
             logging.info(f"Using antctl upgrade for node {node.id}")
             if not manager.upgrade_node(node, new_version):
