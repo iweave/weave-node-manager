@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-01-11
+
+### Fixed
+- **Force remove node validation**: Fixed bug where invalid service names would incorrectly remove unspecified nodes
+  - Problem: Using `--force_action remove --service_name node1` (invalid format, should be `antnode0001`) would remove a different node instead of warning
+  - Root cause 1: Whitespace-only input (e.g., `" "`) parsed to empty list `[]`, which is falsy, causing fallthrough to "remove youngest node" logic
+  - Root cause 2: When ALL specified nodes fail to be found, system would return `removed_count=0` without clear error status
+  - Solution 1: Added validation at `executor.py:826-833` to detect when `service_name` was provided but results in empty list after parsing
+  - Solution 2: Added validation at `executor.py:872-880` to return error status when ALL specified nodes fail (none were found)
+  - Now returns `status: "error"` with message: "None of the specified service names exist: {node_list}"
+  - Logs clear warning: "All specified nodes failed: {node_list}. No nodes were removed."
+  - Prevents accidental node removal when user provides invalid or non-existent service names
+  - Changes in: `src/wnm/executor.py:826-880`
+  - Test coverage: Added 2 comprehensive tests in `tests/test_forced_actions.py:183-238`
+    - `test_force_remove_with_whitespace_service_name`: Tests whitespace, commas, and empty input
+    - `test_force_remove_with_invalid_node_name_format`: Tests "node1", "node123" and other invalid formats
+  - All 59 forced action tests pass
+
 ## [0.5.1] - 2026-01-11
 
 ### Fixed

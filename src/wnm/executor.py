@@ -823,6 +823,15 @@ class ActionExecutor:
         # Parse comma-separated service names
         service_names = parse_service_names(service_name)
 
+        # Check if service_name was provided but resulted in empty list (invalid input)
+        # This prevents accidental removal when user provides whitespace or invalid characters
+        if service_name is not None and service_names is not None and len(service_names) == 0:
+            logging.error(f"Invalid service_name provided (empty after parsing): {repr(service_name)}")
+            return {
+                "status": "error",
+                "message": f"Invalid service_name provided: {repr(service_name)}. No nodes specified."
+            }
+
         if service_names:
             # Remove specific nodes
             removed_nodes = []
@@ -859,6 +868,16 @@ class ActionExecutor:
                     except Exception as e:
                         logging.error(f"Failed to remove node {name}: {e}")
                         failed_nodes.append({"service": name, "error": str(e)})
+
+            # If ALL specified nodes failed (none were found/removed), return error
+            if len(removed_nodes) == 0 and len(failed_nodes) > 0:
+                node_list = ", ".join([f["service"] for f in failed_nodes])
+                logging.warning(f"All specified nodes failed: {node_list}. No nodes were removed.")
+                return {
+                    "status": "error",
+                    "message": f"None of the specified service names exist: {node_list}",
+                    "failed_nodes": failed_nodes,
+                }
 
             return {
                 "status": "removed-nodes" if not dry_run else "remove-dryrun",

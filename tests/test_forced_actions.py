@@ -168,16 +168,74 @@ class TestForcedRemoveAction:
         assert result["node"] == "0005"
 
     def test_force_remove_node_not_found(self, db_session):
-        """Test forced remove of non-existent node"""
+        """Test forced remove of non-existent node returns error"""
         executor = ActionExecutor(lambda: db_session)
 
         result = executor._force_remove_node("antnode9999", dry_run=False)
 
-        assert result["status"] == "removed-nodes"
-        assert result["removed_count"] == 0
-        assert result["failed_count"] == 1
+        # When ALL specified nodes don't exist, return error status
+        assert result["status"] == "error"
+        assert "None of the specified service names exist" in result["message"]
+        assert "antnode9999" in result["message"]
         assert result["failed_nodes"][0]["service"] == "antnode9999"
         assert "not found" in result["failed_nodes"][0]["error"]
+
+    def test_force_remove_with_whitespace_service_name(self, db_session, multiple_nodes):
+        """Test that whitespace-only service_name returns error instead of removing youngest node"""
+        executor = ActionExecutor(lambda: db_session)
+        executor.machine_config = {}
+
+        # Test with whitespace only
+        result = executor._force_remove_node(" ", dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Verify no nodes were removed
+        remaining = db_session.query(Node).count()
+        assert remaining == 5
+
+        # Test with multiple spaces
+        result = executor._force_remove_node("   ", dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Test with comma only
+        result = executor._force_remove_node(",", dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Test with whitespace and commas
+        result = executor._force_remove_node(" , , ", dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Verify still no nodes were removed
+        remaining = db_session.query(Node).count()
+        assert remaining == 5
+
+    def test_force_remove_with_invalid_node_name_format(self, db_session, multiple_nodes):
+        """Test that invalid node name like 'node1' returns error instead of removing another node"""
+        executor = ActionExecutor(lambda: db_session)
+        executor.machine_config = {}
+
+        # Test with 'node1' (should be 'antnode0001')
+        result = executor._force_remove_node("node1", dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "None of the specified service names exist" in result["message"]
+        assert "node1" in result["message"]
+
+        # Verify no nodes were removed
+        remaining = db_session.query(Node).count()
+        assert remaining == 5
+
+        # Test with 'node123' (another invalid format)
+        result = executor._force_remove_node("node123", dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "node123" in result["message"]
+
+        # Verify still no nodes were removed
+        remaining = db_session.query(Node).count()
+        assert remaining == 5
 
 
 class TestForcedUpgradeAction:
