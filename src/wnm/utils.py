@@ -367,37 +367,53 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
 # Update node with metrics result
 def update_node_from_metrics(S, id, metrics, metadata):
     try:
-        # We check the binary version in other code, so lets stop clobbering it when a node is stopped
-        card = {
-            "status": metrics["status"],
-            "timestamp": int(time.time()),
-            "uptime": metrics["uptime"],
-            "records": metrics["records"],
-            "shunned": metrics["shunned"],
-            "connected_peers": metrics["connected_peers"],
-            "peer_id": metadata["peer_id"],
-        }
-
-        # Add influx-specific metrics if available (only for RUNNING nodes)
-        if metrics["status"] == RUNNING:
-            card["gets"] = metrics.get("gets", 0)
-            card["puts"] = metrics.get("puts", 0)
-            card["mem"] = metrics.get("mem", 0)
-            card["cpu"] = metrics.get("cpu", 0)
-            card["open_connections"] = metrics.get("open_connections", 0)
-            card["total_peers"] = metrics.get("total_peers", 0)
-            card["bad_peers"] = metrics.get("bad_peers", 0)
-            card["rel_records"] = metrics.get("rel_records", 0)
-            card["max_records"] = metrics.get("max_records", 0)
-            card["rewards"] = metrics.get("rewards", "0")
-            card["payment_count"] = metrics.get("payment_count", 0)
-            card["live_time"] = metrics.get("live_time", 0)
-            card["network_size"] = metrics.get("network_size", 0)
-
-        if "version" in metadata:
-            card["version"] = metadata["version"]
-
         with S() as session:
+            # First, get the current node status to check for transitional states
+            current_node = session.execute(
+                select(Node.status).where(Node.id == id)
+            ).first()
+
+            if not current_node:
+                logging.warning(f"Node {id} not found in database")
+                return False
+
+            current_status = current_node[0]
+
+            # We check the binary version in other code, so lets stop clobbering it when a node is stopped
+            card = {
+                "timestamp": int(time.time()),
+                "uptime": metrics["uptime"],
+                "records": metrics["records"],
+                "shunned": metrics["shunned"],
+                "connected_peers": metrics["connected_peers"],
+                "peer_id": metadata["peer_id"],
+            }
+
+            # Only update status if node is NOT in a transitional state
+            # Transitional states (UPGRADING, RESTARTING, REMOVING) should be preserved
+            # until the delay period expires in the decision engine
+            if current_status not in [UPGRADING, RESTARTING, REMOVING]:
+                card["status"] = metrics["status"]
+
+            # Add influx-specific metrics if available (only for RUNNING nodes)
+            if metrics["status"] == RUNNING:
+                card["gets"] = metrics.get("gets", 0)
+                card["puts"] = metrics.get("puts", 0)
+                card["mem"] = metrics.get("mem", 0)
+                card["cpu"] = metrics.get("cpu", 0)
+                card["open_connections"] = metrics.get("open_connections", 0)
+                card["total_peers"] = metrics.get("total_peers", 0)
+                card["bad_peers"] = metrics.get("bad_peers", 0)
+                card["rel_records"] = metrics.get("rel_records", 0)
+                card["max_records"] = metrics.get("max_records", 0)
+                card["rewards"] = metrics.get("rewards", "0")
+                card["payment_count"] = metrics.get("payment_count", 0)
+                card["live_time"] = metrics.get("live_time", 0)
+                card["network_size"] = metrics.get("network_size", 0)
+
+            if "version" in metadata:
+                card["version"] = metadata["version"]
+
             session.query(Node).filter(Node.id == id).update(card)
             session.commit()
     except Exception as error:
@@ -452,6 +468,12 @@ def update_counters(S, old, config):
                 node_metadata = read_node_metadata(check[2], check[3])
                 if node_metrics and node_metadata:
                     update_node_from_metrics(S, check[1], node_metrics, node_metadata)
+                    # After delay expires, explicitly transition out of UPGRADING state
+                    with S() as session:
+                        session.query(Node).filter(Node.id == check[1]).update({
+                            "status": node_metrics["status"]
+                        })
+                        session.commit()
                 records_to_upgrade -= 1
         old["upgrading_nodes"] = records_to_upgrade
     # Are we already restarting a node
@@ -462,7 +484,7 @@ def update_counters(S, old, config):
                 .where(Node.status == RESTARTING)
                 .order_by(Node.timestamp.asc())
             ).all()
-        # Iterate through active upgrades
+        # Iterate through active restarts
         records_to_restart = len(restarts)
         for check in restarts:
             # If the delay_start timer has expired, check on status
@@ -474,6 +496,12 @@ def update_counters(S, old, config):
                 node_metadata = read_node_metadata(check[2], check[3])
                 if node_metrics and node_metadata:
                     update_node_from_metrics(S, check[1], node_metrics, node_metadata)
+                    # After delay expires, explicitly transition out of RESTARTING state
+                    with S() as session:
+                        session.query(Node).filter(Node.id == check[1]).update({
+                            "status": node_metrics["status"]
+                        })
+                        session.commit()
                 records_to_restart -= 1
         old["restarting_nodes"] = records_to_restart
     return old

@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-01-11
+
+### Fixed
+- **Site survey transitional state preservation**: Fixed bug where regular surveys were overwriting UPGRADING, RESTARTING, and REMOVING states
+  - Problem: Node surveys called `update_node_from_metrics()` which unconditionally updated status field, losing transitional state tracking
+  - Impact: Nodes stuck in transitional states would have their status overwritten to RUNNING or STOPPED, losing the delay timer
+  - Solution: Modified `update_node_from_metrics()` to preserve transitional states (UPGRADING, RESTARTING, REMOVING) during regular surveys
+  - Added explicit status transition in `update_counters()` after delay period expires (lines 471-476, 499-504 in utils.py)
+  - Flow: Regular surveys preserve state → Delay expires → `update_counters()` explicitly transitions to RUNNING/STOPPED
+  - All other metrics (uptime, records, connected_peers, etc.) continue to update normally during transitional states
+  - Changes in: `src/wnm/utils.py:368-425,471-476,499-504`
+  - Added comprehensive test suite: `tests/test_survey_transitional_states.py` with 7 tests covering all transitional state scenarios
+  - Added `session_factory` fixture to `tests/conftest.py` for test support
+
 ## [0.5.0] - 2026-01-10
 
 ### Changed

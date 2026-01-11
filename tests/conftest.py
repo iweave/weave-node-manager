@@ -199,3 +199,9 @@ def firewall_manager_type():
         return "ufw"
     else:
         return "null"
+
+
+@pytest.fixture
+def session_factory(db_engine):
+    """Create a scoped_session factory for testing"""
+    return scoped_session(sessionmaker(bind=db_engine))
