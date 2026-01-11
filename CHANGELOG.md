@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-01-10
+
+### Changed
+- **Version numbering**: Bumped to 0.5.0 to avoid confusion with Autonomi tool versions
+
 ## [0.4.9] - 2026-01-09
 
 ### Fixed
