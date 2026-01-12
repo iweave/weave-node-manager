@@ -302,3 +302,44 @@ class TestSystemMetricsIntegration:
             assert anm_config["cpu_count"] > 0
             # Should work on any platform
             assert isinstance(anm_config["cpu_count"], int)
+
+    def test_disabled_nodes_excluded_from_upgrade_count(self):
+        """Test that DISABLED nodes don't block node additions when they need upgrades"""
+        from wnm.utils import get_machine_metrics
+        from wnm.common import RUNNING, STOPPED, DISABLED
+
+        # Create a mock session with mixed nodes
+        mock_s = Mock()
+        mock_session = Mock()
+        # Mix of RUNNING, STOPPED, and DISABLED nodes with old versions
+        mock_nodes = [
+            (RUNNING, "0.4.7"),   # Running node with current version
+            (STOPPED, "0.4.6"),   # Stopped node with old version
+            (DISABLED, "0.4.5"),  # Disabled node with old version (should not block upgrades)
+            (DISABLED, "0.4.4"),  # Another disabled node with old version
+        ]
+        mock_session.execute.return_value.all.return_value = mock_nodes
+        mock_s.return_value.__enter__ = Mock(return_value=mock_session)
+        mock_s.return_value.__exit__ = Mock(return_value=None)
+
+        # Mock shutil.which to return a version
+        with patch("wnm.utils.shutil.which") as mock_which:
+            with patch("wnm.utils.get_antnode_version") as mock_version:
+                mock_which.return_value = "/usr/local/bin/antnode"
+                mock_version.return_value = "0.4.7"  # Current version
+
+                # Call the function
+                metrics = get_machine_metrics(mock_s, "/tmp/test", 90, 1000000000)
+
+                # Verify all nodes are counted (including DISABLED)
+                assert metrics["total_nodes"] == 4
+                assert metrics["running_nodes"] == 1
+                assert metrics["stopped_nodes"] == 1
+                assert metrics["disabled_nodes"] == 2
+
+                # Critical: nodes_to_upgrade should only count active nodes (RUNNING/STOPPED)
+                # 2 active nodes - 1 with latest version - 0 with no version = 1 node to upgrade
+                assert metrics["nodes_to_upgrade"] == 1
+
+                # Verify nodes_latest_v only counts active nodes with current version
+                assert metrics["nodes_latest_v"] == 1

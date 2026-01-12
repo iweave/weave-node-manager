@@ -281,6 +281,7 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
     metrics["migrating_nodes"] = data[MIGRATING]
     metrics["removing_nodes"] = data[REMOVING]
     metrics["dead_nodes"] = data[DEAD]
+    metrics["disabled_nodes"] = data[DISABLED]
     metrics["antnode"] = shutil.which("antnode")
     if not metrics["antnode"]:
         logging.warning("Unable to locate current antnode binary, exiting")
@@ -289,12 +290,14 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
     metrics["queen_node_version"] = (
         db_nodes[0][1] if metrics["total_nodes"] > 0 else metrics["antnode_version"]
     )
+    # Calculate version stats excluding DISABLED nodes
+    active_nodes = [node for node in db_nodes if node[0] != DISABLED]
     metrics["nodes_latest_v"] = (
-        sum(1 for node in db_nodes if node[1] == metrics["antnode_version"]) or 0
+        sum(1 for node in active_nodes if node[1] == metrics["antnode_version"]) or 0
     )
-    metrics["nodes_no_version"] = sum(1 for node in db_nodes if not node[1]) or 0
+    metrics["nodes_no_version"] = sum(1 for node in active_nodes if not node[1]) or 0
     metrics["nodes_to_upgrade"] = (
-        metrics["total_nodes"] - metrics["nodes_latest_v"] - metrics["nodes_no_version"]
+        len(active_nodes) - metrics["nodes_latest_v"] - metrics["nodes_no_version"]
     )
     metrics["nodes_by_version"] = Counter(ver[1] for ver in db_nodes)
 

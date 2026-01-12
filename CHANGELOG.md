@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-01-11
+
+### Fixed
+- **DISABLED nodes no longer block node additions during upgrades**: Fixed bug where DISABLED nodes with outdated versions would prevent new nodes from being added
+  - Problem: When DISABLED nodes existed with old versions, the system detected "nodes_to_upgrade > 0" but couldn't find any eligible nodes to upgrade (since DISABLED nodes are excluded from upgrade operations), causing the decision engine to block node additions indefinitely
+  - Root cause: `get_machine_metrics()` in `src/wnm/utils.py` counted DISABLED nodes when calculating `nodes_to_upgrade`, but `_execute_upgrade_node()` in `src/wnm/executor.py` correctly excluded DISABLED nodes from upgrade queries
+  - Solution: Modified `get_machine_metrics()` at lines 293-301 to:
+    1. Filter DISABLED nodes when calculating version statistics (`nodes_latest_v`, `nodes_no_version`, `nodes_to_upgrade`)
+    2. Keep DISABLED nodes in total count and add new `disabled_nodes` metric for visibility
+    3. Calculate `nodes_to_upgrade` based only on active nodes (RUNNING, STOPPED, RESTARTING, UPGRADING, etc.)
+  - Impact: Systems can now add new nodes when metrics allow, even if DISABLED nodes have outdated versions that can't be automatically upgraded
+  - Changes in: `src/wnm/utils.py:260-301`
+  - Test coverage: Added comprehensive test `test_disabled_nodes_excluded_from_upgrade_count` in `tests/test_system_metrics.py:306-345`
+    - Verifies `total_nodes` includes DISABLED nodes (maintains visibility)
+    - Verifies `nodes_to_upgrade` excludes DISABLED nodes (prevents blocking)
+    - Verifies new `disabled_nodes` metric is populated correctly
+
 ## [0.5.3] - 2026-01-11
 
 ### Fixed
