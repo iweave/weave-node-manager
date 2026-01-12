@@ -966,6 +966,15 @@ class ActionExecutor:
         # Parse comma-separated service names
         service_names = parse_service_names(service_name)
 
+        # Check if service_name was provided but resulted in empty list (invalid input)
+        # This prevents accidental upgrade when user provides whitespace or invalid characters
+        if service_name is not None and service_names is not None and len(service_names) == 0:
+            logging.error(f"Invalid service_name provided (empty after parsing): {repr(service_name)}")
+            return {
+                "status": "error",
+                "message": f"Invalid service_name provided: {repr(service_name)}. No nodes specified."
+            }
+
         if service_names:
             # Upgrade specific nodes
             upgraded_nodes = []
@@ -999,6 +1008,16 @@ class ActionExecutor:
                     except Exception as e:
                         logging.error(f"Failed to upgrade node {name}: {e}")
                         failed_nodes.append({"service": name, "error": str(e)})
+
+            # If ALL specified nodes failed (none were found/upgraded), return error
+            if len(upgraded_nodes) == 0 and len(failed_nodes) > 0:
+                node_list = ", ".join([f["service"] for f in failed_nodes])
+                logging.warning(f"All specified nodes failed: {node_list}. No nodes were upgraded.")
+                return {
+                    "status": "error",
+                    "message": f"None of the specified service names exist: {node_list}",
+                    "failed_nodes": failed_nodes,
+                }
 
             return {
                 "status": "upgraded-nodes" if not dry_run else "upgrade-dryrun",
@@ -1086,6 +1105,15 @@ class ActionExecutor:
         # Parse comma-separated service names
         service_names = parse_service_names(service_name)
 
+        # Check if service_name was provided but resulted in empty list (invalid input)
+        # This prevents accidental stop when user provides whitespace or invalid characters
+        if service_name is not None and service_names is not None and len(service_names) == 0:
+            logging.error(f"Invalid service_name provided (empty after parsing): {repr(service_name)}")
+            return {
+                "status": "error",
+                "message": f"Invalid service_name provided: {repr(service_name)}. No nodes specified."
+            }
+
         if service_names:
             # Stop specific nodes
             stopped_nodes = []
@@ -1119,6 +1147,16 @@ class ActionExecutor:
                     except Exception as e:
                         logging.error(f"Failed to stop node {name}: {e}")
                         failed_nodes.append({"service": name, "error": str(e)})
+
+            # If ALL specified nodes failed (none were found/stopped), return error
+            if len(stopped_nodes) == 0 and len(failed_nodes) > 0:
+                node_list = ", ".join([f["service"] for f in failed_nodes])
+                logging.warning(f"All specified nodes failed: {node_list}. No nodes were stopped.")
+                return {
+                    "status": "error",
+                    "message": f"None of the specified service names exist: {node_list}",
+                    "failed_nodes": failed_nodes,
+                }
 
             return {
                 "status": "stopped-nodes" if not dry_run else "stop-dryrun",
@@ -1207,6 +1245,15 @@ class ActionExecutor:
         # Parse comma-separated service names
         service_names = parse_service_names(service_name)
 
+        # Check if service_name was provided but resulted in empty list (invalid input)
+        # This prevents accidental start when user provides whitespace or invalid characters
+        if service_name is not None and service_names is not None and len(service_names) == 0:
+            logging.error(f"Invalid service_name provided (empty after parsing): {repr(service_name)}")
+            return {
+                "status": "error",
+                "message": f"Invalid service_name provided: {repr(service_name)}. No nodes specified."
+            }
+
         if service_names:
             # Start specific nodes
             started_nodes = []
@@ -1258,6 +1305,16 @@ class ActionExecutor:
                     except Exception as e:
                         logging.error(f"Failed to start node {name}: {e}")
                         failed_nodes.append({"service": name, "error": str(e)})
+
+            # If ALL specified nodes failed (none were found/started/upgraded), return error
+            if len(started_nodes) == 0 and len(upgraded_nodes) == 0 and len(failed_nodes) > 0:
+                node_list = ", ".join([f["service"] for f in failed_nodes])
+                logging.warning(f"All specified nodes failed: {node_list}. No nodes were started.")
+                return {
+                    "status": "error",
+                    "message": f"None of the specified service names could be started: {node_list}",
+                    "failed_nodes": failed_nodes,
+                }
 
             return {
                 "status": "started-nodes" if not dry_run else "start-dryrun",
@@ -1362,6 +1419,15 @@ class ActionExecutor:
         # Parse comma-separated service names
         service_names = parse_service_names(service_name)
 
+        # Check if service_name was provided but resulted in empty list (invalid input)
+        # This prevents accidental disable when user provides whitespace or invalid characters
+        if service_name is not None and service_names is not None and len(service_names) == 0:
+            logging.error(f"Invalid service_name provided (empty after parsing): {repr(service_name)}")
+            return {
+                "status": "error",
+                "message": f"Invalid service_name provided: {repr(service_name)}. No nodes specified."
+            }
+
         disabled_nodes = []
         failed_nodes = []
 
@@ -1386,6 +1452,16 @@ class ActionExecutor:
                 except Exception as e:
                     logging.error(f"Failed to disable node {name}: {e}")
                     failed_nodes.append({"service": name, "error": str(e)})
+
+        # If ALL specified nodes failed (none were found/disabled), return error
+        if len(disabled_nodes) == 0 and len(failed_nodes) > 0:
+            node_list = ", ".join([f["service"] for f in failed_nodes])
+            logging.warning(f"All specified nodes failed: {node_list}. No nodes were disabled.")
+            return {
+                "status": "error",
+                "message": f"None of the specified service names exist: {node_list}",
+                "failed_nodes": failed_nodes,
+            }
 
         return {
             "status": "disabled-nodes" if not dry_run else "disable-dryrun",

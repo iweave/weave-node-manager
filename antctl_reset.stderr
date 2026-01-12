@@ -1,0 +1,54 @@
+[2025-12-31T04:07:36.057692Z INFO antctl 827] Executing cmd: Some(Reset { force: false })
+[2025-12-31T04:07:36.057809Z DEBUG ant_node_manager::config 40] Running as non-root
+[2025-12-31T04:07:36.057833Z DEBUG ant_node_manager::config 42] antctl path: "/Users/dawn/Library/Application Support/autonomi/node"
+[2025-12-31T04:07:36.057848Z DEBUG ant_node_manager::config 92] Node registry path: "/Users/dawn/Library/Application Support/autonomi/node/node_registry.json"
+[2025-12-31T04:07:36.057900Z DEBUG ant_service_management::registry 192] Loading node registry from /Users/dawn/Library/Application Support/autonomi/node/node_registry.json
+[2025-12-31T04:07:36.058240Z INFO ant_node_manager::cmd::node 265] Resetting all antnode services, with force=false
+[2025-12-31T04:07:46.611976Z INFO ant_node_manager::cmd::node 404] Stopping antnode services for: [], []
+[2025-12-31T04:07:46.612009Z INFO ant_node_manager 583] Refreshing the node registry
+[2025-12-31T04:07:46.612148Z DEBUG ant_node_manager 632] Using two-tier approach to attempt to find PID for antnode1
+[2025-12-31T04:07:46.612180Z DEBUG ant_node_manager 634] Tier 1: attempting to verify stored PID 545 for antnode1
+[2025-12-31T04:07:46.612201Z DEBUG ant_service_management::control 281] Verifying process with PID 545, expected name: antnode
+[2025-12-31T04:07:46.612375Z DEBUG ant_service_management::control 304] Process 545 name: 'antnode' (normalized: 'antnode'), expected: 'antnode', match: true
+[2025-12-31T04:07:46.612413Z DEBUG ant_node_manager 637] antnode1 verified via stored PID 545
+[2025-12-31T04:07:46.612435Z DEBUG ant_service_management::node 183] Performing full refresh for antnode1
+[2025-12-31T04:07:46.612454Z DEBUG ant_service_management::rpc 96] Attempting connection to node RPC endpoint at https://127.0.0.1:50216...
+[2025-12-31T04:07:46.613052Z DEBUG ant_service_management::rpc 102] Connection successful
+[2025-12-31T04:07:46.613719Z DEBUG ant_service_management::rpc 96] Attempting connection to node RPC endpoint at https://127.0.0.1:50216...
+[2025-12-31T04:07:46.613989Z DEBUG ant_service_management::rpc 102] Connection successful
+[2025-12-31T04:07:46.614416Z DEBUG ant_service_management::node 215] Found antnode port for antnode1: 14257
+[2025-12-31T04:07:46.614450Z DEBUG ant_service_management::control 318] Extracting version from process with PID 545
+[2025-12-31T04:07:46.645394Z DEBUG ant_service_management::control 324] Found exe path for PID 545: /Users/dawn/Library/Application Support/autonomi/node/antnode1/antnode
+[2025-12-31T04:07:46.703828Z DEBUG ant_service_management::control 345] Successfully extracted version '0.4.11' from PID 545
+[2025-12-31T04:07:46.704839Z DEBUG ant_service_management::node 251] Extracted version '0.4.11' from PID 545 for antnode1
+[2025-12-31T04:07:46.704910Z INFO ant_node_manager 680] Node registry refresh complete!
+[2025-12-31T04:07:46.704965Z INFO ant_node_manager 169] Stopping the antnode1 service
+[2025-12-31T04:07:46.704990Z DEBUG ant_service_management::control 241] Searching for process with binary at /Users/dawn/Library/Application Support/autonomi/node/antnode1/antnode
+[2025-12-31T04:07:46.736333Z DEBUG ant_service_management::control 410] Stopping service: antnode1
+[2025-12-31T04:07:46.742155Z DEBUG ant_service_management::node 287] Marking antnode1 as stopped
+[2025-12-31T04:07:46.742169Z INFO ant_node_manager 211] Service antnode1 has been stopped successfully.
+[2025-12-31T04:07:46.742182Z DEBUG ant_node_manager::cmd::node 441] Stopped service antnode1
+[2025-12-31T04:07:46.742203Z DEBUG ant_service_management::registry 161] Saving node registry to /Users/dawn/Library/Application Support/autonomi/node/node_registry.json
+[2025-12-31T04:07:46.742512Z INFO ant_node_manager::cmd::node 212] Removing antnode services with keep_dirs=(false) for: [], []
+[2025-12-31T04:07:46.742522Z INFO ant_node_manager 583] Refreshing the node registry
+[2025-12-31T04:07:46.742550Z DEBUG ant_node_manager 632] Using two-tier approach to attempt to find PID for antnode1
+[2025-12-31T04:07:46.742563Z DEBUG ant_node_manager 528] Tier 1 verification has failed. Now attempting to use tier 2 approach...
+[2025-12-31T04:07:46.742587Z DEBUG ant_node_manager 529] Tier 2: using path-based detection for antnode1
+[2025-12-31T04:07:46.742594Z DEBUG ant_service_management::control 241] Searching for process with binary at /Users/dawn/Library/Application Support/autonomi/node/antnode1/antnode
+[2025-12-31T04:07:46.768661Z ERROR ant_service_management::control 271] No process was located with a path at /Users/dawn/Library/Application Support/autonomi/node/antnode1/antnode
+[2025-12-31T04:07:46.768945Z DEBUG ant_node_manager 551] Failed to detect process for antnode1; marking it stopped.
+[2025-12-31T04:07:46.768957Z DEBUG ant_service_management::node 287] Marking antnode1 as stopped
+[2025-12-31T04:07:46.768971Z INFO ant_node_manager 680] Node registry refresh complete!
+[2025-12-31T04:07:46.768986Z INFO ant_node_manager 226] Removing the antnode1 service
+[2025-12-31T04:07:46.768995Z DEBUG ant_service_management::control 427] Uninstalling service: antnode1
+[2025-12-31T04:07:46.774730Z DEBUG ant_node_manager 253] Service antnode1 has been uninstalled
+[2025-12-31T04:07:46.774746Z DEBUG ant_node_manager 281] Removing data and log directories for antnode1
+[2025-12-31T04:07:46.774781Z DEBUG ant_node_manager 286] Removing data directory "/Users/dawn/Library/Application Support/autonomi/node/antnode1"
+[2025-12-31T04:07:46.808211Z INFO ant_node_manager 297] Service antnode1 has been removed successfully.
+[2025-12-31T04:07:46.808241Z DEBUG ant_node_manager::cmd::node 244] Removed service antnode1
+[2025-12-31T04:07:46.808251Z DEBUG ant_service_management::registry 161] Saving node registry to /Users/dawn/Library/Application Support/autonomi/node/node_registry.json
+[2025-12-31T04:07:46.808451Z DEBUG ant_node_manager::config 40] Running as non-root
+[2025-12-31T04:07:46.808463Z DEBUG ant_node_manager::config 42] antctl path: "/Users/dawn/Library/Application Support/autonomi/node"
+[2025-12-31T04:07:46.808470Z DEBUG ant_node_manager::config 92] Node registry path: "/Users/dawn/Library/Application Support/autonomi/node/node_registry.json"
+[2025-12-31T04:07:46.808484Z INFO ant_node_manager::cmd::node 287] Removing node registry file: "/Users/dawn/Library/Application Support/autonomi/node/node_registry.json"
+[2025-12-31T04:07:46.808559Z INFO ant_node_manager::cmd::node 290] Resetting NodeRegistryManager in memory

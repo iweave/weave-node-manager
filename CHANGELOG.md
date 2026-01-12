@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-01-11
+
+### Fixed
+- **Force action validation extended to stop/start/upgrade/disable**: Applied the same validation logic from v0.5.2's force remove fix to all other forced actions
+  - Extended validation from `_force_remove_node` (fixed in v0.5.2) to `_force_stop_node`, `_force_start_node`, `_force_upgrade_node`, and `_force_disable_node`
+  - Problem: Invalid service names on stop/start/upgrade/disable actions would incorrectly affect unspecified nodes or silently fail
+  - Two-tier validation pattern applied to all methods:
+    - **Validation 1**: Whitespace-only input detection (e.g., `--service_name " "`) now returns clear error instead of falling through to default behavior
+    - **Validation 2**: All-nodes-failed detection returns `status: "error"` when ALL specified nodes fail instead of returning success with count=0
+  - Validation checks added at:
+    - `_force_stop_node`: Lines 1108-1115 (whitespace), 1151-1159 (all-failed)
+    - `_force_start_node`: Lines 1248-1255 (whitespace), 1309-1317 (all-failed)
+    - `_force_upgrade_node`: Lines 969-976 (whitespace), 1012-1020 (all-failed)
+    - `_force_disable_node`: Lines 1422-1429 (whitespace), 1456-1464 (all-failed)
+  - Examples of now-prevented errors:
+    - `wnm --force_action stop --service_name " "` now returns error instead of stopping youngest node
+    - `wnm --force_action start --service_name node1` (invalid format) now returns error with clear message
+    - `wnm --force_action upgrade --service_name antnode9999` (non-existent) now returns error instead of success with count=0
+  - Test coverage: Added 8 comprehensive tests in `tests/test_forced_actions.py`:
+    - `test_force_stop_with_whitespace_service_name` and `test_force_stop_with_invalid_node_name_format`
+    - `test_force_start_with_whitespace_service_name` and `test_force_start_with_invalid_node_name_format`
+    - `test_force_upgrade_with_whitespace_service_name` and `test_force_upgrade_with_invalid_node_name_format`
+    - `test_force_disable_with_whitespace_service_name` and `test_force_disable_with_invalid_node_name_format`
+  - Updated 2 existing tests to expect new error behavior:
+    - `test_force_start_already_running_node`: Now expects error status when all nodes fail
+    - `test_force_start_node_not_found`: Now expects error status when all nodes fail
+  - All 67 forced action tests pass
+  - Prevents accidental node operations when users provide invalid or non-existent service names
+  - Changes in: `src/wnm/executor.py` (multiple locations), `tests/test_forced_actions.py`
+
 ## [0.5.2] - 2026-01-11
 
 ### Fixed

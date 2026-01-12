@@ -1,0 +1,21 @@
+#CPU percentage thresholds (default: 70% / 80%)
+cpu_less_than=90
+cpu_remove=93
+
+#: Memory percentage thresholds (default: 70% / 80%)
+mem_less_than=90
+mem_remove=93
+
+# Load average thresholds
+desired_load_average=10
+max_load_average=12
+#: Maximum number of nodes (default: 50)
+node_cap=200
+rewards_address="0xc753ba57e0f8ba81bacf73ac1b9242733d39a646"
+
+#–node_storage: Root directory for node data (auto-detected per platform)
+#–no_upnp
+no_upnp="yes"
+port_start=57000
+metrics_port_start=58000
+process_manager=antctl+user

@@ -337,6 +337,44 @@ class TestForcedUpgradeAction:
         assert result["status"] == "error"
         assert "no running nodes" in result["message"].lower()
 
+    def test_force_upgrade_with_whitespace_service_name(self, db_session, multiple_nodes):
+        """Test that whitespace-only service_name returns error instead of upgrading oldest node"""
+        executor = ActionExecutor(lambda: db_session)
+        executor.machine_config = {}
+        metrics = {"antnode_version": "0.5.0"}
+
+        # Test with whitespace only
+        result = executor._force_upgrade_node(" ", metrics, dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Test with multiple spaces
+        result = executor._force_upgrade_node("   ", metrics, dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Test with comma only
+        result = executor._force_upgrade_node(",", metrics, dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Test with whitespace and commas
+        result = executor._force_upgrade_node(" , , ", metrics, dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+    def test_force_upgrade_with_invalid_node_name_format(self, db_session, multiple_nodes):
+        """Test that invalid node name returns error instead of upgrading another node"""
+        executor = ActionExecutor(lambda: db_session)
+        executor.machine_config = {}
+        metrics = {"antnode_version": "0.5.0"}
+
+        # Test with 'node1' (should be 'antnode0001')
+        result = executor._force_upgrade_node("node1", metrics, dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "None of the specified service names exist" in result["message"]
+        assert "node1" in result["message"]
+
 
 class TestForcedStopAction:
     """Test forced stop node action"""
@@ -402,6 +440,50 @@ class TestForcedStopAction:
         assert result["status"] == "stopped-node"
         # Youngest running node (highest age) should be stopped
         assert result["node"] == "0005"
+
+    def test_force_stop_with_whitespace_service_name(self, db_session, multiple_nodes):
+        """Test that whitespace-only service_name returns error instead of stopping youngest node"""
+        executor = ActionExecutor(lambda: db_session)
+        executor.machine_config = {}
+
+        # Test with whitespace only
+        result = executor._force_stop_node(" ", dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Verify no nodes were stopped
+        stopped_count = db_session.query(Node).filter(Node.status == STOPPED).count()
+        assert stopped_count == 0
+
+        # Test with multiple spaces
+        result = executor._force_stop_node("   ", dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Test with comma only
+        result = executor._force_stop_node(",", dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Test with whitespace and commas
+        result = executor._force_stop_node(" , , ", dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+    def test_force_stop_with_invalid_node_name_format(self, db_session, multiple_nodes):
+        """Test that invalid node name returns error instead of stopping another node"""
+        executor = ActionExecutor(lambda: db_session)
+        executor.machine_config = {}
+
+        # Test with 'node1' (should be 'antnode0001')
+        result = executor._force_stop_node("node1", dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "None of the specified service names exist" in result["message"]
+        assert "node1" in result["message"]
+
+        # Verify no nodes were stopped
+        stopped_count = db_session.query(Node).filter(Node.status == STOPPED).count()
+        assert stopped_count == 0
 
 
 class TestForcedStartAction:
@@ -472,9 +554,9 @@ class TestForcedStartAction:
 
         result = executor._force_start_node("antnode0001", metrics, dry_run=False)
 
-        assert result["status"] == "started-nodes"
-        assert result["started_count"] == 0
-        assert result["failed_count"] == 1
+        # When ALL specified nodes fail, return error status
+        assert result["status"] == "error"
+        assert "None of the specified service names could be started" in result["message"]
         assert result["failed_nodes"][0]["service"] == "antnode0001"
         assert "already running" in result["failed_nodes"][0]["error"]
 
@@ -552,9 +634,9 @@ class TestForcedStartAction:
 
         result = executor._force_start_node("antnode9999", metrics, dry_run=False)
 
-        assert result["status"] == "started-nodes"
-        assert result["started_count"] == 0
-        assert result["failed_count"] == 1
+        # When ALL specified nodes don't exist, return error status
+        assert result["status"] == "error"
+        assert "None of the specified service names could be started" in result["message"]
         assert result["failed_nodes"][0]["service"] == "antnode9999"
         assert "not found" in result["failed_nodes"][0]["error"]
 
@@ -577,6 +659,62 @@ class TestForcedStartAction:
         assert result["status"] == "start-dryrun"
         assert result["started_count"] == 1
         assert "antnode0001" in result["started_nodes"]
+
+    def test_force_start_with_whitespace_service_name(self, db_session, multiple_nodes):
+        """Test that whitespace-only service_name returns error instead of starting oldest node"""
+        # Stop some nodes first
+        multiple_nodes[0].status = STOPPED
+        multiple_nodes[1].status = STOPPED
+        db_session.commit()
+
+        executor = ActionExecutor(lambda: db_session)
+        executor.machine_config = {}
+        metrics = {"antnode_version": "0.4.6"}
+
+        # Test with whitespace only
+        result = executor._force_start_node(" ", metrics, dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Verify no nodes were started (still 2 stopped)
+        stopped_count = db_session.query(Node).filter(Node.status == STOPPED).count()
+        assert stopped_count == 2
+
+        # Test with multiple spaces
+        result = executor._force_start_node("   ", metrics, dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Test with comma only
+        result = executor._force_start_node(",", metrics, dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Test with whitespace and commas
+        result = executor._force_start_node(" , , ", metrics, dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+    def test_force_start_with_invalid_node_name_format(self, db_session, multiple_nodes):
+        """Test that invalid node name returns error instead of starting another node"""
+        # Stop some nodes first
+        multiple_nodes[0].status = STOPPED
+        multiple_nodes[1].status = STOPPED
+        db_session.commit()
+
+        executor = ActionExecutor(lambda: db_session)
+        executor.machine_config = {}
+        metrics = {"antnode_version": "0.4.6"}
+
+        # Test with 'node1' (should be 'antnode0001')
+        result = executor._force_start_node("node1", metrics, dry_run=False, count=1)
+        assert result["status"] == "error"
+        assert "None of the specified service names could be started" in result["message"]
+        assert "node1" in result["message"]
+
+        # Verify no nodes were started (still 2 stopped)
+        stopped_count = db_session.query(Node).filter(Node.status == STOPPED).count()
+        assert stopped_count == 2
 
 
 class TestForcedDisableAction:
@@ -647,11 +785,45 @@ class TestForcedDisableAction:
 
         result = executor._force_disable_node("antnode9999", dry_run=False)
 
-        assert result["status"] == "disabled-nodes"
-        assert result["disabled_count"] == 0
-        assert result["failed_count"] == 1
+        assert result["status"] == "error"
+        assert "None of the specified service names exist" in result["message"]
+        assert "antnode9999" in result["message"]
         assert result["failed_nodes"][0]["service"] == "antnode9999"
         assert "not found" in result["failed_nodes"][0]["error"]
+
+    def test_force_disable_with_whitespace_service_name(self, db_session, multiple_nodes):
+        """Test that whitespace-only service_name returns error"""
+        executor = ActionExecutor(lambda: db_session)
+
+        # Test with whitespace only
+        result = executor._force_disable_node(" ", dry_run=False)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Test with multiple spaces
+        result = executor._force_disable_node("   ", dry_run=False)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Test with comma only
+        result = executor._force_disable_node(",", dry_run=False)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+        # Test with whitespace and commas
+        result = executor._force_disable_node(" , , ", dry_run=False)
+        assert result["status"] == "error"
+        assert "Invalid service_name" in result["message"]
+
+    def test_force_disable_with_invalid_node_name_format(self, db_session, multiple_nodes):
+        """Test that invalid node name returns error"""
+        executor = ActionExecutor(lambda: db_session)
+
+        # Test with 'node1' (should be 'antnode0001')
+        result = executor._force_disable_node("node1", dry_run=False)
+        assert result["status"] == "error"
+        assert "None of the specified service names exist" in result["message"]
+        assert "node1" in result["message"]
 
 
 class TestCommaSeparatedActions:

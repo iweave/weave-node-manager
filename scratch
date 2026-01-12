@@ -1,0 +1,63 @@
+(myenv) worker@noderunner01:~/weave-node-manager$ wnm –loglevel DEBUG -v --antctl_debug
+INFO [root] Machine: {"cpu_count": 4, "node_cap": 50, "cpu_less_than": 90, "cpu_remove": 93, "mem_less_than": 90, "mem_remove": 93, "hd_less_than": 75, "hd_remove": 90, "delay_start": 300, "delay_upgrade": 300, "delay_remove": 300, "survey_delay": 0, "action_delay": 0, "node_storage": "/home/worker/.local/share/autonomi/node", "rewards_address": "0xf3f2bf5b2bc12675afcb3628339cbabd975ab9a5", "donate_address": "0x00455d78f850b0358E8cea5be24d415E01E107CF", "max_load_average_allowed": 8.0, "desired_load_average": 6.0, "port_start": 55, "hdio_read_less_than": 0, "hdio_read_remove": 0, "hdio_write_less_than": 0, "hdio_write_remove": 0, "netio_read_less_than": 0, "netio_read_remove": 0, "netio_write_less_than": 0, "netio_write_remove": 0, "last_stopped_at": 1767465957, "host": "127.0.0.1", "crisis_bytes": 2000000000, "metrics_port_start": 56, "rpc_port_start": 30, "environment": "", "start_args": "", "max_concurrent_upgrades": 1, "max_concurrent_starts": 2, "max_concurrent_removals": 1, "max_concurrent_operations": 1, "node_removal_strategy": "youngest", "process_manager": "antctl+zen", "no_upnp": true, "antnode_path": "~/.local/bin/antnode", "antctl_path": "~/.local/bin/antctl"}
+INFO [root] {
+"system_start": 1767465957,
+"total_nodes": 0,
+"running_nodes": 0,
+"stopped_nodes": 0,
+"restarting_nodes": 0,
+"upgrading_nodes": 0,
+"migrating_nodes": 0,
+"removing_nodes": 0,
+"dead_nodes": 0,
+"antnode": "/home/worker/.local/bin/antnode",
+"antnode_version": "0.4.10",
+"queen_node_version": "0.4.10",
+"nodes_latest_v": 0,
+"nodes_no_version": 0,
+"nodes_to_upgrade": 0,
+"nodes_by_version": {},
+"load_average_1": 0.11181640625,
+"load_average_5": 0.0546875,
+"load_average_15": 0.0107421875,
+"idle_cpu_percent": 99.7,
+"io_wait": 0.0,
+"used_cpu_percent": 0.29999999999999716,
+"used_mem_percent": 10.5,
+"free_mem_percent": 89.5,
+"used_hd_percent": 44.4,
+"total_hd_bytes": 80307429376,
+"hdio_write_bytes": 0,
+"hdio_read_bytes": 0,
+"netio_write_bytes": 1614,
+"netio_read_bytes": 1745,
+"node_hd_crisis": 0
+}
+INFO [root] No nodes found
+INFO [root] {
+"allow_cpu": true,
+"allow_mem": true,
+"allow_hd": true,
+"remove_cpu": false,
+"remove_mem": false,
+"remove_hd": false,
+"allow_node_cap": true,
+"allow_netio": true,
+"remove_netio": false,
+"allow_hdio": true,
+"remove_hdio": false,
+"load_allow": true,
+"load_not_allow": false,
+"add_new_node": true,
+"remove": false,
+"upgrade": false
+}
+INFO [root] Executing: add (priority=40, reason=add new node (1/1))
+INFO [root] Creating antctl zen node 1 with ports specified, paths from antctl defaults
+INFO [root] Created antctl service: antnode1
+INFO [root] Node 1 configuration from antctl: root_dir=/home/worker/.local/share/autonomi/node/antnode1, log_dir=/home/worker/.local/share/autonomi/node/antnode1/logs, binary=/home/worker/.local/share/autonomi/node/antnode1/antnode
+ERROR [root] Failed to execute add: Instance <Node at 0x79f16d81fad0> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: Error Messages — SQLAlchemy 2.0 Documentation)
+INFO [root] Action: {
+"action": "add",
+"success": false,
+"error": "Instance <Node at 0x79f16d81fad0> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: Error Messages — SQLAlchemy 2.0 Documentation)"

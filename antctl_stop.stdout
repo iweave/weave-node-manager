@@ -1,0 +1,5 @@
+╔═══════════════════════════╗
+║   Stop Antnode Services   ║
+╚═══════════════════════════╝
+Attempting to stop antnode1...
+✓ Service antnode1 with PID 23585 was stopped
