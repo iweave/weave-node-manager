@@ -1434,6 +1434,7 @@ class ActionExecutor:
         for name in service_names:
             node = self._get_node_by_name(name)
             if not node:
+                logging.warning(f"Cannot disable node {name}: not found")
                 failed_nodes.append({"service": name, "error": "not found"})
                 continue
 
@@ -1443,10 +1444,9 @@ class ActionExecutor:
                 disabled_nodes.append(name)
             else:
                 try:
-                    # Stop the node if it's running
-                    if node.status == RUNNING:
-                        manager = self._get_process_manager(node)
-                        manager.stop_node(node)
+                    # Stop the node in case it's flapping
+                    manager = self._get_process_manager(node)
+                    manager.stop_node(node)
                     self._set_node_status(node.id, DISABLED)
                     disabled_nodes.append(name)
                 except Exception as e:
