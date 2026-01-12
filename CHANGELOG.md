@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-01-11
+
+### Fixed
+- log warning when attempting to disable a named node that does not exist
+- always send a stop signal to the process manager when disabling a service, in case there is a flapping service.
+
 ## [0.5.4] - 2026-01-11
 
 ### Fixed
