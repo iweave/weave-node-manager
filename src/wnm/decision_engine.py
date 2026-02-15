@@ -22,7 +22,7 @@ class DecisionEngine:
     to perform.
     """
 
-    def __init__(self, machine_config: Dict[str, Any], metrics: Dict[str, Any], is_init: bool = False, should_survey_init: bool = False):
+    def __init__(self, machine_config: Dict[str, Any], metrics: Dict[str, Any], is_init: bool = False, should_survey_init: bool = False, enable_upgrade: bool = False):
         """Initialize the decision engine.
 
         Args:
@@ -30,11 +30,13 @@ class DecisionEngine:
             metrics: Current system metrics and node status
             is_init: Whether this is an --init operation
             should_survey_init: Whether to survey nodes during init (only if --import or --migrate_anm)
+            enable_upgrade: Whether automatic upgrades are enabled (default False; antnode self-upgrades)
         """
         self.config = machine_config
         self.metrics = metrics
         self.is_init = is_init
         self.should_survey_init = should_survey_init
+        self.enable_upgrade = enable_upgrade
         self.features = self._compute_features()
 
     def _compute_features(self) -> Dict[str, bool]:
@@ -149,8 +151,10 @@ class DecisionEngine:
             or self.metrics["total_nodes"] > self.config["node_cap"]
         )
 
-        # Can we upgrade nodes?
-        if self.metrics["nodes_to_upgrade"] >= 1:
+        # Can we upgrade nodes? Disabled by default since antnode self-upgrades.
+        if not self.enable_upgrade:
+            features["upgrade"] = False
+        elif self.metrics["nodes_to_upgrade"] >= 1:
             # Make sure current version is equal or newer than version on first node
             if Version(self.metrics["antnode_version"]) < Version(
                 self.metrics["queen_node_version"]

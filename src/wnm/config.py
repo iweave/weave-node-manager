@@ -318,6 +318,12 @@ def load_config():
     c.add(
         "--dry_run", env_var="DRY_RUN", help="Do not save changes", action="store_true"
     )
+    c.add(
+        "--enable_upgrade",
+        env_var="ENABLE_UPGRADE",
+        help="Enable automatic node upgrades (disabled by default; antnode performs self-upgrades)",
+        action="store_true",
+    )
     c.add("--init", help="Initialize a cluster", action="store_true")
     c.add("--migrate_anm", help="Migrate a cluster from anm", action="store_true")
     c.add(

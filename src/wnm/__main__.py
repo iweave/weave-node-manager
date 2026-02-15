@@ -119,7 +119,7 @@ def choose_action(machine_config, metrics, dry_run):
     )
 
     # Use the new DecisionEngine to plan actions
-    engine = DecisionEngine(machine_config, metrics, is_init=is_init, should_survey_init=should_survey_init)
+    engine = DecisionEngine(machine_config, metrics, is_init=is_init, should_survey_init=should_survey_init, enable_upgrade=getattr(options, 'enable_upgrade', False))
     actions = engine.plan_actions()
 
     # Log the computed features for debugging
