@@ -1,9 +1,0 @@
-╔════════════════════════════╗
-║   Start Antnode Services   ║
-╚════════════════════════════╝
-Attempting to start antnode1...
-✓ Started antnode1 service
-  - PID: 23585
-  - Bin path: /Users/dawn/Library/Application Support/autonomi/node/antnode1/antnode
-  - Data path: /Users/dawn/Library/Application Support/autonomi/node/antnode1
-  - Logs path: /Users/dawn/Library/Application Support/autonomi/node/antnode1/logs

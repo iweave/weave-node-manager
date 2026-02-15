@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.5.8] - 2026-02-15
+
+### Changed
+- Removed outdated archive docs, debug output files, scratch files, and runtime logs from repo; updated `.gitignore`
+- Trimmed CHANGELOG and CLAUDE.md to reduce token count
+
 ## [0.5.7] - 2026-02-15
 
 ### Documentation
@@ -12,1139 +18,391 @@
 ### Changed
 - **Automatic upgrades disabled by default**: Since `antnode` now performs its own self-upgrades, WNM's upgrade decision is skipped unless `--enable_upgrade` is explicitly passed
   - Add `--enable_upgrade` (env: `ENABLE_UPGRADE`) flag to opt back in to WNM-managed upgrades
-  - `--force_action upgrade` is unaffected and continues to work regardless of this flag, however `--force_action` doesn't follow delay timers and capacity limits.
+  - `--force_action upgrade` is unaffected and continues to work regardless of this flag
   - No database schema changes; this is a non-persistent runtime option
 
 ## [0.5.5] - 2026-01-11
 
 ### Fixed
-- log warning when attempting to disable a named node that does not exist
-- always send a stop signal to the process manager when disabling a service, in case there is a flapping service.
+- Log warning when attempting to disable a named node that does not exist
+- Always send a stop signal to the process manager when disabling a service, in case there is a flapping service
 
 ## [0.5.4] - 2026-01-11
 
 ### Fixed
-- **DISABLED nodes no longer block node additions during upgrades**: Fixed bug where DISABLED nodes with outdated versions would prevent new nodes from being added
-  - Problem: When DISABLED nodes existed with old versions, the system detected "nodes_to_upgrade > 0" but couldn't find any eligible nodes to upgrade (since DISABLED nodes are excluded from upgrade operations), causing the decision engine to block node additions indefinitely
-  - Root cause: `get_machine_metrics()` in `src/wnm/utils.py` counted DISABLED nodes when calculating `nodes_to_upgrade`, but `_execute_upgrade_node()` in `src/wnm/executor.py` correctly excluded DISABLED nodes from upgrade queries
-  - Solution: Modified `get_machine_metrics()` at lines 293-301 to:
-    1. Filter DISABLED nodes when calculating version statistics (`nodes_latest_v`, `nodes_no_version`, `nodes_to_upgrade`)
-    2. Keep DISABLED nodes in total count and add new `disabled_nodes` metric for visibility
-    3. Calculate `nodes_to_upgrade` based only on active nodes (RUNNING, STOPPED, RESTARTING, UPGRADING, etc.)
-  - Impact: Systems can now add new nodes when metrics allow, even if DISABLED nodes have outdated versions that can't be automatically upgraded
-  - Changes in: `src/wnm/utils.py:260-301`
-  - Test coverage: Added comprehensive test `test_disabled_nodes_excluded_from_upgrade_count` in `tests/test_system_metrics.py:306-345`
-    - Verifies `total_nodes` includes DISABLED nodes (maintains visibility)
-    - Verifies `nodes_to_upgrade` excludes DISABLED nodes (prevents blocking)
-    - Verifies new `disabled_nodes` metric is populated correctly
+- **DISABLED nodes no longer block node additions**: DISABLED nodes with outdated versions were causing `nodes_to_upgrade > 0` while no eligible nodes could be found, blocking new node additions indefinitely. Fixed `get_machine_metrics()` to exclude DISABLED nodes from upgrade counting; added `disabled_nodes` metric for visibility
 
 ## [0.5.3] - 2026-01-11
 
 ### Fixed
-- **Force action validation extended to stop/start/upgrade/disable**: Applied the same validation logic from v0.5.2's force remove fix to all other forced actions
-  - Extended validation from `_force_remove_node` (fixed in v0.5.2) to `_force_stop_node`, `_force_start_node`, `_force_upgrade_node`, and `_force_disable_node`
-  - Problem: Invalid service names on stop/start/upgrade/disable actions would incorrectly affect unspecified nodes or silently fail
-  - Two-tier validation pattern applied to all methods:
-    - **Validation 1**: Whitespace-only input detection (e.g., `--service_name " "`) now returns clear error instead of falling through to default behavior
-    - **Validation 2**: All-nodes-failed detection returns `status: "error"` when ALL specified nodes fail instead of returning success with count=0
-  - Validation checks added at:
-    - `_force_stop_node`: Lines 1108-1115 (whitespace), 1151-1159 (all-failed)
-    - `_force_start_node`: Lines 1248-1255 (whitespace), 1309-1317 (all-failed)
-    - `_force_upgrade_node`: Lines 969-976 (whitespace), 1012-1020 (all-failed)
-    - `_force_disable_node`: Lines 1422-1429 (whitespace), 1456-1464 (all-failed)
-  - Examples of now-prevented errors:
-    - `wnm --force_action stop --service_name " "` now returns error instead of stopping youngest node
-    - `wnm --force_action start --service_name node1` (invalid format) now returns error with clear message
-    - `wnm --force_action upgrade --service_name antnode9999` (non-existent) now returns error instead of success with count=0
-  - Test coverage: Added 8 comprehensive tests in `tests/test_forced_actions.py`:
-    - `test_force_stop_with_whitespace_service_name` and `test_force_stop_with_invalid_node_name_format`
-    - `test_force_start_with_whitespace_service_name` and `test_force_start_with_invalid_node_name_format`
-    - `test_force_upgrade_with_whitespace_service_name` and `test_force_upgrade_with_invalid_node_name_format`
-    - `test_force_disable_with_whitespace_service_name` and `test_force_disable_with_invalid_node_name_format`
-  - Updated 2 existing tests to expect new error behavior:
-    - `test_force_start_already_running_node`: Now expects error status when all nodes fail
-    - `test_force_start_node_not_found`: Now expects error status when all nodes fail
-  - All 67 forced action tests pass
-  - Prevents accidental node operations when users provide invalid or non-existent service names
-  - Changes in: `src/wnm/executor.py` (multiple locations), `tests/test_forced_actions.py`
+- **Force action validation extended to stop/start/upgrade/disable**: Whitespace-only `--service_name` input and all-nodes-failed cases now return a clear error instead of silently affecting unintended nodes
 
 ## [0.5.2] - 2026-01-11
 
 ### Fixed
-- **Force remove node validation**: Fixed bug where invalid service names would incorrectly remove unspecified nodes
-  - Problem: Using `--force_action remove --service_name node1` (invalid format, should be `antnode0001`) would remove a different node instead of warning
-  - Root cause 1: Whitespace-only input (e.g., `" "`) parsed to empty list `[]`, which is falsy, causing fallthrough to "remove youngest node" logic
-  - Root cause 2: When ALL specified nodes fail to be found, system would return `removed_count=0` without clear error status
-  - Solution 1: Added validation at `executor.py:826-833` to detect when `service_name` was provided but results in empty list after parsing
-  - Solution 2: Added validation at `executor.py:872-880` to return error status when ALL specified nodes fail (none were found)
-  - Now returns `status: "error"` with message: "None of the specified service names exist: {node_list}"
-  - Logs clear warning: "All specified nodes failed: {node_list}. No nodes were removed."
-  - Prevents accidental node removal when user provides invalid or non-existent service names
-  - Changes in: `src/wnm/executor.py:826-880`
-  - Test coverage: Added 2 comprehensive tests in `tests/test_forced_actions.py:183-238`
-    - `test_force_remove_with_whitespace_service_name`: Tests whitespace, commas, and empty input
-    - `test_force_remove_with_invalid_node_name_format`: Tests "node1", "node123" and other invalid formats
-  - All 59 forced action tests pass
+- **Force remove node validation**: Invalid or non-existent `--service_name` values now return `status: "error"` instead of removing an unintended node
 
 ## [0.5.1] - 2026-01-11
 
 ### Fixed
-- **Site survey transitional state preservation**: Fixed bug where regular surveys were overwriting UPGRADING, RESTARTING, and REMOVING states
-  - Problem: Node surveys called `update_node_from_metrics()` which unconditionally updated status field, losing transitional state tracking
-  - Impact: Nodes stuck in transitional states would have their status overwritten to RUNNING or STOPPED, losing the delay timer
-  - Solution: Modified `update_node_from_metrics()` to preserve transitional states (UPGRADING, RESTARTING, REMOVING) during regular surveys
-  - Added explicit status transition in `update_counters()` after delay period expires (lines 471-476, 499-504 in utils.py)
-  - Flow: Regular surveys preserve state → Delay expires → `update_counters()` explicitly transitions to RUNNING/STOPPED
-  - All other metrics (uptime, records, connected_peers, etc.) continue to update normally during transitional states
-  - Changes in: `src/wnm/utils.py:368-425,471-476,499-504`
-  - Added comprehensive test suite: `tests/test_survey_transitional_states.py` with 7 tests covering all transitional state scenarios
-  - Added `session_factory` fixture to `tests/conftest.py` for test support
+- **Survey transitional state preservation**: Regular node surveys no longer overwrite UPGRADING, RESTARTING, or REMOVING states, preventing loss of delay timer tracking
 
 ## [0.5.0] - 2026-01-10
 
 ### Changed
-- **Version numbering**: Bumped to 0.5.0 to avoid confusion with Autonomi tool versions
+- Version bumped to 0.5.0 to avoid confusion with Autonomi tool versions
 
 ## [0.4.9] - 2026-01-09
 
 ### Fixed
-- **AntctlZenManager upgrade support**: Fixed upgrade failure for nodes using antctl+zen process manager
-  - Error: `'dict' object has no attribute 'antnode_path'` during upgrade operations
-  - Root cause: `_upgrade_node_binary()` in executor.py didn't recognize AntctlZenManager as having its own upgrade method
-  - AntctlZenManager fell through to manual upgrade path (designed for systemd/launchd/setsid), which incorrectly tried to access `machine_config.antnode_path`
-  - Solution: Added AntctlZenManager to isinstance check alongside AntctlManager (line 163)
-  - Both managers now correctly use antctl's built-in upgrade command instead of manual binary copying
-  - Also fixed teardown_cluster method to include AntctlZenManager in isinstance check for node ID tracking reset (line 1411)
-  - Changes in: `src/wnm/executor.py:148,161-163,1411`
+- AntctlZenManager upgrade support: fixed `'dict' object has no attribute 'antnode_path'` error during upgrade; AntctlZenManager now correctly uses antctl's built-in upgrade command
 
 ## [0.4.8] - 2026-01-07
 
 ### Fixed
-- **Process manager start node race condition**: Fixed sync loop where nodes finish starting after manager gives up
-  - All process managers now check metadata port before attempting to start
-  - If node already responding on metadata port, skip start and return success
-  - Prevents attempting to start already-running nodes when antctl/systemd/launchd times out
-  - Eliminates "loss of sync" scenario where node finishes starting after start command returns
-  - Applies to all 6 process managers: LaunchdManager, SystemdManager, SetsidManager, AntctlManager, AntctlZenManager, DockerManager
-  - Added pre-flight check using `read_node_metadata()` to detect already-running nodes
-  - Logs warning when skipping start for already-running node
-  - Example scenario prevented: antctl start times out → node finishes starting → next attempt fails because already running
-  - Changes in: `src/wnm/process_managers/launchd_manager.py:262-268`
-  - Changes in: `src/wnm/process_managers/systemd_manager.py:261-268`
-  - Changes in: `src/wnm/process_managers/setsid_manager.py:122-130`
-  - Changes in: `src/wnm/process_managers/antctl_manager.py:265-272`
-  - Changes in: `src/wnm/process_managers/antctl_zen_manager.py:287-294`
-  - Changes in: `src/wnm/process_managers/docker_manager.py:186-195`
+- Process manager start node race condition: all managers now check the metadata port before attempting to start, preventing sync loss when a node finishes starting after the manager times out
 
 ## [0.4.7] - 2026-01-07
 
 ### Added
-- **Boolean config disable action**: Added `--force_action disable_config` for disabling persistent boolean settings
-  - New force action type: `disable_config` (config-only operation, bypasses decision engine)
-  - Inverts boolean flags to False when specified, solving the `store_true` limitation
-  - Supported flags: `--antctl_debug`, `--no_upnp`
-  - Use cases: Disable debug mode, re-enable UPnP, fix stuck boolean settings
-  - Examples:
-    - Disable antctl debug: `wnm --force_action disable_config --antctl_debug`
-    - Re-enable UPnP: `wnm --force_action disable_config --no_upnp`
-    - Multiple flags: `wnm --force_action disable_config --antctl_debug --no_upnp`
-  - Added to config.py with special handling logic (lines 800-814)
-  - Added to __main__.py early exit path alongside nullop/update_config (line 229)
-  - Comprehensive documentation added to USER-GUIDE-PART3.md with detailed explanation
-
-### Fixed
-- **Boolean flag persistence issue**: Solved problem where `store_true` flags couldn't be disabled once set in database
-  - Boolean flags like `--antctl_debug` and `--no_upnp` use `action="store_true"` pattern
-  - Providing the flag sets to True, but omitting it doesn't change database value back to False
-  - New `disable_config` action explicitly sets specified boolean flags to False in database
-  - Eliminates need for manual database editing or complex workarounds
+- `--force_action disable_config`: disables persistent boolean settings (e.g. `--antctl_debug`, `--no_upnp`) by setting them to False in the database
 
 ## [0.4.6] - 2026-01-07
 
 ### Fixed
-- **Model serialization completeness**: Fixed missing columns in `__repr__` and `__json__` methods for all model classes
-  - **Machine class**: Added missing fields to both `__repr__` and `__json__` methods
-    - `__repr__`: Added id, delay_restart, survey_delay, action_delay, rpc_port_start, highest_node_id_used, all max_concurrent_* fields, node_removal_strategy, process_manager, max_node_per_container, min_container_count, docker_image, no_upnp, antnode_path, antctl_path, antctl_debug, antctl_version
-    - `__json__`: Added id, delay_restart, max_node_per_container, min_container_count, docker_image, antctl_debug, antctl_version
-  - **Container class**: Added missing fields to both `__repr__` and `__json__` methods
-    - `__repr__`: Added machine_id, port_range_start, port_range_end, metrics_port_range_start, metrics_port_range_end
-    - `__json__`: Added port_range_start, port_range_end, metrics_port_range_start, metrics_port_range_end
-  - **Node class**: Added missing fields to both `__repr__` and `__json__` methods
-    - Added log_dir, rpc_port, and all InfluxDB metrics fields (gets, puts, mem, cpu, open_connections, total_peers, bad_peers, rel_records, max_records, rewards, payment_count, live_time, network_size)
-  - Ensures complete model representation for debugging and JSON serialization
-  - Fixes inconsistencies between database schema and serialized output
+- Model serialization: completed missing fields in `__repr__` and `__json__` for Machine, Container, and Node classes
 
 ## [0.4.5] - 2026-01-07
 
 ### Added
-- **Antctl port allocation tracking**: Implemented node ID tracking system to prevent port conflicts in antctl managers
-  - Added `--highest_node_id_used` configuration parameter for manual override of node ID tracking
-  - Environment variable: `HIGHEST_NODE_ID_USED`
-  - Only works with antctl process managers: `antctl+zen`, `antctl+user`, `antctl+sudo`
-  - Can be set during `--init` to start node IDs from a specific number
-  - After initialization, requires `--force_action update_config` to prevent accidental desynchronization
-  - Prevents port conflicts by never reusing node IDs when nodes are removed (antctl doesn't free ports immediately)
-  - Port formula remains: `port = port_start * 1000 + node_id`
-  - Automatically initialized during `--init` for antctl managers (to max existing node ID or 0)
-  - Automatically reset to 0 during `--force_action teardown`
-  - Database migration: `e2f4a512d24c_add_highest_node_id_used_tracking.py`
-  - New module: `src/wnm/node_id_tracker.py` with allocation and initialization logic
-  - Updated executor.py to use ID tracking for antctl managers (no gap-filling)
-  - Updated config.py with parameter validation and initialization logic
-  - Comprehensive test coverage: 12 unit tests in `tests/test_node_id_tracker.py`
-  - Documentation added to USER-GUIDE-PART3.md with detailed examples and use cases
-  - Examples:
-    - Initialize with specific ID: `wnm --init --process_manager antctl+zen --rewards_address 0xAddr --highest_node_id_used 10`
-    - Override after init: `wnm --force_action update_config --highest_node_id_used 20`
-    - Check current value: `wnm --report machine-config | grep highest_node_id_used`
-
-### Changed
-- **Node ID allocation for antctl managers**: Antctl managers now use sequential ID allocation without filling gaps
-  - Previous behavior: Filled gaps in node IDs when nodes were removed (caused port conflicts)
-  - New behavior: Always increments to next unused ID, never reuses deleted IDs
-  - Only affects antctl managers; other managers (systemd, launchd, setsid) continue using gap-filling strategy
-  - Ensures port numbers never conflict with lingering antctl processes
-
-### Fixed
-- **Port conflicts in antctl managers**: Resolved port conflicts caused by antctl not immediately freeing ports after node removal
-  - Antctl won't release a port after removal (requires a reset), keeping ports occupied
-  - Gap-filling node ID allocation would assign new nodes to ports still held by removed nodes
-  - New tracking system prevents ID/port reuse, eliminating conflicts
+- `--highest_node_id_used`: node ID tracking for antctl managers to prevent port conflicts from ID reuse after node removal; automatically initialized during `--init` and reset during teardown
 
 ## [0.4.4] - 2026-01-06
 
 ### Added
-- **Rust backtrace support for antctl subprocess**: Added `--rust_backtrace` option for debugging antctl subprocess operations
-  - Environment variable: `RUST_BACKTRACE`
-  - Non-persistent setting that must be invoked each time (not saved to database)
-  - Accepts values: `1` (short backtrace) or `full` (full backtrace)
-  - Passes RUST_BACKTRACE environment variable to antctl subprocess.run calls
-  - Works with both command-line argument and environment variable
-  - Applies to all antctl operations: add, start, stop, upgrade, remove, status, reset
-  - Only affects `antctl+zen`, `antctl+user`, and `antctl+sudo` process managers
-  - Logs `RUST_BACKTRACE={value} enabled for antctl command` at DEBUG level
-  - Examples:
-    - Via flag: `wnm --rust_backtrace 1`
-    - Via flag (full): `wnm --rust_backtrace full`
-    - Via env: `RUST_BACKTRACE=1 wnm`
-    - Via env (full): `export RUST_BACKTRACE=full; wnm`
+- `--rust_backtrace`: passes `RUST_BACKTRACE` environment variable to antctl subprocess; accepts `1` or `full`
 
 ## [0.4.3] - 2026-01-05
 
 ### Added
-- **Antctl version configuration**: Added `--antctl_version` option for pinning antnode version across all antctl operations
-  - Environment variable: `ANTCTL_VERSION`
-  - Default: `None` (uses latest version available from antctl)
-  - Passes `--version <version>` argument to both `antctl add` and `antctl upgrade` commands
-  - Enables version consistency across cluster and rollback capability
-  - Only affects `antctl+zen`, `antctl+user`, and `antctl+sudo` process managers
-  - Added to Machine model with database migration (revision: 752bf4495eaa)
-  - Added command-line option and configuration system support
-  - Updated all three antctl managers (AntctlZenManager, AntctlManager for user/sudo modes)
-  - Documentation added to USER-GUIDE-PART3.md with comprehensive usage examples
-  - Examples:
-    - Pin to version: `wnm --antctl_version 0.4.11`
-    - Initialize with version: `wnm --init --rewards_address 0xAddr --antctl_version 0.4.11`
-    - Persistent config: `wnm --force_action update_config --antctl_version 0.4.11`
-    - Remove pinning: `wnm --force_action update_config --antctl_version ""`
+- `--antctl_version`: pins antnode version for antctl managers; passes `--version` to both `antctl add` and `antctl upgrade`
 
 ## [0.4.2] - 2026-01-04
 
 ### Fixed
-- **AntctlZenManager session management**: Fixed SQLAlchemy detached instance error in `create_node()`
-  - Added `session.refresh(node)` after commit to reload attributes before session closes
-  - Prevents "Instance is not bound to a Session; attribute refresh operation cannot proceed" error
-  - Error occurred when accessing node attributes after session context manager exited
-  - Fix at `src/wnm/process_managers/antctl_zen_manager.py:239`
+- AntctlZenManager: added `session.refresh(node)` after commit to prevent detached instance error when accessing node attributes
 
 ## [0.4.1] - 2025-12-31
 
 ### Fixed
-- **AntctlZenManager session management**: Fixed SQLAlchemy session error when creating nodes with antctl+zen process manager
-  - `create_node()` now uses `session.merge()` instead of `session.add()` to handle detached node instances
-  - Resolves "Instance is not bound to a Session; attribute refresh operation cannot proceed" error
-  - Occurs when node object is created in one session (executor) then passed to manager for path updates
-  - Fix at `src/wnm/process_managers/antctl_zen_manager.py:233-234`
+- AntctlZenManager: use `session.merge()` instead of `session.add()` for detached node instances during `create_node()`
 
 ## [0.4.0] - 2025-12-30
 
 ### Added
-- **AntctlZenManager process manager**: New "zen" variant of antctl manager using antctl defaults for paths
-  - Process manager type: `antctl+zen` (user mode only, no sudo support)
-  - Philosophy: Minimal command specification, let antctl choose its own defaults for binary, data, and log paths
-  - Maintains explicit control over ports (node-port, metrics-port, rpc-port) for router port forwarding configuration
-  - Parses antctl add command output to extract actual paths chosen by antctl
-  - Updates database with discovered paths for accurate tracking
-  - Simplified upgrade process: lets antctl download and manage its own binary
-  - Integrated into process manager factory with automatic user mode routing
-  - Added to configuration system with `--process_manager antctl+zen` option
-  - Example usage: `wnm --init --process_manager antctl+zen --rewards_address 0xYourAddress`
-  - Ideal for users who want to leverage antctl's native path management while maintaining network control
-
-### Changed
-- **Process manager factory**: Enhanced to handle special routing for `antctl+zen` manager type
-  - Factory automatically routes "antctl+zen" to AntctlZenManager class
-  - Automatically sets mode to "user" (zen only supports user mode)
-- **Configuration system**: Updated `_detect_process_manager_mode()` to recognize "+zen" suffix as user mode
-  - Ensures proper platform-specific path selection for zen manager
-  - Configuration validates and stores `antctl+zen` as a process manager choice
+- `antctl+zen` process manager: uses antctl defaults for paths, maintains explicit port control, parses antctl output to track actual paths
 
 ## [0.3.27] - 2025-12-28
 
 ### Fixed
-- **Antctl debug output handling**: Enhanced antctl manager to properly parse JSON from debug output
-  - `survey_nodes()` now extracts JSON block from mixed debug/JSON output using regex pattern
-  - Handles both debug mode (with logging mixed into stdout) and normal mode (JSON only)
-  - Fixes `json.JSONDecodeError` when `--antctl_debug` or `--loglevel DEBUG` is enabled
-  - Uses `re.search(r'^\{$.*?^\}$', result.stdout, re.MULTILINE | re.DOTALL)` to extract JSON between standalone `{` and `}` lines
-- **Enhanced antctl debugging**: Added comprehensive logging of antctl command output
-  - `_run_antctl()` now logs stdout and stderr at DEBUG level for all successful operations
-  - Provides visibility into antctl behavior when running with `--loglevel DEBUG`
-  - Helps troubleshoot node management issues and antctl integration problems
+- Antctl: extract JSON block from mixed debug/JSON stdout using regex; log stdout/stderr at DEBUG level for all antctl operations
 
 ## [0.3.26] - 2025-12-28
 
 ### Added
-- **Antctl debug mode configuration**: Added `--antctl_debug` option for antctl process manager
-  - Environment variable: `ANTCTL_DEBUG`
-  - Default: `False` (automatically enabled when `--loglevel DEBUG` is set)
-  - Enables debug output for all antctl commands by adding `--debug` flag to antctl invocations
-  - Automatically enabled when WNM logging level is set to DEBUG
-  - Use cases: Troubleshooting antctl issues, debugging node management problems, development and testing
-  - Only affects `antctl+user` and `antctl+sudo` process managers
-  - Added to Machine model with database field `antctl_debug` (boolean/integer)
-  - Added command-line option and configuration system support
-  - Updated AntctlManager to check debug mode during initialization and add `--debug` to command
-  - Debug mode can be enabled persistently (updates database) or temporarily via command-line
-  - Documentation added to USER-GUIDE-PART3.md with comprehensive usage examples
-  - Examples:
-    - Via flag: `wnm --antctl_debug`
-    - Via env: `export ANTCTL_DEBUG=1; wnm`
-    - Auto with debug logging: `wnm --loglevel DEBUG`
-    - Persistent: `wnm --force_action update_config --antctl_debug`
+- `--antctl_debug`: adds `--debug` to all antctl commands; auto-enabled when `--loglevel DEBUG` is set
 
 ## [0.3.25] - 2025-12-16
 
 ### Added
-- **Antctl binary path configuration**: Added `--antctl_path` option for antctl process manager
-  - Environment variable: `ANTCTL_PATH`
-  - Default: `~/.local/bin/antctl`
-  - Critical for macOS cron compatibility where children of cron tasks cannot inherit PATH environment
-  - Resolves "antctl command not found" errors when running wnm from cron on macOS
-  - Only used when `--process_manager` is set to `antctl+user` or `antctl+sudo`
-  - Path is expanded (tilde `~` and environment variables)
-  - Added to Machine model with database migration (revision: ba757077b6b0)
-  - Added command-line option and configuration system support
-  - Updated AntctlManager to use configured path instead of relying on PATH
-  - Documentation added to USER-GUIDE-PART3.md with usage examples
+- `--antctl_path`: explicit path to antctl binary; required for macOS cron where PATH is not inherited
 
 ## [0.3.23] - 2025-12-15
 
 ### Fixed
-- **Robust lock file cleanup**: Implemented guaranteed lock file cleanup using signal handlers and atexit
-  - Added `atexit.register()` to ensure lock file cleanup on normal exit
-  - Added SIGTERM and SIGINT signal handlers for graceful shutdown on interruption (Ctrl+C, kill)
-  - Lock file now always cleaned up even if WNM crashes or is interrupted
-  - Prevents stuck lock files from blocking subsequent runs
-  - Tracks lock file creation with `_lock_file_created` flag to only clean up files created by this process
-  - Centralized cleanup logic in `cleanup_lock_file()` function
-  - Removed 5 manual `os.remove(LOCK_FILE)` calls - now handled automatically
-  - `--remove_lockfile` flag still available for manual cleanup if needed
+- Lock file cleanup now guaranteed via `atexit` and signal handlers (SIGTERM, SIGINT)
 
 ## [0.3.22] - 2025-12-14
 
 ### Fixed
-- **Port configuration bug in node creation**: Fixed metrics and RPC port assignment to use configured values
-  - `executor.py` was using hardcoded constants `METRICS_PORT_BASE` (13000) and `RPC_PORT_BASE` (30000) instead of configured values
-  - Now correctly uses `machine_config["metrics_port_start"] * 1000 + node_id` for metrics port
-  - Now correctly uses `machine_config["rpc_port_start"] * 1000 + node_id` for RPC port
-  - Fixes issue where nodes created with custom `--metrics_port_start` or `--rpc_port_start` would ignore the configured values
-  - Consistent with how regular ports are calculated: `machine_config["port_start"] * 1000 + node_id`
+- Node creation: metrics and RPC ports now use configured `metrics_port_start` and `rpc_port_start` instead of hardcoded constants
 
 ## [0.3.21] - 2025-12-14
 
 ### Added
-- **Port configuration flexibility**: Port start settings now accept both abbreviated and full port numbers
-  - `--port_start`, `--metrics_port_start`, and `--rpc_port_start` now accept full port numbers (e.g., 55000) in addition to abbreviated format (e.g., 55)
-  - Full port numbers are automatically truncated to thousands digit for storage (55000 → 55, 13500 → 13)
-  - Prevents accidental misconfiguration when entering full port numbers
-  - Works with command-line arguments, environment variables, and config files
-  - Added `normalize_port_start()` function to handle conversion
-  - Applied normalization in `define_machine()`, `load_anm_config()`, and `merge_config_changes()`
-  - Updated immutable settings validation to use normalized values
-- **RPC port configuration**: Added missing `--rpc_port_start` command-line argument
-  - Environment variable: `RPC_PORT_START`
-  - Completes support for RPC port configuration (was in database but not CLI)
-  - Default: 30 (port range 30000-30999)
+- Port start settings now accept full port numbers (e.g. 55000) and normalize to thousands digit automatically
 
 ## [0.3.20] - 2025-12-14
 
 ### Fixed
-- **Database initialization check**: Prevent empty database creation when running without `--init`
-  - Running `wnm` without `--init` on a non-existent database now exits with a helpful error message
-  - Error message guides users to run `wnm --init --rewards_address YOUR_ETH_ADDRESS`
-  - Prevents creation of broken/unconfigured databases that block subsequent initialization
-  - Database only created when either: (1) `--init` flag is provided, or (2) database already exists
-  - Fixes issue where accidental runs without `--init` would create empty databases
+- Running without `--init` on a missing database now exits with a helpful error instead of creating an empty broken database
 
 ## [0.3.19] - 2025-12-14
 
 ### Added
-- **Config format for reports**: Added `--report_format config` option for machine-config reports
-  - Uses lower_snake_case parameter names (same as command-line arguments)
-  - Suitable for use in config files that are read by configargparse
-  - Preserves quoting logic for paths and special characters
-  - Key difference from `env` format: `config` uses lower_snake_case (e.g., `node_cap=50`), `env` uses UPPER_CASE (e.g., `NODE_CAP=50`)
-  - Updated documentation in USER-GUIDE-PART3.md with comprehensive examples
+- `--report_format config`: outputs machine-config in lower_snake_case suitable for WNM config files
 
 ## [0.3.18] - 2025-12-14
 
 ### Changed
-- **Initialization behavior**: `--init` now exits immediately after initialization (and optional survey)
-  - Decision engine no longer runs during `--init` operations
-  - After `--init` completes configuration setup and optional node import, the program exits cleanly
-  - Prevents unnecessary resource checks and node management actions during initialization
-  - Makes `--init` a true initialization-only operation
+- `--init` now exits immediately after initialization; decision engine no longer runs during init
 
 ## [0.3.17] - 2025-12-14
 
 ### Fixed
-- **Initialization reboot detection**: Fixed false reboot detection on first execution after `--init`
-  - During initialization, `last_stopped_at` is now set to the current system start time instead of 0
-  - Prevents the next execution from incorrectly detecting a reboot and wasting a cycle on node resurvey
-  - Added `get_system_start_time()` helper function for consistent boot time detection across macOS and Linux
-  - Refactored `get_machine_metrics()` to use the new helper function for cleaner code
+- False reboot detection on first run after `--init`; `last_stopped_at` now initialized to current system start time
 
 ## [0.3.16] - 2025-12-14
 
 ### Changed
-- **Improved --init user experience**: Enhanced initialization status reporting to distinguish from system reboots
-  - New `status: "system-initialized"` when running `--init` (was previously `"system-rebooted"`)
-  - Only surveys nodes during init when `--import` or `--migrate_anm` flags are used
-  - Skips unnecessary node survey when initializing without importing existing nodes
-  - Preserves `status: "system-rebooted"` for actual system reboot detection
-  - Added test coverage for new init-specific behavior
-  - Improved decision engine logic to handle initialization vs reboot scenarios
+- `--init` now emits `status: "system-initialized"` instead of `"system-rebooted"`; node survey skipped unless `--import` or `--migrate_anm` is provided
 
 ## [0.3.15] - 2025-12-14
 
 ### Fixed
-- **Decision engine test failures**: Fixed 5 failing tests in `test_decision_engine.py`
-  - Added missing concurrent operations configuration keys to test configs
-  - Added `max_concurrent_upgrades`, `max_concurrent_starts`, `max_concurrent_removals`, `max_concurrent_operations` to all test configurations
-  - Added missing metrics keys: `upgrading_nodes`, `removing_nodes` to test data
-  - Updated test assertion in `test_plan_wait_for_restarting` to correctly check for "capacity" message
-  - All 286 tests now passing (7 Linux-only tests skipped on macOS)
+- Decision engine tests: added missing concurrent operations config keys and metrics fields
 
 ## [0.3.14] - 2025-12-14
 
 ### Fixed
-- **Env format quoting (as easy as pie!)**: Added proper quoting for paths and arguments with special characters in env format outputs
-  - Machine-config report now quotes: `NODE_STORAGE`, `ENVIRONMENT`, `START_ARGS`, `ANTNODE_PATH`, `DBPATH`
-  - Machine-metrics report now quotes: `ANTNODE` binary path
-  - Ensures shell-safe parsing of paths with spaces or special characters
-  - Examples:
-    - `NODE_STORAGE="/path/with spaces/node/"` (properly quoted)
-    - `ANTNODE="/usr/local/bin/antnode"` (properly quoted)
-  - Fixes issues when sourcing env output: `eval $(wnm --report machine-config --report_format env)`
-  - Added comprehensive test coverage for quoted fields and paths with spaces
+- `--report machine-config --report_format env` now quotes paths with spaces or special characters
 
 ## [0.3.13] - 2025-12-13
 
 ### Fixed
-- **Machine-metrics env format**: Fixed `NODES_BY_VERSION` value to be env-safe by quoting dictionary values
-  - Dictionary values like `NODES_BY_VERSION` are now properly quoted: `NODES_BY_VERSION="{'0.4.7': 3}"`
-  - Numeric values remain unquoted for proper type handling: `CPU=45.2`, `NODES_RUNNING=5`
-  - Ensures compatibility with `eval $(wnm --report machine-metrics --report_format env)` in shell scripts
+- `--report machine-metrics --report_format env`: `NODES_BY_VERSION` now quoted for shell safety
 
 ## [0.3.12] - 2025-12-13
 
 ### Added
-- **Environment variable format for machine-metrics report**: Added `env` output format support for `--report machine-metrics`
-  - New format option: `--report machine-metrics --report_format env`
-  - Outputs system metrics as shell environment variables in `UPPER_CASE_KEY=value` format
-  - Enables using metrics in shell scripts with `eval $(wnm --report machine-metrics --report_format env)`
-  - Provides access to all metrics as shell variables: `$CPU_PERCENT`, `$MEM_PERCENT`, `$TOTAL_NODES`, etc.
-  - Consistent with existing `env` format support for `machine-config` report
-  - Documentation includes comprehensive examples:
-    - Loading metrics into current shell environment
-    - Building monitoring scripts with threshold checks
-    - Conditional actions based on system metrics
-    - Combining config and metrics for intelligent decision-making
+- `--report machine-metrics --report_format env`: output system metrics as shell environment variables
 
 ## [0.3.11] - 2025-12-13
 
 ### Changed
-- **Test organization**: Reorganized test files for better structure
-  - Moved `test_antctl_integration.py` from root to `scripts/` directory (manual integration test)
-  - Converted `test_concurrent_ops.py` to pytest format and merged into `tests/test_decision_engine.py`
-  - Added new `TestDecisionEngineConcurrency` test class with comprehensive concurrent operations tests
-  - All concurrent operations functionality now has proper automated test coverage
+- Moved `test_antctl_integration.py` to `scripts/`; merged concurrent ops tests into `test_decision_engine.py`
 
 ## [0.3.10] - 2025-12-13
 
 ### Added
-- **JSON output shortcut**: Added `--json` flag as a convenient shortcut for `--report_format json`
-  - New `--json` command-line flag for requesting JSON output format
-  - Equivalent to `--report_format json` but shorter and easier to type
-  - Compatible with antctl command syntax for users familiar with that tool
-  - Works with all report types: `node-status`, `node-status-details`, `machine-config`, `machine-metrics`
-  - Examples:
-    - `wnm --report node-status --json`
-    - `wnm --report machine-config --json`
-    - `wnm --report machine-metrics --json`
+- `--json` flag as shortcut for `--report_format json`
 
 ## [0.3.9] - 2025-12-12
 
 ### Changed
-- **Changelog documentation**: Filled in missing release notes for versions 0.3.0 through 0.3.7
-  - Added v0.3.7: Configuration documentation corrections
-  - Added v0.3.5: Environment variable format for machine config report
-  - Added v0.3.4: Action delay feature and migration fixes
-  - Added v0.3.3: Critical database migration bug fixes
-  - Added v0.3.2: Migration error handling improvements
-  - Added v0.3.1: Lightweight config update action (nullop/update_config)
-  - Added v0.3.0: Concurrent operations support (major feature)
-  - Complete changelog coverage from v0.2.0 through v0.3.9
+- Filled in missing changelog entries for v0.3.0–v0.3.7
 
 ## [0.3.8] - 2025-12-12
 
 ### Added
-- **Non-persistent survey delay override**: Added `--this_survey_delay` parameter for temporary survey delay adjustments
-  - New `--this_survey_delay` command-line flag accepting milliseconds (no default)
-  - Environment variable: `THIS_SURVEY_DELAY`
-  - Temporary override for `--survey_delay` that applies only to current execution
-  - Does not update database value (non-persistent)
-  - Takes precedence over `--survey_delay` when specified
+- `--this_survey_delay`: non-persistent per-run override for `--survey_delay`
 
 ## [0.3.7] - 2025-12-12
 
 ### Fixed
-- **Configuration documentation**: Corrected config file paths in documentation to reflect actual defaults
-  - Updated README.md and USER-GUIDE-PART3.md with accurate config file locations
-  - Changed from platform-specific paths to actual configargparse defaults
-  - Config files: `~/.local/share/wnm/config`, `~/wnm/config`, or `-c/--config`
+- Config file path documentation corrected to match actual configargparse defaults
 
 ## [0.3.6] - 2025-12-12
 
 ### Fixed
-- **Immutable settings validation**: Changed validation logic to only error when values are different
-  - `--port_start`, `--metrics_port_start`, and `--process_manager` can now be safely included in config files
-  - Error only raised when provided values differ from database (not just when present)
-  - Improved error messages showing old and new values: "port_start (trying to change from 55 to 56)"
-  - More explicit and maintainable validation code
-  - Allows users to document complete cluster configuration in config files
+- Immutable settings (`--port_start`, `--metrics_port_start`, `--process_manager`) only error when value differs from database, allowing them in config files
 
 ## [0.3.5] - 2025-12-11
 
 ### Added
-- **Environment variable format for machine config**: New `env` output format for `--report machine-config`
-  - Outputs configuration in shell environment variable format (`UPPER_CASE_KEY=value`)
-  - Suitable for sourcing in shell scripts: `eval $(wnm --report machine-config --report_format env)`
-  - Can be saved to file: `wnm --report machine-config --report_format env > config.env`
-  - Added to `--report_format` parameter choices alongside `text` and `json`
+- `--report machine-config --report_format env`: output configuration as shell environment variables
 
 ## [0.3.4] - 2025-12-11
 
 ### Added
-- **Action delay feature**: Added configurable delays between node operations to reduce system load
-  - New `--action_delay` parameter (milliseconds between operations, default: 0)
-  - Environment variable: `ACTION_DELAY`
-  - New `--this_action_delay` for temporary override (non-persistent)
-  - New `--interval` alias for antctl compatibility
-  - Implemented delay enforcement in ActionExecutor for all node operations
-  - Database migration: `67fe02809d26_add_action_delay.py`
+- `--action_delay` / `--this_action_delay` / `--interval`: configurable delay between node operations
 
 ### Fixed
-- **Database migration handling**: Fixed critical issues preventing proper migration execution
-  - Migration command now runs before config loading
-  - Skip machine_config loading when running `wnm-db-migration`
-  - Prevents "unable to open database file" errors during migration
+- Database migration command now runs before config loading; prevents errors during migration
 
 ## [0.3.3] - 2025-12-11
 
 ### Fixed
-- **Critical database migration bugs**: Fixed three critical issues preventing proper migration handling
-  - **Database URL override**: `alembic/env.py` now checks if URL is already configured before setting default
-  - **Legacy database auto-stamping**: Now correctly detects legacy databases (with data but no alembic_version)
-  - **Migration detection**: `has_pending_migrations()` now correctly returns True for legacy databases
-  - **Error messaging**: Added specific instructions for stamping legacy databases with clear guidance
+- Critical Alembic migration bugs: database URL override, legacy database auto-stamping, migration detection
 
 ## [0.3.2] - 2025-12-11
 
 ### Fixed
-- **Migration error handling**: Improved handling when Alembic migration history has multiple heads
-  - Catches `CommandError` when multiple heads are detected
-  - Returns all heads as list from `get_head_revision()`
-  - Provides clear user-friendly error message explaining the issue
-  - Shows which heads are present and directs users to update installation
-  - Prevents crash when running with branched migration history
+- Migration error handling when Alembic history has multiple heads
 
 ## [0.3.1] - 2025-12-11
 
 ### Added
-- **Lightweight config update action**: New `nullop`/`update_config` force action for quick config changes
-  - Addressable as either `--force_action nullop` or `--force_action update_config`
-  - Bypasses decision engine and metrics collection for minimal resource usage
-  - Only loads configuration and applies parameter changes to database
-  - Supports dry-run mode for testing config changes
-  - Example: `wnm --force_action nullop --node_cap 30`
-  - Example: `wnm --force_action update_config --cpu_less_than 60 --dry_run`
-  - Documentation added to USER-GUIDE-PART3.md
+- `--force_action nullop` / `update_config`: lightweight config update that bypasses the decision engine
 
 ## [0.3.0] - 2025-12-10
 
 ### Added
-- **Concurrent operations support**: Aggressive concurrent operations for powerful machines
-  - New global limit: `--max_concurrent_operations` (default: 1)
-  - Per-operation limits: `--max_concurrent_upgrades`, `--max_concurrent_starts`, `--max_concurrent_removals` (default: 1 each)
-  - Aggressive scaling: jumps to capacity immediately each cycle
-  - Respects both per-type and global concurrency limits
-  - Honors actual node availability (no impossible actions)
-  - Each action selects different node (no duplicates)
-  - Backward compatible: defaults to 1 (conservative behavior)
-  - Database migration: `00dd80bcd645_add_max_concurrent_operations.py`
-  - Example: `wnm --max_concurrent_upgrades 4 --max_concurrent_starts 4 --max_concurrent_operations 8`
-
-### Changed
-- **Documentation updates**: Updated README.md, CLAUDE.md, and USER-GUIDE for concurrent operations
-  - Added conservative, aggressive, and very aggressive configuration examples
-  - Clarified default single-operation behavior
+- Concurrent operations: `--max_concurrent_upgrades`, `--max_concurrent_starts`, `--max_concurrent_removals`, `--max_concurrent_operations`
 
 ## [0.2.0] - 2025-11-20
 
 ### Fixed
-- **Alembic migration chain**: Fixed branched migration tree by updating `survey_delay` migration parent
-  - Migration `fa0ca0abff5c` (add_survey_delay_to_machine) now correctly revises `3249fcc20390` instead of `44f23f078686`
-  - Resolves "multiple heads" error in Alembic migration history
-  - Creates proper linear migration chain from baseline through all schema changes
-  - Ensures `alembic upgrade head` runs correctly without branch conflicts
+- Alembic migration chain: fixed branched migration tree causing "multiple heads" error
 
 ## [0.1.10] - 2025-11-20
 
 ### Added
-- **Survey delay feature for load distribution**: Added `--survey_delay` parameter to spread out load when surveying nodes
-  - New `--survey_delay` command-line flag accepting milliseconds (default: 0, no delay)
-  - Environment variable: `SURVEY_DELAY`
-  - Inserts configurable delay between each node survey to reduce server load spikes
-  - Applies to both automatic surveys (decision engine) and forced surveys (`--force_action survey`)
-  - Delay inserted BETWEEN nodes, not after the last node (optimized)
-  - Recommended values: 100-500ms for servers with 20+ nodes
-  - Added `survey_delay` field to Machine model (Integer, default: 0)
-  - Database migration: `fa0ca0abff5c_add_survey_delay_to_machine.py`
-  - Documentation added to `docs/USER-GUIDE-PART3.md` section 3.3
-  - Example usage: `wnm --survey_delay 250` for 250ms delay between node surveys
+- `--survey_delay`: configurable delay in milliseconds between node surveys
 
 ## [0.1.9] - 2025-11-19
 
 ### Fixed
-- **Database migration documentation**: Updated `docs/USER-GUIDE-PART3.md` section 3.7 with comprehensive database migration guide
-  - Added step-by-step migration process (backup → run migration → verify)
-  - Added examples of migration output for all scenarios (needed, successful, already up-to-date)
-  - Added troubleshooting section for common migration issues
-  - Added best practices for safe database migrations
-  - Documented automatic detection and new database initialization behavior
+- Database migration documentation updated in USER-GUIDE-PART3.md
 
 ## [0.1.8] - 2025-11-19
 
 ### Added
-- **InfluxDB Resources Report Export Examples**: Added comprehensive documentation for exporting `influx-resources` report to NTracking
-  - Added new section "InfluxDB Resources Report Export Examples" in `docs/USER-GUIDE-PART3.md`
-  - Linux example for local Telegraf installations writing to `/tmp/influx-resources/`
-  - macOS example for remote Telegraf via SSH to VM (e.g., `ssh xdntracking tee /tmp/influx-resources/influx-resources`)
-  - Cron automation examples for both Linux and macOS scenarios with proper PATH configuration
-  - Documentation of integration with NTracking technology stack
-  - Notes on using `-q` flag, `--force_action survey`, and SSH key authentication
+- InfluxDB resources report export documentation and cron examples
 
 ## [0.1.7] - 2025-11-18
 
 ### Fixed
-- **Test fixtures missing required model parameters**: Fixed test failures caused by fixtures not including new required fields
-  - Added `delay_restart` and `rpc_port_start` to `sample_machine_config` in `conftest.py`
-  - Added `rpc_port` to `sample_node_config` in `conftest.py`
-  - Added `antnode_path` to `sample_machine_config` in `conftest.py`
-  - Fixed `test_reports.py` local fixtures to include `delay_restart`, `rpc_port_start`, and `rpc_port` fields
-  - All 246 tests now pass (was 7 failed, 64 errors)
+- Test fixtures updated with missing required model fields (`delay_restart`, `rpc_port_start`, `rpc_port`, `antnode_path`)
 
 ## [0.1.6] - 2025-11-18
 
 ### Added
-- **Verbose output control flags**: Added granular control over INFO-level logging
-  - `--show_machine_config`: Log machine configuration on each run (default: disabled)
-  - `--show_machine_metrics`: Log system metrics on each run (default: disabled)
-  - `--show_decisions`: Log decision engine features on each run (default: disabled)
-  - All three flags also enabled when `-v` (verbose) flag is set
-- **New report types**: Added two new report options for on-demand data access
-  - `--report machine-config`: Output machine configuration with database path (text, JSON, or env format)
-  - `--report machine-metrics`: Output current system metrics (text or JSON)
+- `--show_machine_config`, `--show_machine_metrics`, `--show_decisions` flags for opt-in verbose logging
+- `--report machine-config` and `--report machine-metrics` report types
 
 ### Changed
-- **Reduced default logging verbosity**: Machine config, system metrics, and decision engine features no longer logged by default
-  - Previously these were always logged at INFO level on every run
-  - Now requires explicit `--show_*` flags or `-v` to display
-  - Cleaner output for production cron jobs and scripts
-  - Data still accessible via new report types when needed
+- Machine config, system metrics, and decision features no longer logged by default; require explicit flags or `-v`
 
 ## [0.1.5] - 2025-11-18
 
 ### Fixed
-- **Critical: Logging system completely broken**: Fixed logging not outputting INFO/DEBUG messages
-  - Root cause: Alembic imports at module level triggered Python's default logging auto-configuration with WARNING level
-  - Moved all alembic imports inside their respective functions to prevent premature logging configuration
-  - Added try/finally block to always restore logging level even if exceptions occur during database stamping
-  - Disabled SQLAlchemy's `echo=True` which was interfering with logging configuration
-  - Logging now properly respects `--loglevel` setting (info, debug, warning, error)
-  - Output format now shows full level name ("INFO" instead of truncated "WARNI")
+- Logging system broken by Alembic imports triggering Python's default logging auto-configuration; moved all alembic imports inside functions
 
 ## [0.1.4] - 2025-11-17
 
 ### Fixed
-- **Critical: Exit code bug**: Fixed program always exiting with code 1 (failure) even on success
-  - Changed `sys.exit(1)` to `sys.exit(0)` at end of main() function
-  - Now properly returns 0 on successful execution
-- **Antctl node import**: Fixed antctl node import to correctly extract node IDs from service names
-  - Added regex-based `_extract_node_id()` helper that handles "antnode1", "antnode0001", etc.
-  - Previously failed to detect port ranges because it couldn't parse "antnode1" as node ID 1
-  - Now successfully imports antctl nodes with proper port configuration detection
-- **Antctl RPC port parsing**: Added RPC port extraction from antctl status JSON
-  - Parses `rpc_socket_addr` field (e.g., "127.0.0.1:30001" → 30001)
-  - Ensures imported nodes have complete port information
-
-### Changed
-- **Reduced logging noise**: Changed several warnings to debug-level messages
-  - Port detection warnings now debug-level (only visible with `--loglevel DEBUG`)
-  - Database stamping failures now debug-level
-  - Cleaner output during initialization for users
-- **Import feedback**: Added explicit success message showing number of imported nodes
-  - Now logs "Successfully imported N node(s)" at INFO level
-  - Better visibility of import operation results
+- Exit code bug: program was always exiting with code 1
+- Antctl node import: regex-based node ID extraction from service names
+- Antctl RPC port parsing from `rpc_socket_addr` field
 
 ## [0.1.3] - 2025-11-17
 
 ### Added
-- **`--import` flag for explicit node import**: Added new `--import` flag to explicitly request importing existing nodes during initialization
-  - Used with `--init` to import existing nodes from process manager (systemd, launchd, antctl)
-  - Example: `wnm --init --import --rewards_address <addr> --process_manager launchd+user`
-  - Prevents confusing warnings on fresh installations that don't have existing nodes
+- `--import` flag: explicit opt-in to importing existing nodes during `--init`
 
 ### Changed
-- **Node import now opt-in during initialization**: Changed initialization behavior to only import existing nodes when explicitly requested
-  - Previously, `--init` would automatically survey for existing nodes with any process manager, producing warnings on fresh installs
-  - Now only surveys when `--migrate_anm` or `--import` flags are provided
-  - Fresh installations with `--init` (no import flags) now cleanly initialize without warnings
-  - Existing behavior with `--migrate_anm` unchanged
+- Node import during init is now opt-in; fresh installs no longer produce import warnings
 
 ## [0.1.2] - 2025-11-17
 
 ### Added
-- **Database rebuild capability for systemd and launchd process managers**: Added ability to rebuild database from existing system configuration
-  - Extended survey trigger to support `systemd`, `systemd+user`, `systemd+sudo`, `launchd`, `launchd+user`, and `launchd+sudo` process managers
-  - Users can now run `wnm --init --process_manager <type> --rewards_address <addr>` to rebuild database from existing nodes
-  - Automatically detects port configuration from discovered nodes (reverse-engineers `port_start` from node 1's port)
-  - Preserves node IDs from service names (e.g., `antnode0003.service` → node ID 3)
-  - Handles non-sequential node IDs gracefully (gaps in numbering are normal)
-  - Added `detect_port_ranges_from_nodes()` function in migration module to calculate port configuration
-  - Automatically updates machine config database with detected port ranges
-  - Useful for disaster recovery scenarios where database is lost but systemd/launchd services remain
-
-### Fixed
-- **Migration documentation clarity**: Updated USER-GUIDE to distinguish between:
-  - `--migrate_anm` flag: Only for actual anm installations (checks for `/var/antctl/system`)
-  - Plain `--init` with process manager: For rebuilding wnm clusters or importing existing systemd/launchd nodes
+- Database rebuild from existing systemd/launchd services via `--init --process_manager <type>`
 
 ## [0.0.31] - 2025-11-17
 
 ### Added
-- **RPC port configuration**: Added support for configuring RPC server ports to prevent random port assignment
-  - Added `RPC_PORT_BASE` constant (default: 30000) for RPC port calculation (`30000 + node_id`)
-  - Added `rpc_port_start` field to Machine model (default: 30)
-  - Added `rpc_port` field to Node model
-  - AntctlManager now passes `--rpc-port` argument to antctl commands
-  - Prevents antctl from randomly assigning RPC ports that could conflict with node and metrics port ranges
-
-### Fixed
-- **AntctlManager port assignment**: Fixed antctl process manager to properly pass `--node-port` to antctl
-  - Added `rpc_port_start` to Machine.__json__() serialization (was missing, causing KeyError)
-  - Added `antnode_path` to Machine.__json__() serialization (was missing, causing KeyError)
-  - Improved debug logging with proper shell quoting for antctl commands
-  - RPC server ports now controlled instead of randomly assigned (e.g., 51430 → 30001)
+- RPC port configuration: `--rpc_port_start`, `rpc_port` field on Node, `--rpc-port` passed to antctl
 
 ## [0.0.30] - 2025-11-17
 
 ### Fixed
-- **AntctlManager binary path handling**: Fixed antctl process manager to properly use configured `antnode_path`
-  - `create_node()` now passes `--path` argument with `machine_config.antnode_path` to prevent antctl from downloading binaries on every node add
-  - Added `upgrade_node()` method that uses antctl's built-in upgrade command with `--path` argument
-  - Unlike other process managers where wnm manually copies binaries, antctl handles stop/replace/restart internally
-  - Executor now detects AntctlManager and delegates to its `upgrade_node()` method instead of manual binary copying
-  - Prevents redundant binary downloads and ensures consistent binary management across all operations
+- AntctlManager: `create_node()` passes `--path` to prevent binary re-download on every add; added `upgrade_node()` using antctl's built-in upgrade
 
 ## [0.0.29] - 2025-11-16
 
 ### Added
-- **Configurable antnode binary path**: Added `--antnode_path` configuration option
-  - Allows customization of source antnode binary location (default: `~/.local/bin/antnode`)
-  - Stored in database as machine configuration setting
-  - Can be set via command-line argument or `ANTNODE_PATH` environment variable
-  - Used by upgrade process and node creation to locate source binary
-  - Prevents config value from being clobbered by default value
+- `--antnode_path`: configurable source binary location (default: `~/.local/bin/antnode`)
 
 ### Fixed
-- **Node upgrade binary replacement**: Fixed upgrade process to stop node before copying new binary
-  - Previously tried to copy binary while node was running, causing "Text file busy" errors
-  - Node process maintains active file lock on binary, preventing replacement
-  - Now follows correct sequence: stop node → copy new binary → start node
-  - Applies to SystemdManager, LaunchdManager, and SetsidManager (AntctlManager handles its own upgrades)
-  - Added error recovery: attempts to restart with old binary if copy fails
+- Node upgrade: stop node before copying binary to avoid "Text file busy" error
 
 ## [0.0.28] - 2025-11-16
 
 ### Fixed
-- **AntctlManager node startup**: Fixed antctl process manager to start nodes immediately after creation
-  - Previously, `create_node()` only called `antctl add` but didn't start the node
-  - Nodes remained in "Added" status until picked up by the next management cycle
-  - Now calls `start_node()` after creation, matching behavior of SystemdManager and SetsidManager
-  - Ensures nodes become active immediately after creation
+- AntctlManager: `create_node()` now calls `start_node()` after creation so nodes become active immediately
 
 ## [0.0.27] - 2025-11-16
 
 ### Fixed
-- **Critical: no_upnp config clobbering**: Fixed bug where `no_upnp` setting was reset to False on every wnm run
-  - The `--no_upnp` flag uses `action="store_true"` which defaults to False when not provided
-  - `merge_config_changes()` was incorrectly treating the False default as an explicit user choice
-  - Now only updates database if flag is explicitly provided via `--no_upnp` command line or `NO_UPNP` env var
-  - Prevents loss of UPnP configuration between runs
-- **AntctlManager network argument**: Fixed network name not being specified correctly
+- `no_upnp` setting no longer reset to False on every run
+- AntctlManager: network argument passed correctly
 
 ### Changed
-- **Restrict process_manager to init-only**: `--process_manager` can now only be set during `--init`
-  - Similar to existing restrictions on `--port_start` and `--metrics_port_start`
-  - Prevents accidental changes to process manager type on active clusters
-  - Exits with error: "Cannot change port_start, metrics_port_start, or process_manager on an active machine"
+- `--process_manager` restricted to `--init` only
 
 ## [0.0.26] - 2025-11-16
 
 ### Changed
-- **Logging improvements**: Replaced print statements with proper logging calls throughout application code
-  - Converted print() to logging.info(), logging.error(), or logging.debug() in `src/wnm/__main__.py` and `src/wnm/config.py`
-  - Improved logging consistency for initialization errors, configuration changes, and action reporting
-  - Retained print statements only for CLI output (--version flag, report output) and standalone scripts
-  - All application code now uses the centralized logging facility controlled by --loglevel and --quiet flags
+- Replaced print statements with proper logging calls throughout application code
 
 ## [0.0.25] - 2025-11-16
 
 ### Added
-- **InfluxDB line protocol reporting**: New `influx-resources` report type for direct InfluxDB integration
-  - Outputs InfluxDB line protocol format with per-node metrics, totals, and network size
-  - Compatible with NTracking's influx-resources.sh data structure
-  - Command: `wnm --report influx-resources [--service_name node1,node2] --quiet`
-- **Enhanced metrics collection**: Extended node metrics from Prometheus `/metrics` endpoint
-  - Added 13 new database fields: `gets`, `puts`, `mem`, `cpu`, `open_connections`, `total_peers`, `bad_peers`
-  - Added storage metrics: `rel_records`, `max_records`
-  - Added economic metrics: `rewards` (TEXT for 18-decimal precision), `payment_count`, `live_time`
-  - Added network metrics: `network_size`
-  - All influx metrics automatically collected during node survey
-- **Logging control improvements**:
-  - `-q/--quiet` flag to suppress all output except errors (sets loglevel to ERROR)
-  - `--loglevel` option now functional (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-  - Logging configuration centralized in config.py based on command-line options
-- **Alembic database migrations**: Proper migration system for schema changes
-  - Baseline migration (eeec2af7114c) for November 6 schema
-  - Migration 62bd2784638c: Add `log_dir` field to Node table (Nov 14)
-  - Migration abc5afa09a61: Add `no_upnp` field to Machine table (Nov 15)
-  - Migration ade8fcd1fc9a: Add 13 influx metrics fields to Node table (Nov 16)
-  - Run with: `alembic upgrade head`
-
-### Changed
-- **Metrics collection**: `read_node_metrics()` now parses all InfluxDB-needed metrics from node's Prometheus endpoint
-- **Database updates**: `update_node_from_metrics()` saves influx metrics for RUNNING nodes only
-- **Node model**: Updated to store high-precision rewards as TEXT instead of Integer
-- **Reports**: Added `generate_influx_resources_report()` convenience function
-
-### Migration Instructions
-For existing databases, run database migrations:
-```bash
-# Set your database path (optional, defaults to platform-specific location)
-export WNM_DATABASE_URL="sqlite:////path/to/your/colony.db"
-
-# Run migrations
-alembic upgrade head
-```
-
-Migrations add:
-- `log_dir` column to `node` table (nullable)
-- `no_upnp` column to `machine` table (default: 1/enabled)
-- 13 influx metrics columns to `node` table (all default to 0 or "0")
-
-### Technical Details
-- Rewards stored as TEXT to handle 18-decimal precision (e.g., Ethereum wei)
-- CPU and memory stored × 100 for precision (e.g., 25.5% stored as 2550)
-- Network size computed as average of all running nodes' estimates
-- Uses `batch_alter_table` for SQLite compatibility
+- `--report influx-resources`: InfluxDB line protocol output for NTracking integration
+- Extended node metrics from Prometheus endpoint (13 new fields)
+- `-q/--quiet` flag; `--loglevel` now functional; Alembic migration system
 
 ## [0.0.24] - 2025-11-15
 
 ### Added
-- **Configurable UPnP control**: Added `--no_upnp` flag for admin-configurable UPnP behavior
-  - New `no_upnp` field in Machine model (defaults to True/enabled for backwards compatibility)
-  - Command-line argument `--no_upnp` and environment variable `NO_UPNP` support
-  - All process managers (LaunchdManager, AntctlManager, SystemdManager, SetsidManager) conditionally add `--no-upnp` based on machine config
-  - Replaces hardcoded `--no-upnp` in process managers with deployment-specific setting
-
-### Changed
-- **Process managers**: Updated all process managers to use machine config for UPnP setting
-  - Previously hardcoded `--no-upnp` in LaunchdManager and AntctlManager
-  - Now all managers respect `machine_config.no_upnp` setting with fallback to True for backwards compatibility
+- `--no_upnp`: configurable UPnP control across all process managers
 
 ## [0.0.21] - 2025-11-14
 
 ### Added
-- **AntctlManager process manager**: Full integration with antctl CLI for node management
-  - Supports both `antctl+user` and `antctl+sudo` modes
-  - Wraps all antctl commands: add, start, stop, remove, status, reset
-  - Automatic discovery and import of existing antctl nodes via `antctl status --json`
-  - Path overrides to maintain WNM's platform-specific conventions
-  - Service name extraction and storage in `node.service` field
-  - Comprehensive error handling and logging
-- **Node schema enhancement**: Added `log_dir` field to Node model
-  - Captures antctl's `log_dir_path` during node import
-  - Optional field (nullable) for backward compatibility
-  - Allows preservation of existing log directory paths when importing
-- **CLI support**: Added `--process_manager antctl+user` and `--process_manager antctl+sudo` options
-- **Auto-import on init**: When initializing with `antctl+user/antctl+sudo`, automatically discovers and imports existing antctl nodes
-- **Documentation**: Comprehensive antctl integration guide in ANTCTL_README.md
-  - Installation and setup instructions
-  - Configuration examples and usage patterns
-  - Multi-container scenario handling
-  - Path configuration and overrides
-  - Troubleshooting guide
-
-### Changed
-- **survey_machine()**: Now respects `machine_config.process_manager` when discovering nodes
-  - Previously always used platform auto-detection
-  - Now uses configured process manager first, falls back to auto-detection
-- **Machine model**: Added default values for Docker-related fields in `__init__`
-  - `max_node_per_container=200`
-  - `min_container_count=1`
-  - `docker_image="iweave/antnode:latest"`
-
-### Fixed
-- **Node import during initialization**: Antctl nodes are now properly imported during `--init`
-  - Fixed condition to survey nodes when using antctl process manager
-  - Ensures existing antctl-managed nodes are discovered on first run
+- `antctl+user` / `antctl+sudo` process manager with full antctl CLI integration
 
 ## [0.0.20] - 2025-11-13
 
 ### Changed
-- **BREAKING**: Removed `--teardown` flag (non-functional stub)
-  - Use `--force_action teardown --confirm` instead
-  - Eliminates needless duplication between two teardown paths
-  - Teardown methods now require `--confirm` flag for safety
-
-### Security
-- **Force action teardown now requires confirmation**: `--force_action teardown` must be used with `--confirm` flag
-  - Prevents accidental cluster destruction
-  - Aligns safety requirements across all teardown methods
+- Removed `--teardown` flag; use `--force_action teardown --confirm` instead
 
 ## [0.0.19] - 2025-11-13
 
 ### Changed
-- **Process manager architecture**: Enhanced `create_node()` to return metadata for future manager support
-  - Changed `ProcessManager.create_node()` signature from `-> bool` to `-> Optional[NodeProcess]`
-  - All process managers now return `NodeProcess` with metadata (container_id, external_node_id, pid, status)
-  - Executor automatically persists returned metadata to database (Container records, node service field)
-  - Prepares infrastructure for upcoming antctl and s6overlay process managers
-
-### Added
-- **Database model enhancements** for s6overlay and antctl support:
-  - `NodeProcess.external_node_id` field for storing external identifiers (e.g., antctl service names)
-  - `Machine.max_node_per_container`, `Machine.min_container_count`, `Machine.docker_image` fields for s6overlay configuration
-  - `Container.port_range_start/end` and `Container.metrics_port_range_start/end` fields for block-based port allocation
-- **Executor integration**: Automatic persistence of process manager metadata
-  - Docker/s6overlay: Creates Container records and links nodes via foreign key
-  - Antctl: Stores external_node_id in node.service field
+- `ProcessManager.create_node()` returns `NodeProcess` metadata instead of bool
 
 ## [0.0.18] - 2025-11-11
 
 ### Added
-- **Documentation: User Guide Part 3 - Configuration** (`docs/USER-GUIDE-PART3.md`)
-  - Complete reference for all configuration options
-  - Configuration system overview with priority layers
-  - Detailed resource threshold documentation
-  - Wallet configuration including weighted distribution
-  - Network settings and port assignment
-  - Advanced configuration options
-  - Configuration examples and best practices
+- USER-GUIDE-PART3.md: complete configuration reference
 
 ### Changed
-- **Conservative default thresholds**: Updated resource threshold defaults for better stability
-  - `--mem_less_than`: 70% → 60% (more conservative memory add threshold)
-  - `--mem_remove`: 90% → 75% (earlier memory-based node removal)
-  - `--hd_less_than`: 70% → 75% (more conservative disk add threshold)
-  - Applied to both `load_anm_config()` and `define_machine()` functions
-  - Provides better safety margins for production deployments
+- Conservative default thresholds: `mem_less_than` 70→60%, `mem_remove` 90→75%, `hd_less_than` 70→75%
 
 ## [0.0.17] - 2025-11-09
 
 ### Fixed
-- **Path expansion for `--dbpath`**: Fixed tilde (`~`) and environment variable expansion in database path
-  - `--dbpath ~/colony.db` now correctly expands to full home directory path
-  - Works for both command-line `--dbpath` argument and `DBPATH` environment variable
-  - Supports both bare paths (`~/colony.db`) and sqlite URLs (`sqlite:///~/colony.db`)
-  - Handles both `os.path.expanduser()` for tilde and `os.path.expandvars()` for variables like `$HOME`
-  - Applied in three places: mode detection, DBPATH env var, and final options processing
+- `--dbpath` tilde and environment variable expansion
 
 ## [0.0.16] - 2025-11-09
 
 ### Fixed
-- **Test collection failure**: Fixed `config.py` to skip database initialization when `WNM_TEST_MODE` is set
-  - Resolves `sqlite3.OperationalError: unable to open database file` during test collection
-  - Tests now properly use isolated database fixtures from `conftest.py`
-  - Added `WNM_TEST_MODE` check to `_SKIP_DB_INIT` flag alongside `--version` and `--remove_lockfile`
-- **Platform detection in tests**: Fixed path selection tests to properly mock `platform.system()`
-  - Changed from patching `wnm.config.PLATFORM` to `platform.system()` for module reload compatibility
-  - Fixed `test_linux_sudo_paths`, `test_linux_user_paths`, and macOS path tests
-  - Platform-specific tests now work correctly on both Linux and macOS
-- **Test fixture compatibility**: Fixed executor manager type tests to use proper model fixtures
-  - Tests now use `sample_machine_config` and `sample_node_config` fixtures with all required fields
-  - Resolves `TypeError` from missing required Machine and Node model fields
-- **Platform-specific test assertions**: Fixed `test_node_json` to validate platform-specific manager types
-  - Changed from hardcoded "systemd" expectation to dynamic platform-specific validation
-  - Now correctly validates `launchd+user` on macOS, `systemd+user` on Linux
-
-### Testing
-- **235 tests passing** on both macOS and Linux (11 platform-specific tests skipped on each)
-- All test collection and execution issues resolved
-- GitHub Actions CI passing on both platforms
+- Test collection failure when database unavailable; platform detection in tests
 
 ## [0.0.15] - 2025-11-09
 
 ### Fixed
-- **LaunchdManager factory compatibility**: Fixed `LaunchdManager.__init__()` to accept `mode` parameter
-  - Resolves `TypeError: LaunchdManager.__init__() got an unexpected keyword argument 'mode'` error
-  - Adds infrastructure for future `launchd+sudo` support (system daemons in `/Library/LaunchDaemons/`)
-  - Default mode remains user-level (`~/Library/LaunchAgents/`)
-  - Maintains compatibility with process manager factory pattern
-- **LaunchdManager plist recreation**: Fixed `start_node()` to recreate missing plist files
-  - Automatically regenerates plist file if missing when starting a stopped node
-  - Resolves "Plist file not found" errors when database and launchd are out of sync
-  - Handles cleanup scenarios where plist files were removed but node directories remain
-
-### Documentation
-- **Crontab PATH requirement**: Added prominent documentation about setting PATH in crontab
-  - All cron examples now include `PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`
-  - Prevents "FileNotFoundError: No such file or directory: 'sysctl'" when running from cron
-  - Updated USER-GUIDE-PART1.md with IMPORTANT section and explanation
+- LaunchdManager: accepts `mode` parameter; `start_node()` recreates missing plist files
 
 ## [0.0.14] - 2025-11-09
 
 ### Added
-- **`--version` flag**: Display version and exit without database or lock file checks
-  - Bypasses all initialization for reliability
-  - Useful for quick version verification in scripts and automation
-- **`--remove_lockfile` flag**: Remove stale lock file and exit without database checks
-  - Bypasses all initialization for reliability
-  - Useful for recovery when lock file is stuck (e.g., after crash)
+- `--version` flag; `--remove_lockfile` flag
 
 ### Changed
-- **Terminology consistency**: Renamed `LaunchctlManager` to `LaunchdManager` throughout codebase
-  - Factory key changed from `"launchctl"` to `"launchd"`
-  - Node survey method field changed from `"launchctl"` to `"launchd"`
-  - All documentation and tests updated
-  - Naming now consistently reflects the macOS daemon (launchd) rather than the CLI tool (launchctl)
-  - Matches naming pattern of other managers (SystemdManager, SetsidManager)
+- Renamed `LaunchctlManager` to `LaunchdManager` throughout
 
 ## [0.0.13] - 2025-11-06
 
 ### Fixed
-- **systemd+sudo path configuration**: Fixed path selection to use system-wide paths (`/var/antctl/`) when using `systemd+sudo` mode instead of user paths
-  - Added `_detect_process_manager_mode()` function to detect mode from command line args, environment variables, or existing database
-  - Path selection now based on process manager mode (sudo vs user) instead of IS_ROOT check
-  - Supports custom database paths via `--dbpath` or `DBPATH` environment variable with proper mode detection
-  - Fixed database default path from relative `sqlite:///colony.db` to absolute `DEFAULT_DB_PATH`
-- **Node manager_type preservation**: Fixed `executor.py` to use `machine_config["process_manager"]` instead of `get_default_manager_type()` to preserve mode suffix (+sudo, +user)
-  - Service files now correctly created in `/etc/systemd/system/` for systemd+sudo mode
-  - Nodes inherit correct `manager_type` from machine config in database
-
-### Added
-- **Test coverage**: Added comprehensive tests for mode detection, path selection, and manager type preservation in `tests/test_config.py`
-- Updated fixtures in `tests/conftest.py` to include `process_manager` field with mode suffix
+- `systemd+sudo` path selection; node `manager_type` preserved from machine config
 
 ## [0.0.12] - 2025-11-02
 
 ### Added
-- **Named wallet support**: `--rewards_address` now accepts named wallets "faucet" and "donate" (case-insensitive)
-  - `faucet` always resolves to the Autonomi community faucet address (constant)
-  - `donate` resolves to `donate_address` from machine config (user-configurable)
-  - Enables easy donation to the project faucet or custom donation addresses
-- **Weighted wallet distribution**: Support for comma-separated wallet lists with optional weights
-  - Format: `wallet1:weight1,wallet2:weight2,...`
-  - Random weighted selection per node creation
-  - Mix Ethereum addresses with named wallets
-  - Example: `--rewards_address "0xYourAddress:100,faucet:1,donate:10"`
-  - Allows flexible reward distribution across multiple wallets
-- **New `FAUCET` constant**: Added to `common.py` for the Autonomi community faucet address
-- **Wallet validation**: Comprehensive validation of rewards_address during init and updates
-- **New `wallets.py` module**: Core wallet resolution and weighted distribution logic
-  - `resolve_wallet_name()`: Resolve named wallets to addresses
-  - `parse_weighted_wallets()`: Parse comma-separated weighted wallet lists
-  - `select_wallet_for_node()`: Random weighted wallet selection
-  - `validate_rewards_address()`: Validate wallet string format
-- **Comprehensive test suite**: 38 tests for wallet resolution and weighted distribution
-
-### Changed
-- **rewards_address configuration**: Now supports single addresses, named wallets, and weighted lists
-- **Node creation**: Nodes now randomly select wallet from weighted distribution on creation
-- **Documentation**: Updated README.md with wallet configuration examples and usage
-
-### Fixed
-- **node_storage path validation**: `get_machine_metrics()` now creates missing node_storage directory before checking disk usage
-  - Prevents `FileNotFoundError` crash when node_storage path doesn't exist
-  - Logs warning when directory is auto-created to alert misconfiguration
-  - Fixes issue where database initialized with wrong platform path causes startup failure
-
-## [0.0.11] - 2025-01-30
-
-### Fixed
-- **SystemdManager non-root support**: SystemdManager now properly supports non-root users
-  - User services stored in `~/.config/systemd/user/` instead of `/etc/systemd/system/`
-  - No sudo required for mkdir, cp, rm, or systemctl operations
-  - Uses `systemctl --user` commands for user services
-  - Automatically uses null firewall for non-root users (no sudo needed)
-  - No chown operations for user services (files owned by current user)
-  - User= field omitted in service files for user services (runs as invoking user)
-
-## [0.0.10] - 2025-01-30
-
-### Added
-- **`--count` parameter** for batch forced actions (add, remove, start, stop, upgrade)
-- Comma-separated service_name support for all force actions (start, stop, upgrade, remove, disable)
-- Comma-separated service_name support for survey force action
-- `parse_service_names()` utility function for shared parsing logic
-- Specific node surveying with detailed success/failure reporting
-- Comprehensive test suite for count parameter functionality (7 new tests)
-- Comprehensive test suite for comma-separated node operations (7 new tests)
-
-### Changed
-- **Batch operations**: Add/remove/start/stop/upgrade multiple nodes at once without delays
-- **Smart node selection**: Uses `age` field for intelligent node selection:
-  - `add`: Creates new nodes immediately
-  - `remove`/`stop`: Selects youngest nodes (highest age values)
-  - `start`/`upgrade`: Selects oldest nodes (lowest age values)
-- Force action methods now return multi-node format with detailed success/failure reporting
-- Start, stop, upgrade, remove, and disable actions now support comma-separated node lists
-- Survey action now accepts optional `--service_name` for targeted surveying
-- Optimized surveying: checks metadata first, skips metrics for stopped nodes
-- Moved `ADD_REPORTS.md` to `docs/` directory
-- **Test fixtures**: Updated to use production node naming format (`antnode0001.service`)
-
-### Fixed
-- Eliminated duplicate service name parsing code in reports.py and executor.py
-- Removed test-specific logic from executor.py for cleaner production code
-- Updated all force action tests to match new multi-node return format (56 tests passing)
-
-### Documentation
-- Added `docs/FORCE-SURVEY-UPDATE.md` with usage examples and implementation details
+- Named wallets (`faucet`, `donate`) and weighted wallet distribution for `--rewards_address`
 
 ## Previous Changes
 See git history for earlier changes.
