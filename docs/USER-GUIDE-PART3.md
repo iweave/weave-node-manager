@@ -859,6 +859,22 @@ wnm --force_action update_config --highest_node_id_used 10
 - Note: Changes are NOT saved to database in dry-run mode
 - Note: NOT compatible with `--init`
 
+### Automatic Upgrade Control
+
+**`--enable_upgrade`**
+- Environment variable: `ENABLE_UPGRADE`
+- Type: Boolean flag
+- Default: False (upgrades disabled)
+- Description: Enable WNM's automatic node upgrade decision. Disabled by default because `antnode` now performs its own self-upgrades.
+- Use cases:
+  - Running process managers where antnode self-upgrade is not available (e.g., systemd+sudo with manual binary management)
+  - Explicitly opting in to WNM-managed upgrade coordination
+- Notes:
+  - Non-persistent: must be passed on every invocation (not stored in database)
+  - When omitted, the upgrade step is silently skipped each cycle
+  - `--force_action upgrade` is unaffected and continues to work regardless of this flag
+- Example: `--enable_upgrade`
+
 ### Environment Variables for Antnode
 
 **`--environment`**

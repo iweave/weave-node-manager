@@ -2,12 +2,17 @@
 
 ## [Unreleased]
 
+## [0.5.7] - 2026-02-15
+
+### Documentation
+- Added `--enable_upgrade` to USER-GUIDE-PART3.md under a new "Automatic Upgrade Control" subsection in section 3.6
+
 ## [0.5.6] - 2026-02-14
 
 ### Changed
 - **Automatic upgrades disabled by default**: Since `antnode` now performs its own self-upgrades, WNM's upgrade decision is skipped unless `--enable_upgrade` is explicitly passed
   - Add `--enable_upgrade` (env: `ENABLE_UPGRADE`) flag to opt back in to WNM-managed upgrades
-  - `--force upgrade` is unaffected and continues to work regardless of this flag, however `--force` doesn't follow delay timers and capacity limits.
+  - `--force_action upgrade` is unaffected and continues to work regardless of this flag, however `--force_action` doesn't follow delay timers and capacity limits.
   - No database schema changes; this is a non-persistent runtime option
 
 ## [0.5.5] - 2026-01-11
