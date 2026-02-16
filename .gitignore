@@ -4,7 +4,7 @@ alembic
 *.pyc
 colony.db
 __pycache__
-.pytest_cache
+.pytest_cache/
 wnm.egg-info
 src/wnm.egg-info/
 alembic/versions/__pycache__/
