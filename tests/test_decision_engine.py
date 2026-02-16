@@ -513,7 +513,7 @@ class TestDecisionEnginePlanning:
             "queen_node_version": "1.1.0",  # Current version is newer
         }
 
-        engine = DecisionEngine(config, metrics)
+        engine = DecisionEngine(config, metrics, enable_upgrade=True)
         actions = engine.plan_actions()
 
         assert len(actions) == 1
@@ -679,7 +679,7 @@ class TestDecisionEngineConcurrency:
             "hdio_write_bytes": 0,
         }
 
-        engine = DecisionEngine(config, metrics)
+        engine = DecisionEngine(config, metrics, enable_upgrade=True)
         actions = engine.plan_actions()
 
         # Should plan 4 upgrade actions (limited by max_concurrent_upgrades)

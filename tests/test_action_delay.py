@@ -527,7 +527,7 @@ class TestActionDelayLoggingMessages:
     @patch("wnm.executor.get_process_manager")
     @patch("wnm.executor.os.path.expanduser")
     @patch("time.sleep")
-    @patch("wnm.executor.logging")
+    @patch("wnm.forced_actions.logging")
     def test_delay_logs_message(
         self, mock_logging, mock_sleep, mock_expanduser, mock_get_manager, db_session, sample_machine_config
     ):

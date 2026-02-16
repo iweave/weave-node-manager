@@ -701,6 +701,7 @@ class TestAntctlManager:
         # Verify antctl reset was called
         assert any("reset" in str(call) and "--force" in str(call) for call in mock_run.call_args_list)
 
+    @patch("wnm.process_managers.antctl_manager.machine_config", None)
     def test_mode_selection(self):
         """Test user vs sudo mode selection"""
         from wnm.process_managers.antctl_manager import AntctlManager

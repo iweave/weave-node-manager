@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-02-16
+
+### Changed
+- Extracted forced actions from `executor.py` into `forced_actions.py` module
+- Fixed 4 broken tests
+
 ## [0.5.8] - 2026-02-15
 
 ### Changed

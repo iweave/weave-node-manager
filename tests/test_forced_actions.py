@@ -763,8 +763,8 @@ class TestForcedDisableAction:
         assert result["status"] == "disabled-nodes"
         assert result["disabled_count"] == 1
         assert "antnode0001" in result["disabled_nodes"]
-        # Should not call stop_node since it's already stopped
-        mock_manager.stop_node.assert_not_called()
+        # stop_node is always called even on stopped nodes to handle flapping race conditions
+        mock_manager.stop_node.assert_called_once()
 
         # Verify node status updated to DISABLED
         updated_node = db_session.query(Node).filter(Node.id == 1).first()
