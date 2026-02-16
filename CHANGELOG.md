@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-02-16
+
+### Changed
+- Replaced repetitive `merge_config_changes()` if-blocks with data-driven field descriptors
+
 ## [0.6.0] - 2026-02-16
 
 ### Changed

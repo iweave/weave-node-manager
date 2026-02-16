@@ -610,90 +610,91 @@ def load_config():
     return options
 
 
+# Field descriptors for data-driven config merging: (field_name, cast_type)
+# Cast types: "int", "int_nullable", "float", "str", "port"
+_MERGE_FIELDS = [
+    ("node_cap", "int"),
+    ("cpu_less_than", "int"),
+    ("cpu_remove", "int"),
+    ("mem_less_than", "int"),
+    ("mem_remove", "int"),
+    ("hd_less_than", "int"),
+    ("hd_remove", "int"),
+    ("delay_start", "int"),
+    ("delay_restart", "int"),
+    ("delay_upgrade", "int"),
+    ("delay_remove", "int"),
+    ("survey_delay", "int"),
+    ("action_delay", "int_nullable"),
+    ("max_concurrent_upgrades", "int"),
+    ("max_concurrent_starts", "int"),
+    ("max_concurrent_removals", "int"),
+    ("max_concurrent_operations", "int"),
+    ("node_storage", "str"),
+    ("donate_address", "str"),
+    ("max_load_average_allowed", "float"),
+    ("desired_load_average", "float"),
+    ("port_start", "port"),
+    ("hdio_read_less_than", "int"),
+    ("hdio_read_remove", "int"),
+    ("hdio_write_less_than", "int"),
+    ("hdio_write_remove", "int"),
+    ("netio_read_less_than", "int"),
+    ("netio_read_remove", "int"),
+    ("netio_write_less_than", "int"),
+    ("netio_write_remove", "int"),
+    ("crisis_bytes", "int"),
+    ("metrics_port_start", "port"),
+    ("rpc_port_start", "port"),
+    ("environment", "str"),
+    ("start_args", "str"),
+    ("process_manager", "str"),
+    ("antnode_path", "str"),
+    ("antctl_path", "str"),
+    ("antctl_version", "str"),
+    ("highest_node_id_used", "int"),
+]
+
+
 # Merge the changes from the config file with the database
 def merge_config_changes(options, machine_config):
-    # Collect updates
+    import sys
+
     cfg = {}
-    if options.node_cap and int(options.node_cap) != machine_config.node_cap:
-        cfg["node_cap"] = int(options.node_cap)
-    if (
-        options.cpu_less_than
-        and int(options.cpu_less_than) != machine_config.cpu_less_than
-    ):
-        cfg["cpu_less_than"] = int(options.cpu_less_than)
-    if options.cpu_remove and int(options.cpu_remove) != machine_config.cpu_remove:
-        cfg["cpu_remove"] = int(options.cpu_remove)
-    if (
-        options.mem_less_than
-        and int(options.mem_less_than) != machine_config.mem_less_than
-    ):
-        cfg["mem_less_than"] = int(options.mem_less_than)
-    if options.mem_remove and int(options.mem_remove) != machine_config.mem_remove:
-        cfg["mem_remove"] = int(options.mem_remove)
-    if (
-        options.hd_less_than
-        and int(options.hd_less_than) != machine_config.hd_less_than
-    ):
-        cfg["hd_less_than"] = int(options.hd_less_than)
-    if options.hd_remove and int(options.hd_remove) != machine_config.hd_remove:
-        cfg["hd_remove"] = int(options.hd_remove)
-    if options.delay_start and int(options.delay_start) != machine_config.delay_start:
-        cfg["delay_start"] = int(options.delay_start)
-    if (
-        options.delay_restart
-        and int(options.delay_restart) != machine_config.delay_restart
-    ):
-        cfg["delay_restart"] = int(options.delay_restart)
-    if (
-        options.delay_upgrade
-        and int(options.delay_upgrade) != machine_config.delay_upgrade
-    ):
-        cfg["delay_upgrade"] = int(options.delay_upgrade)
-    if (
-        options.delay_remove
-        and int(options.delay_remove) != machine_config.delay_remove
-    ):
-        cfg["delay_remove"] = int(options.delay_remove)
-    if (
-        options.survey_delay
-        and int(options.survey_delay) != machine_config.survey_delay
-    ):
-        cfg["survey_delay"] = int(options.survey_delay)
-    if (
-        options.action_delay is not None
-        and int(options.action_delay) != machine_config.action_delay
-    ):
-        cfg["action_delay"] = int(options.action_delay)
-    if (
-        options.max_concurrent_upgrades
-        and int(options.max_concurrent_upgrades)
-        != machine_config.max_concurrent_upgrades
-    ):
-        cfg["max_concurrent_upgrades"] = int(options.max_concurrent_upgrades)
-    if (
-        options.max_concurrent_starts
-        and int(options.max_concurrent_starts) != machine_config.max_concurrent_starts
-    ):
-        cfg["max_concurrent_starts"] = int(options.max_concurrent_starts)
-    if (
-        options.max_concurrent_removals
-        and int(options.max_concurrent_removals)
-        != machine_config.max_concurrent_removals
-    ):
-        cfg["max_concurrent_removals"] = int(options.max_concurrent_removals)
-    if (
-        options.max_concurrent_operations
-        and int(options.max_concurrent_operations)
-        != machine_config.max_concurrent_operations
-    ):
-        cfg["max_concurrent_operations"] = int(options.max_concurrent_operations)
-    if options.node_storage and options.node_storage != machine_config.node_storage:
-        cfg["node_storage"] = options.node_storage
+
+    # Data-driven: handle all standard fields
+    for field, cast_type in _MERGE_FIELDS:
+        opt_val = getattr(options, field, None)
+        db_val = getattr(machine_config, field)
+
+        if cast_type == "int_nullable":
+            if opt_val is None:
+                continue
+            opt_val = int(opt_val)
+        elif cast_type == "int":
+            if not opt_val:
+                continue
+            opt_val = int(opt_val)
+        elif cast_type == "float":
+            if not opt_val:
+                continue
+            opt_val = float(opt_val)
+        elif cast_type == "port":
+            if not opt_val:
+                continue
+            opt_val = normalize_port_start(opt_val)
+        else:  # str
+            if not opt_val:
+                continue
+
+        if opt_val != db_val:
+            cfg[field] = opt_val
+
+    # Special: rewards_address (validation + exit on failure)
     if (
         options.rewards_address
         and options.rewards_address != machine_config.rewards_address
     ):
-        # Validate the new rewards_address
         is_valid, error_msg = validate_rewards_address(
             options.rewards_address, machine_config.donate_address
         )
@@ -701,110 +702,12 @@ def merge_config_changes(options, machine_config):
             logging.error(f"Invalid rewards_address: {error_msg}")
             sys.exit(1)
         cfg["rewards_address"] = options.rewards_address
-    if (
-        options.donate_address
-        and options.donate_address != machine_config.donate_address
-    ):
-        cfg["donate_address"] = options.donate_address
-    if (
-        options.max_load_average_allowed
-        and float(options.max_load_average_allowed)
-        != machine_config.max_load_average_allowed
-    ):
-        cfg["max_load_average_allowed"] = float(options.max_load_average_allowed)
-    if (
-        options.desired_load_average
-        and float(options.desired_load_average) != machine_config.desired_load_average
-    ):
-        cfg["desired_load_average"] = float(options.desired_load_average)
-    if (
-        options.port_start
-        and normalize_port_start(options.port_start) != machine_config.port_start
-    ):
-        cfg["port_start"] = normalize_port_start(options.port_start)
-    if (
-        options.hdio_read_less_than
-        and int(options.hdio_read_less_than) != machine_config.hdio_read_less_than
-    ):
-        cfg["hdio_read_less_than"] = int(options.hdio_read_less_than)
-    if (
-        options.hdio_read_remove
-        and int(options.hdio_read_remove) != machine_config.hdio_read_remove
-    ):
-        cfg["hdio_read_remove"] = int(options.hdio_read_remove)
-    if (
-        options.hdio_write_less_than
-        and int(options.hdio_write_less_than) != machine_config.hdio_write_less_than
-    ):
-        cfg["hdio_write_less_than"] = int(options.hdio_write_less_than)
-    if (
-        options.hdio_write_remove
-        and int(options.hdio_write_remove) != machine_config.hdio_write_remove
-    ):
-        cfg["hdio_write_remove"] = int(options.hdio_write_remove)
-    if (
-        options.netio_read_less_than
-        and int(options.netio_read_less_than) != machine_config.netio_read_less_than
-    ):
-        cfg["netio_read_less_than"] = int(options.netio_read_less_than)
-    if (
-        options.netio_read_remove
-        and int(options.netio_read_remove) != machine_config.netio_read_remove
-    ):
-        cfg["netio_read_remove"] = int(options.netio_read_remove)
-    if (
-        options.netio_write_less_than
-        and int(options.netio_write_less_than) != machine_config.netio_write_less_than
-    ):
-        cfg["netio_write_less_than"] = int(options.netio_write_less_than)
-    if (
-        options.netio_write_remove
-        and int(options.netio_write_remove) != machine_config.netio_write_remove
-    ):
-        cfg["netio_write_remove"] = int(options.netio_write_remove)
-    if (
-        options.crisis_bytes
-        and int(options.crisis_bytes) != machine_config.crisis_bytes
-    ):
-        cfg["crisis_bytes"] = int(options.crisis_bytes)
-    if (
-        options.metrics_port_start
-        and normalize_port_start(options.metrics_port_start)
-        != machine_config.metrics_port_start
-    ):
-        cfg["metrics_port_start"] = normalize_port_start(options.metrics_port_start)
-    if (
-        options.rpc_port_start
-        and normalize_port_start(options.rpc_port_start)
-        != machine_config.rpc_port_start
-    ):
-        cfg["rpc_port_start"] = normalize_port_start(options.rpc_port_start)
-    if options.environment and options.environment != machine_config.environment:
-        cfg["environment"] = options.environment
-    if options.start_args and options.start_args != machine_config.start_args:
-        cfg["start_args"] = options.start_args
-    # process_manager can only be set during init (not allowed to change after initialization)
-    # Similar to port_start and metrics_port_start
-    if (
-        options.process_manager
-        and options.process_manager != machine_config.process_manager
-    ):
-        cfg["process_manager"] = options.process_manager
-    # Only update no_upnp if explicitly provided (check if in command line or env var)
-    # Don't update based on store_true default value of False
-    import sys
 
+    # Special: bool flags checked via sys.argv (store_true default is indistinguishable)
     if "--no_upnp" in sys.argv or "--no-upnp" in sys.argv or os.getenv("NO_UPNP"):
         if bool(options.no_upnp) != bool(machine_config.no_upnp):
             cfg["no_upnp"] = bool(options.no_upnp)
-    # Only update antnode_path if explicitly provided (not None)
-    if options.antnode_path and options.antnode_path != machine_config.antnode_path:
-        cfg["antnode_path"] = options.antnode_path
-    # Only update antctl_path if explicitly provided (not None)
-    if options.antctl_path and options.antctl_path != machine_config.antctl_path:
-        cfg["antctl_path"] = options.antctl_path
-    # Only update antctl_debug if explicitly provided (check if in command line or env var)
-    # Don't update based on store_true default value of False
+
     if (
         "--antctl_debug" in sys.argv
         or "--antctl-debug" in sys.argv
@@ -812,30 +715,14 @@ def merge_config_changes(options, machine_config):
     ):
         if bool(options.antctl_debug) != bool(machine_config.antctl_debug):
             cfg["antctl_debug"] = bool(options.antctl_debug)
-    # Only update antctl_version if explicitly provided (not None)
-    if (
-        options.antctl_version
-        and options.antctl_version != machine_config.antctl_version
-    ):
-        cfg["antctl_version"] = options.antctl_version
 
-    # highest_node_id_used override (only with --force_action update_config)
-    if (
-        options.highest_node_id_used
-        and int(options.highest_node_id_used) != machine_config.highest_node_id_used
-    ):
-        cfg["highest_node_id_used"] = int(options.highest_node_id_used)
-
-    # Special handling for --force_action disable_config
-    # When disable_config is used, specified boolean flags are inverted (set to False)
+    # Special: disable_config inverts boolean flags
     if hasattr(options, "force_action") and options.force_action == "disable_config":
-        # Check for --antctl_debug flag and set it to False
         if "--antctl_debug" in sys.argv or "--antctl-debug" in sys.argv:
             if machine_config.antctl_debug != False:
                 cfg["antctl_debug"] = False
                 logging.info("disable_config: Setting antctl_debug to False")
 
-        # Check for --no_upnp flag and set it to False
         if "--no_upnp" in sys.argv or "--no-upnp" in sys.argv:
             if machine_config.no_upnp != False:
                 cfg["no_upnp"] = False
