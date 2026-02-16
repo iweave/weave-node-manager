@@ -114,7 +114,10 @@ class ActionExecutor:
             return 0
 
         # Check for transient override (this_action_delay)
-        if "this_action_delay" in machine_config and machine_config["this_action_delay"] is not None:
+        if (
+            "this_action_delay" in machine_config
+            and machine_config["this_action_delay"] is not None
+        ):
             return int(machine_config["this_action_delay"])
 
         # Fall back to persistent setting
@@ -136,7 +139,10 @@ class ActionExecutor:
             return 0
 
         # Check for transient override (this_survey_delay)
-        if "this_survey_delay" in machine_config and machine_config["this_survey_delay"] is not None:
+        if (
+            "this_survey_delay" in machine_config
+            and machine_config["this_survey_delay"] is not None
+        ):
             return int(machine_config["this_survey_delay"])
 
         # Fall back to persistent setting
@@ -160,6 +166,7 @@ class ActionExecutor:
         # Check if this is an AntctlManager or AntctlZenManager - they have their own upgrade methods
         from wnm.process_managers.antctl_manager import AntctlManager
         from wnm.process_managers.antctl_zen_manager import AntctlZenManager
+
         if isinstance(manager, (AntctlManager, AntctlZenManager)):
             # Use antctl's built-in upgrade command
             logging.info(f"Using antctl upgrade for node {node.id}")
@@ -514,7 +521,9 @@ class ActionExecutor:
             return {"status": "add-node"}
 
         # Use the machine config's process manager (includes mode like "systemd+sudo")
-        manager_type = machine_config.get("process_manager") or get_default_manager_type()
+        manager_type = (
+            machine_config.get("process_manager") or get_default_manager_type()
+        )
 
         # Determine node ID allocation strategy based on process manager
         if manager_type in ["antctl+user", "antctl+sudo", "antctl+zen"]:
@@ -530,7 +539,9 @@ class ActionExecutor:
                 session.query(Machine).filter(Machine.id == 1).update(node_id_update)
                 session.commit()
 
-            logging.info(f"Allocated node ID {node_id} using antctl ID tracking (highest_node_id_used now {node_id_update['highest_node_id_used']})")
+            logging.info(
+                f"Allocated node ID {node_id} using antctl ID tracking (highest_node_id_used now {node_id_update['highest_node_id_used']})"
+            )
         else:
             # Other managers: Use legacy node_id allocation (fills gaps)
             # First check if node 1 exists
@@ -568,8 +579,7 @@ class ActionExecutor:
 
         # Select wallet for this node from weighted distribution
         selected_wallet = select_wallet_for_node(
-            machine_config["rewards_address"],
-            machine_config["donate_address"]
+            machine_config["rewards_address"], machine_config["donate_address"]
         )
 
         # Create node object
@@ -582,7 +592,8 @@ class ActionExecutor:
             root_dir=f"{machine_config['node_storage']}/antnode{node_id:04}",
             binary=f"{machine_config['node_storage']}/antnode{node_id:04}/antnode",
             port=machine_config["port_start"] * PORT_MULTIPLIER + node_id,
-            metrics_port=machine_config["metrics_port_start"] * PORT_MULTIPLIER + node_id,
+            metrics_port=machine_config["metrics_port_start"] * PORT_MULTIPLIER
+            + node_id,
             rpc_port=machine_config["rpc_port_start"] * PORT_MULTIPLIER + node_id,
             network="evm-arbitrum-one",
             wallet=selected_wallet,
@@ -624,15 +635,17 @@ class ActionExecutor:
                     # Create or update Container record
                     from wnm.models import Container
 
-                    container = session.query(Container).filter_by(
-                        container_id=node_process.container_id
-                    ).first()
+                    container = (
+                        session.query(Container)
+                        .filter_by(container_id=node_process.container_id)
+                        .first()
+                    )
 
                     if not container:
                         container = Container(
                             container_id=node_process.container_id,
                             name=f"antnode{node.node_name}",
-                            image=getattr(manager, 'image', 'unknown'),
+                            image=getattr(manager, "image", "unknown"),
                             status="running",
                             created_at=int(time.time()),
                             machine_id=1,
@@ -674,6 +687,7 @@ class ActionExecutor:
             Node ID as integer, or None if parsing fails
         """
         import re
+
         match = re.match(r"antnode(\d+)", service_name)
         if match:
             return int(match.group(1))
@@ -694,9 +708,7 @@ class ActionExecutor:
             return None
 
         with self.S() as session:
-            result = session.execute(
-                select(Node).where(Node.id == node_id)
-            ).first()
+            result = session.execute(select(Node).where(Node.id == node_id)).first()
 
         if result:
             return result[0]
@@ -746,7 +758,11 @@ class ActionExecutor:
             return {"status": "error", "message": f"Unknown action type: {action_type}"}
 
     def _force_add_node(
-        self, machine_config: Dict[str, Any], metrics: Dict[str, Any], dry_run: bool, count: int = 1
+        self,
+        machine_config: Dict[str, Any],
+        metrics: Dict[str, Any],
+        dry_run: bool,
+        count: int = 1,
     ) -> Dict[str, Any]:
         """Force add new nodes.
 
@@ -777,7 +793,9 @@ class ActionExecutor:
             # Insert delay between operations (skip before first)
             if i > 0 and delay_ms > 0:
                 delay_seconds = delay_ms / 1000.0
-                logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node additions")
+                logging.info(
+                    f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node additions"
+                )
                 time.sleep(delay_seconds)
 
             result = self._execute_add_node(machine_config, metrics, dry_run)
@@ -786,14 +804,20 @@ class ActionExecutor:
                 if not dry_run:
                     with self.S() as session:
                         newest = session.execute(
-                            select(Node).where(Node.age >= start_time).order_by(Node.age.desc())
+                            select(Node)
+                            .where(Node.age >= start_time)
+                            .order_by(Node.age.desc())
                         ).first()
                         if newest:
-                            added_nodes.append(newest[0].service.replace(".service", ""))
+                            added_nodes.append(
+                                newest[0].service.replace(".service", "")
+                            )
                 else:
                     added_nodes.append(f"node-{i+1}")
             else:
-                failed_nodes.append({"index": i+1, "error": result.get("status", "unknown error")})
+                failed_nodes.append(
+                    {"index": i + 1, "error": result.get("status", "unknown error")}
+                )
 
         if count == 1:
             # Keep backward compatibility for single node
@@ -825,11 +849,17 @@ class ActionExecutor:
 
         # Check if service_name was provided but resulted in empty list (invalid input)
         # This prevents accidental removal when user provides whitespace or invalid characters
-        if service_name is not None and service_names is not None and len(service_names) == 0:
-            logging.error(f"Invalid service_name provided (empty after parsing): {repr(service_name)}")
+        if (
+            service_name is not None
+            and service_names is not None
+            and len(service_names) == 0
+        ):
+            logging.error(
+                f"Invalid service_name provided (empty after parsing): {repr(service_name)}"
+            )
             return {
                 "status": "error",
-                "message": f"Invalid service_name provided: {repr(service_name)}. No nodes specified."
+                "message": f"Invalid service_name provided: {repr(service_name)}. No nodes specified.",
             }
 
         if service_names:
@@ -844,7 +874,9 @@ class ActionExecutor:
                 # Insert delay between operations (skip before first)
                 if idx > 0 and delay_ms > 0:
                     delay_seconds = delay_ms / 1000.0
-                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node removals")
+                    logging.info(
+                        f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node removals"
+                    )
                     time.sleep(delay_seconds)
 
                 node = self._get_node_by_name(name)
@@ -872,7 +904,9 @@ class ActionExecutor:
             # If ALL specified nodes failed (none were found/removed), return error
             if len(removed_nodes) == 0 and len(failed_nodes) > 0:
                 node_list = ", ".join([f["service"] for f in failed_nodes])
-                logging.warning(f"All specified nodes failed: {node_list}. No nodes were removed.")
+                logging.warning(
+                    f"All specified nodes failed: {node_list}. No nodes were removed."
+                )
                 return {
                     "status": "error",
                     "message": f"None of the specified service names exist: {node_list}",
@@ -903,7 +937,9 @@ class ActionExecutor:
                 return {"status": "error", "message": "No nodes to remove"}
 
             if len(youngest_nodes) < count:
-                logging.warning(f"Only {len(youngest_nodes)} nodes available, removing all of them")
+                logging.warning(
+                    f"Only {len(youngest_nodes)} nodes available, removing all of them"
+                )
 
             removed_nodes = []
             failed_nodes = []
@@ -915,7 +951,9 @@ class ActionExecutor:
                 # Insert delay between operations (skip before first)
                 if idx > 0 and delay_ms > 0:
                     delay_seconds = delay_ms / 1000.0
-                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node removals")
+                    logging.info(
+                        f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node removals"
+                    )
                     time.sleep(delay_seconds)
 
                 node = row[0]
@@ -933,7 +971,12 @@ class ActionExecutor:
                         removed_nodes.append(node.service.replace(".service", ""))
                     except Exception as e:
                         logging.error(f"Failed to remove node {node.node_name}: {e}")
-                        failed_nodes.append({"service": node.service.replace(".service", ""), "error": str(e)})
+                        failed_nodes.append(
+                            {
+                                "service": node.service.replace(".service", ""),
+                                "error": str(e),
+                            }
+                        )
 
             if count == 1 and len(removed_nodes) == 1:
                 # Keep backward compatibility for single node
@@ -950,7 +993,11 @@ class ActionExecutor:
             }
 
     def _force_upgrade_node(
-        self, service_name: Optional[str], metrics: Dict[str, Any], dry_run: bool, count: int = 1
+        self,
+        service_name: Optional[str],
+        metrics: Dict[str, Any],
+        dry_run: bool,
+        count: int = 1,
     ) -> Dict[str, Any]:
         """Force upgrade nodes (specific or oldest running nodes by age).
 
@@ -968,11 +1015,17 @@ class ActionExecutor:
 
         # Check if service_name was provided but resulted in empty list (invalid input)
         # This prevents accidental upgrade when user provides whitespace or invalid characters
-        if service_name is not None and service_names is not None and len(service_names) == 0:
-            logging.error(f"Invalid service_name provided (empty after parsing): {repr(service_name)}")
+        if (
+            service_name is not None
+            and service_names is not None
+            and len(service_names) == 0
+        ):
+            logging.error(
+                f"Invalid service_name provided (empty after parsing): {repr(service_name)}"
+            )
             return {
                 "status": "error",
-                "message": f"Invalid service_name provided: {repr(service_name)}. No nodes specified."
+                "message": f"Invalid service_name provided: {repr(service_name)}. No nodes specified.",
             }
 
         if service_names:
@@ -987,7 +1040,9 @@ class ActionExecutor:
                 # Insert delay between operations (skip before first)
                 if idx > 0 and delay_ms > 0:
                     delay_seconds = delay_ms / 1000.0
-                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node upgrades")
+                    logging.info(
+                        f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node upgrades"
+                    )
                     time.sleep(delay_seconds)
 
                 node = self._get_node_by_name(name)
@@ -1001,8 +1056,12 @@ class ActionExecutor:
                     upgraded_nodes.append(name)
                 else:
                     try:
-                        if not self._upgrade_node_binary(node, metrics["antnode_version"]):
-                            failed_nodes.append({"service": name, "error": "upgrade failed"})
+                        if not self._upgrade_node_binary(
+                            node, metrics["antnode_version"]
+                        ):
+                            failed_nodes.append(
+                                {"service": name, "error": "upgrade failed"}
+                            )
                         else:
                             upgraded_nodes.append(name)
                     except Exception as e:
@@ -1012,7 +1071,9 @@ class ActionExecutor:
             # If ALL specified nodes failed (none were found/upgraded), return error
             if len(upgraded_nodes) == 0 and len(failed_nodes) > 0:
                 node_list = ", ".join([f["service"] for f in failed_nodes])
-                logging.warning(f"All specified nodes failed: {node_list}. No nodes were upgraded.")
+                logging.warning(
+                    f"All specified nodes failed: {node_list}. No nodes were upgraded."
+                )
                 return {
                     "status": "error",
                     "message": f"None of the specified service names exist: {node_list}",
@@ -1046,7 +1107,9 @@ class ActionExecutor:
                 return {"status": "error", "message": "No running nodes to upgrade"}
 
             if len(oldest_nodes) < count:
-                logging.warning(f"Only {len(oldest_nodes)} running nodes available, upgrading all of them")
+                logging.warning(
+                    f"Only {len(oldest_nodes)} running nodes available, upgrading all of them"
+                )
 
             upgraded_nodes = []
             failed_nodes = []
@@ -1058,7 +1121,9 @@ class ActionExecutor:
                 # Insert delay between operations (skip before first)
                 if idx > 0 and delay_ms > 0:
                     delay_seconds = delay_ms / 1000.0
-                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node upgrades")
+                    logging.info(
+                        f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node upgrades"
+                    )
                     time.sleep(delay_seconds)
 
                 node = row[0]
@@ -1067,13 +1132,25 @@ class ActionExecutor:
                     upgraded_nodes.append(node.service.replace(".service", ""))
                 else:
                     try:
-                        if not self._upgrade_node_binary(node, metrics["antnode_version"]):
-                            failed_nodes.append({"service": node.service.replace(".service", ""), "error": "upgrade failed"})
+                        if not self._upgrade_node_binary(
+                            node, metrics["antnode_version"]
+                        ):
+                            failed_nodes.append(
+                                {
+                                    "service": node.service.replace(".service", ""),
+                                    "error": "upgrade failed",
+                                }
+                            )
                         else:
                             upgraded_nodes.append(node.service.replace(".service", ""))
                     except Exception as e:
                         logging.error(f"Failed to upgrade node {node.node_name}: {e}")
-                        failed_nodes.append({"service": node.service.replace(".service", ""), "error": str(e)})
+                        failed_nodes.append(
+                            {
+                                "service": node.service.replace(".service", ""),
+                                "error": str(e),
+                            }
+                        )
 
             if count == 1 and len(upgraded_nodes) == 1:
                 # Keep backward compatibility for single node
@@ -1107,11 +1184,17 @@ class ActionExecutor:
 
         # Check if service_name was provided but resulted in empty list (invalid input)
         # This prevents accidental stop when user provides whitespace or invalid characters
-        if service_name is not None and service_names is not None and len(service_names) == 0:
-            logging.error(f"Invalid service_name provided (empty after parsing): {repr(service_name)}")
+        if (
+            service_name is not None
+            and service_names is not None
+            and len(service_names) == 0
+        ):
+            logging.error(
+                f"Invalid service_name provided (empty after parsing): {repr(service_name)}"
+            )
             return {
                 "status": "error",
-                "message": f"Invalid service_name provided: {repr(service_name)}. No nodes specified."
+                "message": f"Invalid service_name provided: {repr(service_name)}. No nodes specified.",
             }
 
         if service_names:
@@ -1126,7 +1209,9 @@ class ActionExecutor:
                 # Insert delay between operations (skip before first)
                 if idx > 0 and delay_ms > 0:
                     delay_seconds = delay_ms / 1000.0
-                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node stops")
+                    logging.info(
+                        f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node stops"
+                    )
                     time.sleep(delay_seconds)
 
                 node = self._get_node_by_name(name)
@@ -1151,7 +1236,9 @@ class ActionExecutor:
             # If ALL specified nodes failed (none were found/stopped), return error
             if len(stopped_nodes) == 0 and len(failed_nodes) > 0:
                 node_list = ", ".join([f["service"] for f in failed_nodes])
-                logging.warning(f"All specified nodes failed: {node_list}. No nodes were stopped.")
+                logging.warning(
+                    f"All specified nodes failed: {node_list}. No nodes were stopped."
+                )
                 return {
                     "status": "error",
                     "message": f"None of the specified service names exist: {node_list}",
@@ -1185,7 +1272,9 @@ class ActionExecutor:
                 return {"status": "error", "message": "No running nodes to stop"}
 
             if len(youngest_nodes) < count:
-                logging.warning(f"Only {len(youngest_nodes)} running nodes available, stopping all of them")
+                logging.warning(
+                    f"Only {len(youngest_nodes)} running nodes available, stopping all of them"
+                )
 
             stopped_nodes = []
             failed_nodes = []
@@ -1197,7 +1286,9 @@ class ActionExecutor:
                 # Insert delay between operations (skip before first)
                 if idx > 0 and delay_ms > 0:
                     delay_seconds = delay_ms / 1000.0
-                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node stops")
+                    logging.info(
+                        f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node stops"
+                    )
                     time.sleep(delay_seconds)
 
                 node = row[0]
@@ -1212,7 +1303,12 @@ class ActionExecutor:
                         stopped_nodes.append(node.service.replace(".service", ""))
                     except Exception as e:
                         logging.error(f"Failed to stop node {node.node_name}: {e}")
-                        failed_nodes.append({"service": node.service.replace(".service", ""), "error": str(e)})
+                        failed_nodes.append(
+                            {
+                                "service": node.service.replace(".service", ""),
+                                "error": str(e),
+                            }
+                        )
 
             if count == 1 and len(stopped_nodes) == 1:
                 # Keep backward compatibility for single node
@@ -1229,7 +1325,11 @@ class ActionExecutor:
             }
 
     def _force_start_node(
-        self, service_name: Optional[str], metrics: Dict[str, Any], dry_run: bool, count: int = 1
+        self,
+        service_name: Optional[str],
+        metrics: Dict[str, Any],
+        dry_run: bool,
+        count: int = 1,
     ) -> Dict[str, Any]:
         """Force start nodes (specific or oldest stopped nodes by age).
 
@@ -1247,11 +1347,17 @@ class ActionExecutor:
 
         # Check if service_name was provided but resulted in empty list (invalid input)
         # This prevents accidental start when user provides whitespace or invalid characters
-        if service_name is not None and service_names is not None and len(service_names) == 0:
-            logging.error(f"Invalid service_name provided (empty after parsing): {repr(service_name)}")
+        if (
+            service_name is not None
+            and service_names is not None
+            and len(service_names) == 0
+        ):
+            logging.error(
+                f"Invalid service_name provided (empty after parsing): {repr(service_name)}"
+            )
             return {
                 "status": "error",
-                "message": f"Invalid service_name provided: {repr(service_name)}. No nodes specified."
+                "message": f"Invalid service_name provided: {repr(service_name)}. No nodes specified.",
             }
 
         if service_names:
@@ -1267,7 +1373,9 @@ class ActionExecutor:
                 # Insert delay between operations (skip before first)
                 if idx > 0 and delay_ms > 0:
                     delay_seconds = delay_ms / 1000.0
-                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node starts")
+                    logging.info(
+                        f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node starts"
+                    )
                     time.sleep(delay_seconds)
 
                 node = self._get_node_by_name(name)
@@ -1291,8 +1399,12 @@ class ActionExecutor:
 
                         # If the stopped version is old, upgrade it (which also starts it)
                         if Version(metrics["antnode_version"]) > Version(node.version):
-                            if not self._upgrade_node_binary(node, metrics["antnode_version"]):
-                                failed_nodes.append({"service": name, "error": "upgrade failed"})
+                            if not self._upgrade_node_binary(
+                                node, metrics["antnode_version"]
+                            ):
+                                failed_nodes.append(
+                                    {"service": name, "error": "upgrade failed"}
+                                )
                             else:
                                 upgraded_nodes.append(name)
                         else:
@@ -1301,15 +1413,23 @@ class ActionExecutor:
                                 self._set_node_status(node.id, RESTARTING)
                                 started_nodes.append(name)
                             else:
-                                failed_nodes.append({"service": name, "error": "start failed"})
+                                failed_nodes.append(
+                                    {"service": name, "error": "start failed"}
+                                )
                     except Exception as e:
                         logging.error(f"Failed to start node {name}: {e}")
                         failed_nodes.append({"service": name, "error": str(e)})
 
             # If ALL specified nodes failed (none were found/started/upgraded), return error
-            if len(started_nodes) == 0 and len(upgraded_nodes) == 0 and len(failed_nodes) > 0:
+            if (
+                len(started_nodes) == 0
+                and len(upgraded_nodes) == 0
+                and len(failed_nodes) > 0
+            ):
                 node_list = ", ".join([f["service"] for f in failed_nodes])
-                logging.warning(f"All specified nodes failed: {node_list}. No nodes were started.")
+                logging.warning(
+                    f"All specified nodes failed: {node_list}. No nodes were started."
+                )
                 return {
                     "status": "error",
                     "message": f"None of the specified service names could be started: {node_list}",
@@ -1345,7 +1465,9 @@ class ActionExecutor:
                 return {"status": "error", "message": "No stopped nodes to start"}
 
             if len(oldest_nodes) < count:
-                logging.warning(f"Only {len(oldest_nodes)} stopped nodes available, starting all of them")
+                logging.warning(
+                    f"Only {len(oldest_nodes)} stopped nodes available, starting all of them"
+                )
 
             started_nodes = []
             upgraded_nodes = []
@@ -1358,12 +1480,16 @@ class ActionExecutor:
                 # Insert delay between operations (skip before first)
                 if idx > 0 and delay_ms > 0:
                     delay_seconds = delay_ms / 1000.0
-                    logging.info(f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node starts")
+                    logging.info(
+                        f"Action delay: waiting {delay_ms}ms ({delay_seconds:.2f}s) between node starts"
+                    )
                     time.sleep(delay_seconds)
 
                 node = row[0]
                 if dry_run:
-                    logging.warning(f"DRYRUN: Start oldest stopped node {node.node_name}")
+                    logging.warning(
+                        f"DRYRUN: Start oldest stopped node {node.node_name}"
+                    )
                     started_nodes.append(node.service.replace(".service", ""))
                 else:
                     try:
@@ -1373,20 +1499,41 @@ class ActionExecutor:
 
                         # If the stopped version is old, upgrade it (which also starts it)
                         if Version(metrics["antnode_version"]) > Version(node.version):
-                            if not self._upgrade_node_binary(node, metrics["antnode_version"]):
-                                failed_nodes.append({"service": node.service.replace(".service", ""), "error": "upgrade failed"})
+                            if not self._upgrade_node_binary(
+                                node, metrics["antnode_version"]
+                            ):
+                                failed_nodes.append(
+                                    {
+                                        "service": node.service.replace(".service", ""),
+                                        "error": "upgrade failed",
+                                    }
+                                )
                             else:
-                                upgraded_nodes.append(node.service.replace(".service", ""))
+                                upgraded_nodes.append(
+                                    node.service.replace(".service", "")
+                                )
                         else:
                             manager = self._get_process_manager(node)
                             if manager.start_node(node):
                                 self._set_node_status(node.id, RESTARTING)
-                                started_nodes.append(node.service.replace(".service", ""))
+                                started_nodes.append(
+                                    node.service.replace(".service", "")
+                                )
                             else:
-                                failed_nodes.append({"service": node.service.replace(".service", ""), "error": "start failed"})
+                                failed_nodes.append(
+                                    {
+                                        "service": node.service.replace(".service", ""),
+                                        "error": "start failed",
+                                    }
+                                )
                     except Exception as e:
                         logging.error(f"Failed to start node {node.node_name}: {e}")
-                        failed_nodes.append({"service": node.service.replace(".service", ""), "error": str(e)})
+                        failed_nodes.append(
+                            {
+                                "service": node.service.replace(".service", ""),
+                                "error": str(e),
+                            }
+                        )
 
             if count == 1 and len(started_nodes) == 1:
                 # Keep backward compatibility for single node
@@ -1414,18 +1561,27 @@ class ActionExecutor:
     ) -> Dict[str, Any]:
         """Force disable a specific node (service_name required)."""
         if not service_name:
-            return {"status": "error", "message": "service_name required for disable action"}
+            return {
+                "status": "error",
+                "message": "service_name required for disable action",
+            }
 
         # Parse comma-separated service names
         service_names = parse_service_names(service_name)
 
         # Check if service_name was provided but resulted in empty list (invalid input)
         # This prevents accidental disable when user provides whitespace or invalid characters
-        if service_name is not None and service_names is not None and len(service_names) == 0:
-            logging.error(f"Invalid service_name provided (empty after parsing): {repr(service_name)}")
+        if (
+            service_name is not None
+            and service_names is not None
+            and len(service_names) == 0
+        ):
+            logging.error(
+                f"Invalid service_name provided (empty after parsing): {repr(service_name)}"
+            )
             return {
                 "status": "error",
-                "message": f"Invalid service_name provided: {repr(service_name)}. No nodes specified."
+                "message": f"Invalid service_name provided: {repr(service_name)}. No nodes specified.",
             }
 
         disabled_nodes = []
@@ -1456,7 +1612,9 @@ class ActionExecutor:
         # If ALL specified nodes failed (none were found/disabled), return error
         if len(disabled_nodes) == 0 and len(failed_nodes) > 0:
             node_list = ", ".join([f["service"] for f in failed_nodes])
-            logging.warning(f"All specified nodes failed: {node_list}. No nodes were disabled.")
+            logging.warning(
+                f"All specified nodes failed: {node_list}. No nodes were disabled."
+            )
             return {
                 "status": "error",
                 "message": f"None of the specified service names exist: {node_list}",
@@ -1479,9 +1637,7 @@ class ActionExecutor:
 
         # Get all nodes
         with self.S() as session:
-            all_nodes = session.execute(
-                select(Node).order_by(Node.id.asc())
-            ).all()
+            all_nodes = session.execute(select(Node).order_by(Node.id.asc())).all()
 
         if not all_nodes:
             return {"status": "no-nodes", "message": "No nodes to teardown"}
@@ -1494,7 +1650,7 @@ class ActionExecutor:
             manager = get_process_manager()
 
         # Try manager-specific teardown first
-        if hasattr(manager, 'teardown_cluster'):
+        if hasattr(manager, "teardown_cluster"):
             logging.info(f"Using {manager.__class__.__name__} teardown_cluster method")
             if dry_run:
                 logging.warning("DRYRUN: Teardown cluster via manager")
@@ -1503,8 +1659,11 @@ class ActionExecutor:
                     # Check if this is an antctl manager - reset node ID tracking
                     from wnm.process_managers.antctl_manager import AntctlManager
                     from wnm.process_managers.antctl_zen_manager import AntctlZenManager
+
                     if isinstance(manager, (AntctlManager, AntctlZenManager)):
-                        logging.info("Resetting highest_node_id_used to 0 after antctl reset")
+                        logging.info(
+                            "Resetting highest_node_id_used to 0 after antctl reset"
+                        )
                         with self.S() as session:
                             session.query(Machine).filter(Machine.id == 1).update(
                                 {"highest_node_id_used": 0}
@@ -1543,7 +1702,9 @@ class ActionExecutor:
             "removed_count": removed_count,
         }
 
-    def _survey_specific_nodes(self, service_names: List[str], dry_run: bool) -> Dict[str, Any]:
+    def _survey_specific_nodes(
+        self, service_names: List[str], dry_run: bool
+    ) -> Dict[str, Any]:
         """Survey specific nodes by service name.
 
         Args:
@@ -1554,7 +1715,12 @@ class ActionExecutor:
             Dictionary with survey results
         """
         import time
-        from wnm.utils import read_node_metrics, read_node_metadata, update_node_from_metrics
+
+        from wnm.utils import (
+            read_node_metadata,
+            read_node_metrics,
+            update_node_from_metrics,
+        )
 
         surveyed_nodes = []
         failed_nodes = []
@@ -1586,7 +1752,7 @@ class ActionExecutor:
                         "uptime": 0,
                         "records": 0,
                         "shunned": 0,
-                        "connected_peers": 0
+                        "connected_peers": 0,
                     }
                 else:
                     # Metadata succeeded, now get metrics
@@ -1612,7 +1778,9 @@ class ActionExecutor:
             "failed_nodes": failed_nodes if failed_nodes else None,
         }
 
-    def _force_survey_nodes(self, service_name: Optional[str] = None, dry_run: bool = False) -> Dict[str, Any]:
+    def _force_survey_nodes(
+        self, service_name: Optional[str] = None, dry_run: bool = False
+    ) -> Dict[str, Any]:
         """Force a survey of all nodes or specific nodes to update their status and metrics.
 
         Args:
@@ -1627,7 +1795,9 @@ class ActionExecutor:
 
         if service_names:
             # Survey specific nodes
-            logging.info(f"Forced action: Surveying {len(service_names)} specific nodes")
+            logging.info(
+                f"Forced action: Surveying {len(service_names)} specific nodes"
+            )
             return self._survey_specific_nodes(service_names, dry_run)
         else:
             # Survey all nodes
@@ -1638,6 +1808,7 @@ class ActionExecutor:
                 # Get count of non-disabled nodes
                 with self.S() as session:
                     from wnm.common import DISABLED
+
                     node_count = session.execute(
                         select(func.count(Node.id)).where(Node.status != DISABLED)
                     ).scalar()
@@ -1650,6 +1821,7 @@ class ActionExecutor:
             # Get updated count
             with self.S() as session:
                 from wnm.common import DISABLED
+
                 node_count = session.execute(
                     select(func.count(Node.id)).where(Node.status != DISABLED)
                 ).scalar()

@@ -27,7 +27,9 @@ from wnm.utils import (
 class SystemdManager(ProcessManager):
     """Manage nodes as systemd services (system or user mode)"""
 
-    def __init__(self, session_factory=None, firewall_type: str = None, mode: str = None):
+    def __init__(
+        self, session_factory=None, firewall_type: str = None, mode: str = None
+    ):
         """
         Initialize SystemdManager.
 
@@ -85,9 +87,10 @@ class SystemdManager(ProcessManager):
         # Get machine config to check no_upnp setting
         machine_config = None
         if self.S:
+            from sqlalchemy import select
+
             from wnm.config import S
             from wnm.models import Machine
-            from sqlalchemy import select
 
             try:
                 with S() as session:
@@ -174,18 +177,25 @@ class SystemdManager(ProcessManager):
         # Build ExecStart command with conditional --no-upnp
         exec_args = [
             binary_in_node_dir,
-            "--bootstrap-cache-dir", BOOTSTRAP_CACHE_DIR,
-            "--root-dir", node.root_dir,
-            "--port", str(node.port),
+            "--bootstrap-cache-dir",
+            BOOTSTRAP_CACHE_DIR,
+            "--root-dir",
+            node.root_dir,
+            "--port",
+            str(node.port),
             "--enable-metrics-server",
-            "--metrics-server-port", str(node.metrics_port),
-            "--log-output-dest", log_dir,
-            "--max-log-files", "1",
-            "--max-archived-log-files", "1",
+            "--metrics-server-port",
+            str(node.metrics_port),
+            "--log-output-dest",
+            log_dir,
+            "--max-log-files",
+            "1",
+            "--max-archived-log-files",
+            "1",
         ]
 
         # Add --no-upnp if configured (defaults to True for backwards compatibility)
-        if machine_config and getattr(machine_config, 'no_upnp', True):
+        if machine_config and getattr(machine_config, "no_upnp", True):
             exec_args.append("--no-upnp")
 
         exec_args.extend(["--rewards-address", node.wallet, node.network])
@@ -563,7 +573,9 @@ Restart=always
             details["binary"] = re.findall(r"ExecStart=([^ ]+)", data)[0]
             # User field may be empty for user services
             user_matches = re.findall(r"User=(\w+)", data)
-            details["user"] = user_matches[0] if user_matches else os.getenv("USER", "nobody")
+            details["user"] = (
+                user_matches[0] if user_matches else os.getenv("USER", "nobody")
+            )
             details["root_dir"] = re.findall(r"--root-dir ([\w\/]+)", data)[0]
             details["port"] = int(re.findall(r"--port (\d+)", data)[0])
             details["metrics_port"] = int(

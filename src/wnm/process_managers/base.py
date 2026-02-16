@@ -21,7 +21,9 @@ class NodeProcess:
     pid: Optional[int] = None
     status: str = "UNKNOWN"  # RUNNING, STOPPED, UPGRADING, etc.
     container_id: Optional[str] = None  # For docker-managed nodes
-    external_node_id: Optional[str] = None  # For external IDs (e.g., antctl service_name)
+    external_node_id: Optional[str] = (
+        None  # For external IDs (e.g., antctl service_name)
+    )
 
 
 class ProcessManager(ABC):

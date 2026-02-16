@@ -11,8 +11,8 @@ from typing import List, Optional
 
 from sqlalchemy import select
 
+from wnm.common import DEAD, DISABLED, REMOVING, RESTARTING, RUNNING, STOPPED, UPGRADING
 from wnm.models import Node
-from wnm.common import RUNNING, STOPPED, UPGRADING, RESTARTING, REMOVING, DISABLED, DEAD
 from wnm.utils import parse_service_names
 
 
@@ -56,19 +56,17 @@ class NodeReporter:
                     if result:
                         nodes.append(result[0])
                     else:
-                        self.logger.warning(f"Node {service_name} not found in database")
+                        self.logger.warning(
+                            f"Node {service_name} not found in database"
+                        )
                 return nodes
             else:
                 # Get all nodes ordered by ID (numerical order)
-                results = session.execute(
-                    select(Node).order_by(Node.id)
-                ).all()
+                results = session.execute(select(Node).order_by(Node.id)).all()
                 return [row[0] for row in results]
 
     def node_status_report(
-        self,
-        service_name: Optional[str] = None,
-        report_format: str = "text"
+        self, service_name: Optional[str] = None, report_format: str = "text"
     ) -> str:
         """
         Generate tabular node status report.
@@ -104,7 +102,9 @@ class NodeReporter:
                     "service_name": node.service,
                     "peer_id": node.peer_id or "-",
                     "status": node.status,
-                    "connected_peers": node.connected_peers if node.connected_peers is not None else 0,
+                    "connected_peers": (
+                        node.connected_peers if node.connected_peers is not None else 0
+                    ),
                 }
                 node_dicts.append(node_dict)
 
@@ -118,7 +118,9 @@ class NodeReporter:
         lines = []
 
         # Header
-        header = f"{'Service Name':<20}{'Peer ID':<55}{'Status':<15}{'Connected Peers':>15}"
+        header = (
+            f"{'Service Name':<20}{'Peer ID':<55}{'Status':<15}{'Connected Peers':>15}"
+        )
         lines.append(header)
 
         # Node rows
@@ -135,9 +137,7 @@ class NodeReporter:
         return "\n".join(lines)
 
     def node_status_details_report(
-        self,
-        service_name: Optional[str] = None,
-        report_format: str = "text"
+        self, service_name: Optional[str] = None, report_format: str = "text"
     ) -> str:
         """
         Generate detailed node status report.
@@ -201,11 +201,17 @@ class NodeReporter:
             lines.append(f"Log path: {log_path}")
 
             # Bin path - construct from root_dir and binary name
-            bin_path = f"{node.root_dir}/{node.binary}" if node.root_dir and node.binary else "unknown"
+            bin_path = (
+                f"{node.root_dir}/{node.binary}"
+                if node.root_dir and node.binary
+                else "unknown"
+            )
             lines.append(f"Bin Path: {bin_path}")
 
             # Connected peers from connected_peers field
-            connected_peers = node.connected_peers if node.connected_peers is not None else 0
+            connected_peers = (
+                node.connected_peers if node.connected_peers is not None else 0
+            )
             lines.append(f"Connected peers: {connected_peers}")
 
             # Rewards address from node's wallet field
@@ -351,9 +357,7 @@ class NodeReporter:
 
 
 def generate_node_status_report(
-    session_factory,
-    service_name: Optional[str] = None,
-    report_format: str = "text"
+    session_factory, service_name: Optional[str] = None, report_format: str = "text"
 ) -> str:
     """
     Convenience function to generate node status report.
@@ -371,9 +375,7 @@ def generate_node_status_report(
 
 
 def generate_node_status_details_report(
-    session_factory,
-    service_name: Optional[str] = None,
-    report_format: str = "text"
+    session_factory, service_name: Optional[str] = None, report_format: str = "text"
 ) -> str:
     """
     Convenience function to generate node status details report.
@@ -409,9 +411,7 @@ def generate_influx_resources_report(
 
 
 def generate_machine_config_report(
-    session_factory,
-    dbpath: str,
-    report_format: str = "text"
+    session_factory, dbpath: str, report_format: str = "text"
 ) -> str:
     """
     Generate a report of the machine configuration.
@@ -425,6 +425,7 @@ def generate_machine_config_report(
         Formatted report string
     """
     from sqlalchemy import select
+
     from wnm.models import Machine
 
     with session_factory() as session:
@@ -439,7 +440,13 @@ def generate_machine_config_report(
         config_dict["dbpath"] = dbpath
 
         # Fields that need quoting (paths and args with special characters)
-        quoted_fields = {'node_storage', 'environment', 'start_args', 'antnode_path', 'dbpath'}
+        quoted_fields = {
+            "node_storage",
+            "environment",
+            "start_args",
+            "antnode_path",
+            "dbpath",
+        }
 
         if report_format == "json":
             return json.dumps(config_dict, indent=2)
@@ -452,7 +459,7 @@ def generate_machine_config_report(
                 if key in quoted_fields:
                     lines.append(f'{upper_key}="{value}"')
                 else:
-                    lines.append(f'{upper_key}={value}')
+                    lines.append(f"{upper_key}={value}")
             return "\n".join(lines)
         elif report_format == "config":
             # Config file format: lower_snake_case_key="value"
@@ -462,7 +469,7 @@ def generate_machine_config_report(
                 if key in quoted_fields:
                     lines.append(f'{key}="{value}"')
                 else:
-                    lines.append(f'{key}={value}')
+                    lines.append(f"{key}={value}")
             return "\n".join(lines)
         else:
             # Text format: one entry per line
@@ -472,10 +479,7 @@ def generate_machine_config_report(
             return "\n".join(lines)
 
 
-def generate_machine_metrics_report(
-    metrics: dict,
-    report_format: str = "text"
-) -> str:
+def generate_machine_metrics_report(metrics: dict, report_format: str = "text") -> str:
     """
     Generate a report of the current system metrics.
 
@@ -503,7 +507,7 @@ def generate_machine_metrics_report(
     elif report_format == "env":
         # Environment variable format: UPPER_CASE_KEY=value (quote dicts/complex values)
         # Fields that need quoting (paths with special characters)
-        quoted_fields = {'antnode'}
+        quoted_fields = {"antnode"}
         lines = []
         for key, value in metrics_output.items():
             upper_key = key.upper()
@@ -511,7 +515,7 @@ def generate_machine_metrics_report(
             if isinstance(value, dict) or key in quoted_fields:
                 lines.append(f'{upper_key}="{value}"')
             else:
-                lines.append(f'{upper_key}={value}')
+                lines.append(f"{upper_key}={value}")
         return "\n".join(lines)
     else:
         # Text format: one entry per line

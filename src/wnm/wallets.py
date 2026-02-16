@@ -22,7 +22,7 @@ def resolve_wallet_name(name: str, donate_address: str) -> str:
             - "faucet" (case-insensitive) -> FAUCET constant (not changeable by user)
             - "donate" (case-insensitive) -> donate_address from machine config (user can override)
             - Ethereum address (0x...) -> returned as-is
-        donate_address: The donate address from machine config 
+        donate_address: The donate address from machine config
 
     Returns:
         Resolved Ethereum address

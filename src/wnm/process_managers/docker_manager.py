@@ -184,8 +184,9 @@ class DockerManager(ProcessManager):
         logging.info(f"Starting docker node {node.id}")
 
         # Check if node is already responding on metadata port
-        from wnm.utils import read_node_metadata
         from wnm.common import RUNNING
+        from wnm.utils import read_node_metadata
+
         metadata = read_node_metadata(node.host, node.metrics_port)
         if isinstance(metadata, dict) and metadata.get("status") == RUNNING:
             logging.warning(

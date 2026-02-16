@@ -128,9 +128,7 @@ class Machine(Base):
     antctl_debug: Mapped[bool] = mapped_column(
         Integer, default=0
     )  # SQLite uses 0/1 for boolean
-    antctl_version: Mapped[Optional[str]] = mapped_column(
-        UnicodeText, default=None
-    )
+    antctl_version: Mapped[Optional[str]] = mapped_column(UnicodeText, default=None)
 
     # Relationships
     containers: Mapped[list["Container"]] = relationship(
@@ -401,14 +399,14 @@ class Container(Base):
 
     def __repr__(self):
         return (
-            f'Container(id={self.id},machine_id={self.machine_id},'
+            f"Container(id={self.id},machine_id={self.machine_id},"
             + f'container_id="{self.container_id}",name="{self.name}",'
             + f'image="{self.image}",status="{self.status}",'
-            + f'created_at={self.created_at},'
-            + f'port_range_start={self.port_range_start},'
-            + f'port_range_end={self.port_range_end},'
-            + f'metrics_port_range_start={self.metrics_port_range_start},'
-            + f'metrics_port_range_end={self.metrics_port_range_end})'
+            + f"created_at={self.created_at},"
+            + f"port_range_start={self.port_range_start},"
+            + f"port_range_end={self.port_range_end},"
+            + f"metrics_port_range_start={self.metrics_port_range_start},"
+            + f"metrics_port_range_end={self.metrics_port_range_end})"
         )
 
     def __json__(self):
@@ -593,21 +591,21 @@ class Node(Base):
 
     def __repr__(self):
         return (
-            f'Node(id={self.id},machine_id={self.machine_id},container_id={self.container_id},'
+            f"Node(id={self.id},machine_id={self.machine_id},container_id={self.container_id},"
             + f'manager_type="{self.manager_type}",node_name="{self.node_name}",'
             + f'service="{self.service}",user="{self.user}",binary="{self.binary}",'
             + f'version="{self.version}",root_dir="{self.root_dir}",log_dir="{self.log_dir}",'
-            + f'port={self.port},metrics_port={self.metrics_port},rpc_port={self.rpc_port},'
+            + f"port={self.port},metrics_port={self.metrics_port},rpc_port={self.rpc_port},"
             + f'network="{self.network}",wallet="{self.wallet}",peer_id="{self.peer_id}",'
             + f'status="{self.status}",timestamp={self.timestamp},'
-            + f'records={self.records},uptime={self.uptime},shunned={self.shunned},'
-            + f'connected_peers={self.connected_peers},'
-            + f'gets={self.gets},puts={self.puts},mem={self.mem},cpu={self.cpu},'
-            + f'open_connections={self.open_connections},total_peers={self.total_peers},'
-            + f'bad_peers={self.bad_peers},rel_records={self.rel_records},'
+            + f"records={self.records},uptime={self.uptime},shunned={self.shunned},"
+            + f"connected_peers={self.connected_peers},"
+            + f"gets={self.gets},puts={self.puts},mem={self.mem},cpu={self.cpu},"
+            + f"open_connections={self.open_connections},total_peers={self.total_peers},"
+            + f"bad_peers={self.bad_peers},rel_records={self.rel_records},"
             + f'max_records={self.max_records},rewards="{self.rewards}",'
-            + f'payment_count={self.payment_count},live_time={self.live_time},'
-            + f'network_size={self.network_size},'
+            + f"payment_count={self.payment_count},live_time={self.live_time},"
+            + f"network_size={self.network_size},"
             + f'age={self.age},host="{self.host}",method="{self.method}",'
             + f'layout="{self.layout}",environment="{self.environment}")'
         )

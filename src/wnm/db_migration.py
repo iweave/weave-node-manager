@@ -52,7 +52,9 @@ def get_alembic_config(db_url: str = None):
         )
 
     # Disable Alembic's logging configuration to prevent it from resetting root logger
-    config = Config(alembic_ini, ini_section="alembic", attributes={'configure_logger': False})
+    config = Config(
+        alembic_ini, ini_section="alembic", attributes={"configure_logger": False}
+    )
 
     # Override database URL if provided
     if db_url:
@@ -106,7 +108,9 @@ def get_head_revision(config) -> str | list[str]:
         raise
 
 
-def has_pending_migrations(engine, db_url: str) -> tuple[bool, str | None, str | list[str]]:
+def has_pending_migrations(
+    engine, db_url: str
+) -> tuple[bool, str | None, str | list[str]]:
     """
     Check if there are pending migrations.
 
@@ -221,8 +225,12 @@ def check_and_warn_migrations(engine, db_url: str):
             logging.error("INSTALLATION ERROR: CORRUPTED MIGRATION HISTORY")
             logging.error("=" * 70)
             logging.error("")
-            logging.error("The migration history in this installation has multiple branches.")
-            logging.error("This is a bug in the software installation, not your database.")
+            logging.error(
+                "The migration history in this installation has multiple branches."
+            )
+            logging.error(
+                "This is a bug in the software installation, not your database."
+            )
             logging.error("")
             logging.error("Multiple heads detected:")
             for h in head:
@@ -249,8 +257,12 @@ def check_and_warn_migrations(engine, db_url: str):
             # Provide different instructions for legacy databases vs normal migrations
             if current is None:
                 # Legacy database - needs stamping first
-                logging.error("This appears to be a legacy database without migration tracking.")
-                logging.error("Before running migrations, you must first identify which version")
+                logging.error(
+                    "This appears to be a legacy database without migration tracking."
+                )
+                logging.error(
+                    "Before running migrations, you must first identify which version"
+                )
                 logging.error("your database corresponds to and stamp it.")
                 logging.error("")
                 logging.error("For a v0.2.0 database, run:")
@@ -259,7 +271,9 @@ def check_and_warn_migrations(engine, db_url: str):
                 logging.error("Then run migrations:")
                 logging.error("  wnm --force_action wnm-db-migration --confirm")
                 logging.error("")
-                logging.error("If you're unsure of your database version, please ask for help at:")
+                logging.error(
+                    "If you're unsure of your database version, please ask for help at:"
+                )
                 logging.error("  https://github.com/iweave/weave-node-manager/issues")
             else:
                 # Normal migration - already tracked
@@ -301,7 +315,9 @@ def auto_stamp_new_database(engine, db_url: str):
                 row_count = result.scalar()
                 if row_count > 0:
                     # This is a legacy database with data, don't auto-stamp
-                    logging.debug("Legacy database detected (has data but no alembic_version), skipping auto-stamp")
+                    logging.debug(
+                        "Legacy database detected (has data but no alembic_version), skipping auto-stamp"
+                    )
                     return
         except Exception as e:
             # If we can't check the machine table, assume it's not a legacy database

@@ -45,7 +45,7 @@ def parse_service_names(service_name_str: Optional[str]) -> Optional[List[str]]:
         return None
 
     # Split by comma and strip whitespace
-    names = [name.strip() for name in service_name_str.split(',')]
+    names = [name.strip() for name in service_name_str.split(",")]
     # Filter out empty strings
     return [name for name in names if name]
 
@@ -116,7 +116,12 @@ def read_node_metrics(host, port):
         # New influx-specific metrics
         # PUTs (counter, use _total suffix)
         metrics["puts"] = int(
-            (re.findall(r"ant_node_put_record_ok_total(?:\{[^}]*\})? ([\d]+)", response.text) or [0])[0]
+            (
+                re.findall(
+                    r"ant_node_put_record_ok_total(?:\{[^}]*\})? ([\d]+)", response.text
+                )
+                or [0]
+            )[0]
         )
 
         # GETs (not currently exposed, default to 0)
@@ -124,35 +129,71 @@ def read_node_metrics(host, port):
 
         # Rewards (as string for high precision)
         metrics["rewards"] = str(
-            (re.findall(r"ant_node_current_reward_wallet_balance ([\d.]+)", response.text) or ["0"])[0]
+            (
+                re.findall(
+                    r"ant_node_current_reward_wallet_balance ([\d.]+)", response.text
+                )
+                or ["0"]
+            )[0]
         )
 
         # Memory in MB * 100 (e.g., 97.8125 -> 9781)
-        mem_mb = float((re.findall(r"ant_networking_process_memory_used_mb ([\d.]+)", response.text) or [0])[0])
+        mem_mb = float(
+            (
+                re.findall(
+                    r"ant_networking_process_memory_used_mb ([\d.]+)", response.text
+                )
+                or [0]
+            )[0]
+        )
         metrics["mem"] = int(mem_mb * 100)
 
         # CPU percentage * 100 (e.g., 0.0353 -> 4)
-        cpu_pct = float((re.findall(r"ant_networking_process_cpu_usage_percentage ([\d.]+)", response.text) or [0])[0])
+        cpu_pct = float(
+            (
+                re.findall(
+                    r"ant_networking_process_cpu_usage_percentage ([\d.]+)",
+                    response.text,
+                )
+                or [0]
+            )[0]
+        )
         metrics["cpu"] = int(cpu_pct * 100)
 
         # Open connections
         metrics["open_connections"] = int(
-            (re.findall(r"ant_networking_open_connections ([\d]+)", response.text) or [0])[0]
+            (
+                re.findall(r"ant_networking_open_connections ([\d]+)", response.text)
+                or [0]
+            )[0]
         )
 
         # Total peers in routing table
         metrics["total_peers"] = int(
-            (re.findall(r"ant_networking_peers_in_routing_table ([\d]+)", response.text) or [0])[0]
+            (
+                re.findall(
+                    r"ant_networking_peers_in_routing_table ([\d]+)", response.text
+                )
+                or [0]
+            )[0]
         )
 
         # Bad peers (counter, use _total suffix)
         metrics["bad_peers"] = int(
-            (re.findall(r"ant_networking_bad_peers_count_total ([\d]+)", response.text) or [0])[0]
+            (
+                re.findall(
+                    r"ant_networking_bad_peers_count_total ([\d]+)", response.text
+                )
+                or [0]
+            )[0]
         )
 
         # Relevant records
         metrics["rel_records"] = int(
-            (re.findall(r"ant_networking_relevant_records ([\d]+)", response.text) or [0])[0]
+            (
+                re.findall(r"ant_networking_relevant_records ([\d]+)", response.text)
+                or [0]
+            )[0]
         )
 
         # Maximum records
@@ -162,7 +203,12 @@ def read_node_metrics(host, port):
 
         # Payment count
         metrics["payment_count"] = int(
-            (re.findall(r"ant_networking_received_payment_count ([\d]+)", response.text) or [0])[0]
+            (
+                re.findall(
+                    r"ant_networking_received_payment_count ([\d]+)", response.text
+                )
+                or [0]
+            )[0]
         )
 
         # Live time
@@ -172,7 +218,12 @@ def read_node_metrics(host, port):
 
         # Network size
         metrics["network_size"] = int(
-            (re.findall(r"ant_networking_estimated_network_size ([\d]+)", response.text) or [0])[0]
+            (
+                re.findall(
+                    r"ant_networking_estimated_network_size ([\d]+)", response.text
+                )
+                or [0]
+            )[0]
         )
     except requests.exceptions.ConnectionError:
         logging.debug("Connection Refused on port: {0}:{1}".format(host, str(port)))
@@ -246,9 +297,7 @@ def get_system_start_time():
                 stderr=subprocess.STDOUT,
             ).stdout.decode("utf-8")
             if re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", p):
-                return int(
-                    time.mktime(time.strptime(p.strip(), "%Y-%m-%d %H:%M:%S"))
-                )
+                return int(time.mktime(time.strptime(p.strip(), "%Y-%m-%d %H:%M:%S")))
     except (subprocess.CalledProcessError, ValueError) as err:
         logging.error(f"Error getting system start time: {err}")
         return 0
@@ -330,7 +379,9 @@ def get_machine_metrics(S, node_storage, remove_limit, crisis_bytes):
     # when we eventually support multiple drives
     # Ensure the node_storage directory exists before checking disk usage
     if not os.path.exists(node_storage):
-        logging.warning(f"node_storage path does not exist: {node_storage}. Creating it.")
+        logging.warning(
+            f"node_storage path does not exist: {node_storage}. Creating it."
+        )
         os.makedirs(node_storage, exist_ok=True)
     data = psutil.disk_usage(node_storage)
     metrics["used_hd_percent"] = data.percent
@@ -473,9 +524,9 @@ def update_counters(S, old, config):
                     update_node_from_metrics(S, check[1], node_metrics, node_metadata)
                     # After delay expires, explicitly transition out of UPGRADING state
                     with S() as session:
-                        session.query(Node).filter(Node.id == check[1]).update({
-                            "status": node_metrics["status"]
-                        })
+                        session.query(Node).filter(Node.id == check[1]).update(
+                            {"status": node_metrics["status"]}
+                        )
                         session.commit()
                 records_to_upgrade -= 1
         old["upgrading_nodes"] = records_to_upgrade
@@ -501,9 +552,9 @@ def update_counters(S, old, config):
                     update_node_from_metrics(S, check[1], node_metrics, node_metadata)
                     # After delay expires, explicitly transition out of RESTARTING state
                     with S() as session:
-                        session.query(Node).filter(Node.id == check[1]).update({
-                            "status": node_metrics["status"]
-                        })
+                        session.query(Node).filter(Node.id == check[1]).update(
+                            {"status": node_metrics["status"]}
+                        )
                         session.commit()
                 records_to_restart -= 1
         old["restarting_nodes"] = records_to_restart

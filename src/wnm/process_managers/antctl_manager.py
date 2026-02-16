@@ -19,7 +19,6 @@ from wnm.models import Node
 from wnm.process_managers.base import NodeProcess, ProcessManager
 from wnm.utils import read_node_metadata
 
-
 # Map antctl status strings to wnm status constants
 ANTCTL_STATUS_MAP = {
     "Running": RUNNING,
@@ -63,7 +62,11 @@ class AntctlManager(ProcessManager):
 
         # Get antctl path from machine config
         antctl_path = "antctl"  # Default fallback
-        if machine_config and hasattr(machine_config, 'antctl_path') and machine_config.antctl_path:
+        if (
+            machine_config
+            and hasattr(machine_config, "antctl_path")
+            and machine_config.antctl_path
+        ):
             # Expand ~ to user home directory
             antctl_path = os.path.expanduser(machine_config.antctl_path)
 
@@ -80,7 +83,11 @@ class AntctlManager(ProcessManager):
         debug_mode = False
 
         # Check machine config for antctl_debug setting
-        if machine_config and hasattr(machine_config, 'antctl_debug') and machine_config.antctl_debug:
+        if (
+            machine_config
+            and hasattr(machine_config, "antctl_debug")
+            and machine_config.antctl_debug
+        ):
             debug_mode = True
 
         # Also enable debug mode if logging level is DEBUG
@@ -112,12 +119,17 @@ class AntctlManager(ProcessManager):
         cmd = self.antctl_cmd + args
         # Log command with proper shell quoting for debugging
         import shlex
-        logging.debug(f"Running antctl command: {' '.join(shlex.quote(arg) for arg in cmd)}")
+
+        logging.debug(
+            f"Running antctl command: {' '.join(shlex.quote(arg) for arg in cmd)}"
+        )
 
         # Check for RUST_BACKTRACE setting (non-persistent, must be invoked each time)
         # Check both environment variable and command line argument
         env = None
-        rust_backtrace = os.getenv("RUST_BACKTRACE") or getattr(options, "rust_backtrace", None)
+        rust_backtrace = os.getenv("RUST_BACKTRACE") or getattr(
+            options, "rust_backtrace", None
+        )
         if rust_backtrace:
             # Copy current environment and add RUST_BACKTRACE
             env = os.environ.copy()
@@ -139,9 +151,7 @@ class AntctlManager(ProcessManager):
                 logging.debug(f"antctl stderr:\n{result.stderr}")
             return result
         except FileNotFoundError:
-            logging.error(
-                "antctl command not found. Please install via: antup antctl"
-            )
+            logging.error("antctl command not found. Please install via: antup antctl")
             raise
         except subprocess.CalledProcessError as err:
             logging.error(f"antctl command failed: {err}")
@@ -166,9 +176,10 @@ class AntctlManager(ProcessManager):
         # Get machine config to check no_upnp setting
         machine_config = None
         if self.S:
+            from sqlalchemy import select
+
             from wnm.config import S
             from wnm.models import Machine
-            from sqlalchemy import select
 
             try:
                 with S() as session:
@@ -193,11 +204,10 @@ class AntctlManager(ProcessManager):
             str(node.rpc_port),
             "--rewards-address",
             node.wallet,
-
         ]
 
         # Add --no-upnp if configured (defaults to True for backwards compatibility)
-        if machine_config and getattr(machine_config, 'no_upnp', True):
+        if machine_config and getattr(machine_config, "no_upnp", True):
             args.append("--no-upnp")
 
         # Add optional log directory if specified
@@ -206,7 +216,11 @@ class AntctlManager(ProcessManager):
 
         # Add binary path from machine config (antnode_path)
         # This tells antctl where to find the binary instead of downloading a new one
-        if machine_config and hasattr(machine_config, 'antnode_path') and machine_config.antnode_path:
+        if (
+            machine_config
+            and hasattr(machine_config, "antnode_path")
+            and machine_config.antnode_path
+        ):
             antnode_path = os.path.expanduser(machine_config.antnode_path)
             args.extend(["--path", antnode_path])
         elif binary_path:
@@ -217,7 +231,11 @@ class AntctlManager(ProcessManager):
         args.append(node.network or "evm-arbitrum-one")
 
         # Add --version if antctl_version is configured
-        if machine_config and hasattr(machine_config, 'antctl_version') and machine_config.antctl_version:
+        if (
+            machine_config
+            and hasattr(machine_config, "antctl_version")
+            and machine_config.antctl_version
+        ):
             args.extend(["--version", machine_config.antctl_version])
 
         try:
@@ -336,14 +354,17 @@ class AntctlManager(ProcessManager):
         Returns:
             True if node upgrade succeeded
         """
-        logging.info(f"Upgrading antctl node {node.id} ({node.service}) to version {new_version or 'latest'}")
+        logging.info(
+            f"Upgrading antctl node {node.id} ({node.service}) to version {new_version or 'latest'}"
+        )
 
         # Get machine config to find antnode_path
         machine_config = None
         if self.S:
+            from sqlalchemy import select
+
             from wnm.config import S
             from wnm.models import Machine
-            from sqlalchemy import select
 
             try:
                 with S() as session:
@@ -358,15 +379,25 @@ class AntctlManager(ProcessManager):
 
         # Add path to binary from machine config
         # This tells antctl where to find the binary instead of downloading
-        if machine_config and hasattr(machine_config, 'antnode_path') and machine_config.antnode_path:
+        if (
+            machine_config
+            and hasattr(machine_config, "antnode_path")
+            and machine_config.antnode_path
+        ):
             antnode_path = os.path.expanduser(machine_config.antnode_path)
             args.extend(["--path", antnode_path])
             logging.info(f"Using antnode binary from: {antnode_path}")
         else:
-            logging.warning("No antnode_path in machine config, antctl will download binary")
+            logging.warning(
+                "No antnode_path in machine config, antctl will download binary"
+            )
 
         # Add --version if antctl_version is configured
-        if machine_config and hasattr(machine_config, 'antctl_version') and machine_config.antctl_version:
+        if (
+            machine_config
+            and hasattr(machine_config, "antctl_version")
+            and machine_config.antctl_version
+        ):
             args.extend(["--version", machine_config.antctl_version])
 
         # Add --force flag to allow "downgrade" to same version if needed
@@ -454,7 +485,9 @@ class AntctlManager(ProcessManager):
             # Extract JSON block from debug output
             # When --debug is enabled, stdout contains logging mixed with JSON
             # JSON starts with a line containing just "{" and ends with just "}"
-            json_match = re.search(r'^\{$.*?^\}$', result.stdout, re.MULTILINE | re.DOTALL)
+            json_match = re.search(
+                r"^\{$.*?^\}$", result.stdout, re.MULTILINE | re.DOTALL
+            )
             if json_match:
                 json_str = json_match.group(0)
             else:
@@ -462,7 +495,11 @@ class AntctlManager(ProcessManager):
                 json_str = result.stdout
 
             nodes_data = json.loads(json_str)
-        except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError) as err:
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            json.JSONDecodeError,
+        ) as err:
             logging.error(f"Failed to get antctl status: {err}")
             return []
 
@@ -556,7 +593,9 @@ class AntctlManager(ProcessManager):
 
                 # Extract configuration from JSON
                 card["root_dir"] = node_data.get("data_dir_path", "")
-                card["log_dir"] = node_data.get("log_dir_path", "")  # Store log directory
+                card["log_dir"] = node_data.get(
+                    "log_dir_path", ""
+                )  # Store log directory
                 card["port"] = node_data.get("node_port", 0)
                 card["metrics_port"] = node_data.get("metrics_port", 0)
 

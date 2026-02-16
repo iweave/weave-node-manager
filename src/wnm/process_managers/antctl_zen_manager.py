@@ -24,7 +24,6 @@ from wnm.models import Node
 from wnm.process_managers.base import NodeProcess, ProcessManager
 from wnm.utils import read_node_metadata
 
-
 # Map antctl status strings to wnm status constants
 ANTCTL_STATUS_MAP = {
     "Running": RUNNING,
@@ -68,7 +67,11 @@ class AntctlZenManager(ProcessManager):
 
         # Get antctl path from machine config
         antctl_path = "antctl"  # Default fallback
-        if machine_config and hasattr(machine_config, 'antctl_path') and machine_config.antctl_path:
+        if (
+            machine_config
+            and hasattr(machine_config, "antctl_path")
+            and machine_config.antctl_path
+        ):
             # Expand ~ to user home directory
             antctl_path = os.path.expanduser(machine_config.antctl_path)
 
@@ -85,7 +88,11 @@ class AntctlZenManager(ProcessManager):
         debug_mode = False
 
         # Check machine config for antctl_debug setting
-        if machine_config and hasattr(machine_config, 'antctl_debug') and machine_config.antctl_debug:
+        if (
+            machine_config
+            and hasattr(machine_config, "antctl_debug")
+            and machine_config.antctl_debug
+        ):
             debug_mode = True
 
         # Also enable debug mode if logging level is DEBUG
@@ -117,12 +124,17 @@ class AntctlZenManager(ProcessManager):
         cmd = self.antctl_cmd + args
         # Log command with proper shell quoting for debugging
         import shlex
-        logging.debug(f"Running antctl command: {' '.join(shlex.quote(arg) for arg in cmd)}")
+
+        logging.debug(
+            f"Running antctl command: {' '.join(shlex.quote(arg) for arg in cmd)}"
+        )
 
         # Check for RUST_BACKTRACE setting (non-persistent, must be invoked each time)
         # Check both environment variable and command line argument
         env = None
-        rust_backtrace = os.getenv("RUST_BACKTRACE") or getattr(options, "rust_backtrace", None)
+        rust_backtrace = os.getenv("RUST_BACKTRACE") or getattr(
+            options, "rust_backtrace", None
+        )
         if rust_backtrace:
             # Copy current environment and add RUST_BACKTRACE
             env = os.environ.copy()
@@ -144,9 +156,7 @@ class AntctlZenManager(ProcessManager):
                 logging.debug(f"antctl stderr:\n{result.stderr}")
             return result
         except FileNotFoundError:
-            logging.error(
-                "antctl command not found. Please install via: antup antctl"
-            )
+            logging.error("antctl command not found. Please install via: antup antctl")
             raise
         except subprocess.CalledProcessError as err:
             logging.error(f"antctl command failed: {err}")
@@ -171,14 +181,17 @@ class AntctlZenManager(ProcessManager):
             NodeProcess with external_node_id set to service_name if successful
             None if creation failed
         """
-        logging.info(f"Creating antctl zen node {node.id} with ports specified, paths from antctl defaults")
+        logging.info(
+            f"Creating antctl zen node {node.id} with ports specified, paths from antctl defaults"
+        )
 
         # Get machine config to check no_upnp setting
         machine_config = None
         if self.S:
+            from sqlalchemy import select
+
             from wnm.config import S
             from wnm.models import Machine
-            from sqlalchemy import select
 
             try:
                 with S() as session:
@@ -205,14 +218,18 @@ class AntctlZenManager(ProcessManager):
         ]
 
         # Add --no-upnp if configured (defaults to True for backwards compatibility)
-        if machine_config and getattr(machine_config, 'no_upnp', True):
+        if machine_config and getattr(machine_config, "no_upnp", True):
             args.append("--no-upnp")
 
         # Add network
         args.append(node.network or "evm-arbitrum-one")
 
         # Add --version if antctl_version is configured
-        if machine_config and hasattr(machine_config, 'antctl_version') and machine_config.antctl_version:
+        if (
+            machine_config
+            and hasattr(machine_config, "antctl_version")
+            and machine_config.antctl_version
+        ):
             args.extend(["--version", machine_config.antctl_version])
 
         try:
@@ -227,7 +244,9 @@ class AntctlZenManager(ProcessManager):
             logging.info(f"Created antctl service: {service_name}")
 
             # Parse output to get the actual paths chosen by antctl
-            config = self._parse_node_config_from_add_output(result.stdout, service_name)
+            config = self._parse_node_config_from_add_output(
+                result.stdout, service_name
+            )
             if not config:
                 logging.error("Failed to parse node configuration from antctl output")
                 return None
@@ -238,8 +257,10 @@ class AntctlZenManager(ProcessManager):
             node.log_dir = config.get("log_dir", "")
             node.binary = config.get("binary", "")
 
-            logging.info(f"Node {node.id} configuration from antctl: "
-                        f"root_dir={node.root_dir}, log_dir={node.log_dir}, binary={node.binary}")
+            logging.info(
+                f"Node {node.id} configuration from antctl: "
+                f"root_dir={node.root_dir}, log_dir={node.log_dir}, binary={node.binary}"
+            )
 
             # Persist the updated node to the database
             if self.S:
@@ -358,14 +379,17 @@ class AntctlZenManager(ProcessManager):
         Returns:
             True if node upgrade succeeded
         """
-        logging.info(f"Upgrading antctl zen node {node.id} ({node.service}) to version {new_version or 'latest (from antctl)'}")
+        logging.info(
+            f"Upgrading antctl zen node {node.id} ({node.service}) to version {new_version or 'latest (from antctl)'}"
+        )
 
         # Get machine config to check antctl_version setting
         machine_config = None
         if self.S:
+            from sqlalchemy import select
+
             from wnm.config import S
             from wnm.models import Machine
-            from sqlalchemy import select
 
             try:
                 with S() as session:
@@ -379,13 +403,19 @@ class AntctlZenManager(ProcessManager):
         args = ["upgrade", "--service-name", node.service]
 
         # Add --version if antctl_version is configured
-        if machine_config and hasattr(machine_config, 'antctl_version') and machine_config.antctl_version:
+        if (
+            machine_config
+            and hasattr(machine_config, "antctl_version")
+            and machine_config.antctl_version
+        ):
             args.extend(["--version", machine_config.antctl_version])
 
         try:
             result = self._run_antctl(args)
             logging.info(f"Successfully upgraded node {node.id}: {result.stdout}")
-            logging.debug(f"Successfully upgraded node_stderr {node.id}: {result.stderr}")
+            logging.debug(
+                f"Successfully upgraded node_stderr {node.id}: {result.stderr}"
+            )
             return True
         except (subprocess.CalledProcessError, FileNotFoundError) as err:
             logging.error(f"Failed to upgrade antctl node: {err}")
@@ -465,7 +495,9 @@ class AntctlZenManager(ProcessManager):
             # Extract JSON block from debug output
             # When --debug is enabled, stdout contains logging mixed with JSON
             # JSON starts with a line containing just "{" and ends with just "}"
-            json_match = re.search(r'^\{$.*?^\}$', result.stdout, re.MULTILINE | re.DOTALL)
+            json_match = re.search(
+                r"^\{$.*?^\}$", result.stdout, re.MULTILINE | re.DOTALL
+            )
             if json_match:
                 json_str = json_match.group(0)
             else:
@@ -473,7 +505,11 @@ class AntctlZenManager(ProcessManager):
                 json_str = result.stdout
 
             nodes_data = json.loads(json_str)
-        except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError) as err:
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            json.JSONDecodeError,
+        ) as err:
             logging.error(f"Failed to get antctl status: {err}")
             return []
 
@@ -524,7 +560,9 @@ class AntctlZenManager(ProcessManager):
         logging.debug(f"Could not extract service name from output: {output}")
         return None
 
-    def _parse_node_config_from_add_output(self, output: str, service_name: str) -> Optional[dict]:
+    def _parse_node_config_from_add_output(
+        self, output: str, service_name: str
+    ) -> Optional[dict]:
         """
         Parse antctl add output to extract node configuration paths.
 
@@ -550,7 +588,9 @@ class AntctlZenManager(ProcessManager):
         service_pattern = rf"✓\s+{re.escape(service_name)}\s*\n"
         match = re.search(service_pattern, output)
         if not match:
-            logging.warning(f"Could not find service {service_name} in antctl add output")
+            logging.warning(
+                f"Could not find service {service_name} in antctl add output"
+            )
             return None
 
         # Find the start of this service's info
@@ -559,7 +599,7 @@ class AntctlZenManager(ProcessManager):
         # Find the end (either next service or end of output)
         next_service = re.search(r"✓\s+antnode\d+", output[start_pos:])
         if next_service:
-            section = output[start_pos:start_pos + next_service.start()]
+            section = output[start_pos : start_pos + next_service.start()]
         else:
             section = output[start_pos:]
 
@@ -630,7 +670,9 @@ class AntctlZenManager(ProcessManager):
 
                 # Extract configuration from JSON
                 card["root_dir"] = node_data.get("data_dir_path", "")
-                card["log_dir"] = node_data.get("log_dir_path", "")  # Store log directory
+                card["log_dir"] = node_data.get(
+                    "log_dir_path", ""
+                )  # Store log directory
                 card["port"] = node_data.get("node_port", 0)
                 card["metrics_port"] = node_data.get("metrics_port", 0)
 

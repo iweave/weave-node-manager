@@ -121,6 +121,7 @@ class SetsidManager(ProcessManager):
 
         # Check if node is already responding on metadata port
         from wnm.utils import read_node_metadata
+
         metadata = read_node_metadata(node.host, node.metrics_port)
         if isinstance(metadata, dict) and metadata.get("status") == RUNNING:
             logging.warning(
@@ -137,9 +138,10 @@ class SetsidManager(ProcessManager):
         # Get machine config to check no_upnp setting
         machine_config = None
         if self.S:
+            from sqlalchemy import select
+
             from wnm.config import S
             from wnm.models import Machine
-            from sqlalchemy import select
 
             try:
                 with S() as session:
@@ -177,7 +179,7 @@ class SetsidManager(ProcessManager):
         ]
 
         # Add --no-upnp if configured (defaults to True for backwards compatibility)
-        if machine_config and getattr(machine_config, 'no_upnp', True):
+        if machine_config and getattr(machine_config, "no_upnp", True):
             cmd.append("--no-upnp")
 
         cmd.extend(["--rewards-address", node.wallet, node.network])

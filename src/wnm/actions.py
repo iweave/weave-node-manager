@@ -41,5 +41,7 @@ class Action:
     def __repr__(self) -> str:
         """Return a string representation of the action."""
         if self.node_id is not None:
-            return f"Action({self.type.value}, node={self.node_id}, reason={self.reason})"
+            return (
+                f"Action({self.type.value}, node={self.node_id}, reason={self.reason})"
+            )
         return f"Action({self.type.value}, reason={self.reason})"

@@ -22,7 +22,14 @@ class DecisionEngine:
     to perform.
     """
 
-    def __init__(self, machine_config: Dict[str, Any], metrics: Dict[str, Any], is_init: bool = False, should_survey_init: bool = False, enable_upgrade: bool = False):
+    def __init__(
+        self,
+        machine_config: Dict[str, Any],
+        metrics: Dict[str, Any],
+        is_init: bool = False,
+        should_survey_init: bool = False,
+        enable_upgrade: bool = False,
+    ):
         """Initialize the decision engine.
 
         Args:
@@ -76,8 +83,7 @@ class DecisionEngine:
         # Network I/O checks (if configured)
         if self._is_netio_configured():
             features["allow_netio"] = (
-                self.metrics["netio_read_bytes"]
-                < self.config["netio_read_less_than"]
+                self.metrics["netio_read_bytes"] < self.config["netio_read_less_than"]
                 and self.metrics["netio_write_bytes"]
                 < self.config["netio_write_less_than"]
             )
@@ -330,7 +336,7 @@ class DecisionEngine:
         # Determine capacity
         removal_capacity = min(
             self.config["max_concurrent_removals"] - current_removing,
-            self.config["max_concurrent_operations"] - current_ops
+            self.config["max_concurrent_operations"] - current_ops,
         )
 
         if removal_capacity <= 0:
@@ -347,8 +353,7 @@ class DecisionEngine:
         ):
             # CRITICAL: Remove stopped nodes first (limited by actual stopped nodes)
             stopped_to_remove = min(
-                self.metrics.get("stopped_nodes", 0),
-                removal_capacity
+                self.metrics.get("stopped_nodes", 0), removal_capacity
             )
 
             for i in range(stopped_to_remove):
@@ -364,8 +369,7 @@ class DecisionEngine:
             # CRITICAL: Remove running nodes for remaining capacity
             remaining_capacity = removal_capacity - stopped_to_remove
             running_to_remove = min(
-                self.metrics.get("running_nodes", 0),
-                remaining_capacity
+                self.metrics.get("running_nodes", 0), remaining_capacity
             )
 
             for i in range(running_to_remove):
@@ -384,10 +388,7 @@ class DecisionEngine:
                 return []
 
             # CRITICAL: Stop youngest running nodes (limited by actual running nodes)
-            nodes_to_stop = min(
-                self.metrics.get("running_nodes", 0),
-                removal_capacity
-            )
+            nodes_to_stop = min(self.metrics.get("running_nodes", 0), removal_capacity)
 
             for i in range(nodes_to_stop):
                 actions.append(
@@ -416,7 +417,7 @@ class DecisionEngine:
         # Determine capacity
         upgrade_capacity = min(
             self.config["max_concurrent_upgrades"] - current_upgrading,
-            self.config["max_concurrent_operations"] - current_ops
+            self.config["max_concurrent_operations"] - current_ops,
         )
 
         if upgrade_capacity <= 0:
@@ -457,17 +458,14 @@ class DecisionEngine:
         # Determine capacity
         start_capacity = min(
             self.config["max_concurrent_starts"] - current_starting,
-            self.config["max_concurrent_operations"] - current_ops
+            self.config["max_concurrent_operations"] - current_ops,
         )
 
         if start_capacity <= 0:
             return []
 
         # CRITICAL: Plan starts for stopped nodes (limited by actual stopped nodes)
-        stopped_to_start = min(
-            self.metrics.get("stopped_nodes", 0),
-            start_capacity
-        )
+        stopped_to_start = min(self.metrics.get("stopped_nodes", 0), start_capacity)
 
         for i in range(stopped_to_start):
             actions.append(
@@ -482,8 +480,7 @@ class DecisionEngine:
         # CRITICAL: Plan additions for remaining capacity (if under node cap)
         remaining_capacity = start_capacity - stopped_to_start
         nodes_to_add = min(
-            remaining_capacity,
-            self.config["node_cap"] - self.metrics["total_nodes"]
+            remaining_capacity, self.config["node_cap"] - self.metrics["total_nodes"]
         )
 
         for i in range(nodes_to_add):

@@ -6,6 +6,7 @@ when antctl doesn't free ports after node removal.
 """
 
 import logging
+
 from sqlalchemy import func
 
 from wnm.models import Node
@@ -38,7 +39,9 @@ def initialize_node_id_tracking(session, machine_config):
 
     if max_node_id:
         # Found existing nodes, set highest to max ID found
-        logger.info(f"Initialized highest_node_id_used to {max_node_id} from existing nodes")
+        logger.info(
+            f"Initialized highest_node_id_used to {max_node_id} from existing nodes"
+        )
         return True, max_node_id
     else:
         # No existing nodes, initialize to 0 (next node will be ID 1)

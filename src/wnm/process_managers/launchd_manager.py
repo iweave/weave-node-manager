@@ -29,7 +29,9 @@ from wnm.utils import (
 class LaunchdManager(ProcessManager):
     """Manage nodes as launchd user agents on macOS"""
 
-    def __init__(self, session_factory=None, firewall_type: str = None, mode: str = None):
+    def __init__(
+        self, session_factory=None, firewall_type: str = None, mode: str = None
+    ):
         """
         Initialize LaunchdManager.
 
@@ -69,7 +71,9 @@ class LaunchdManager(ProcessManager):
         uid = os.getuid()
         return f"gui/{uid}"
 
-    def _generate_plist_content(self, node: Node, binary_path: str, machine_config=None) -> str:
+    def _generate_plist_content(
+        self, node: Node, binary_path: str, machine_config=None
+    ) -> str:
         """
         Generate the plist XML content for a node.
 
@@ -83,9 +87,10 @@ class LaunchdManager(ProcessManager):
         """
         # Get machine config if not provided
         if machine_config is None and self.S:
+            from sqlalchemy import select
+
             from wnm.config import S
             from wnm.models import Machine
-            from sqlalchemy import select
 
             with S() as session:
                 result = session.execute(select(Machine)).first()
@@ -99,28 +104,30 @@ class LaunchdManager(ProcessManager):
         args = [binary_path]
 
         # Add --no-upnp if configured (defaults to True for backwards compatibility)
-        if machine_config and getattr(machine_config, 'no_upnp', True):
+        if machine_config and getattr(machine_config, "no_upnp", True):
             args.append("--no-upnp")
 
-        args.extend([
-            "--bootstrap-cache-dir",
-            BOOTSTRAP_CACHE_DIR,
-            "--root-dir",
-            node.root_dir,
-            "--port",
-            str(node.port),
-            "--metrics-server-port",
-            str(node.metrics_port),
-            "--log-output-dest",
-            LOG_DIR,
-            "--max-log-files",
-            "1",
-            "--max-archived-log-files",
-            "1",
-            "--rewards-address",
-            node.wallet,
-            node.network,
-        ])
+        args.extend(
+            [
+                "--bootstrap-cache-dir",
+                BOOTSTRAP_CACHE_DIR,
+                "--root-dir",
+                node.root_dir,
+                "--port",
+                str(node.port),
+                "--metrics-server-port",
+                str(node.metrics_port),
+                "--log-output-dest",
+                LOG_DIR,
+                "--max-log-files",
+                "1",
+                "--max-archived-log-files",
+                "1",
+                "--rewards-address",
+                node.wallet,
+                node.network,
+            ]
+        )
 
         # Build ProgramArguments XML
         args_xml = "\n".join(f"        <string>{arg}</string>" for arg in args)

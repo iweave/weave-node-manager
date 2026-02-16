@@ -348,7 +348,11 @@ def load_config():
     c.add("--delay_restart", env_var="DELAY_RESTART", help="Delay Restart Timer")
     c.add("--delay_upgrade", env_var="DELAY_UPGRADE", help="Delay Upgrade Timer")
     c.add("--delay_remove", env_var="DELAY_REMOVE", help="Delay Remove Timer")
-    c.add("--survey_delay", env_var="SURVEY_DELAY", help="Survey Delay between nodes (milliseconds)")
+    c.add(
+        "--survey_delay",
+        env_var="SURVEY_DELAY",
+        help="Survey Delay between nodes (milliseconds)",
+    )
     c.add(
         "--this_survey_delay",
         env_var="THIS_SURVEY_DELAY",
@@ -503,7 +507,13 @@ def load_config():
         "--report",
         env_var="REPORT",
         help="Generate a report: node-status, node-status-details, influx-resources, machine-config, machine-metrics",
-        choices=["node-status", "node-status-details", "influx-resources", "machine-config", "machine-metrics"],
+        choices=[
+            "node-status",
+            "node-status-details",
+            "influx-resources",
+            "machine-config",
+            "machine-metrics",
+        ],
     )
     c.add(
         "--report_format",
@@ -588,9 +598,7 @@ def load_config():
 
     # Set the logging level with a proper format
     logging.basicConfig(
-        level=log_level,
-        format='%(levelname)s [%(name)s] %(message)s',
-        force=True
+        level=log_level, format="%(levelname)s [%(name)s] %(message)s", force=True
     )
     # Explicitly set root logger level to ensure it takes effect
     logging.getLogger().setLevel(log_level)
@@ -658,7 +666,8 @@ def merge_config_changes(options, machine_config):
         cfg["action_delay"] = int(options.action_delay)
     if (
         options.max_concurrent_upgrades
-        and int(options.max_concurrent_upgrades) != machine_config.max_concurrent_upgrades
+        and int(options.max_concurrent_upgrades)
+        != machine_config.max_concurrent_upgrades
     ):
         cfg["max_concurrent_upgrades"] = int(options.max_concurrent_upgrades)
     if (
@@ -668,12 +677,14 @@ def merge_config_changes(options, machine_config):
         cfg["max_concurrent_starts"] = int(options.max_concurrent_starts)
     if (
         options.max_concurrent_removals
-        and int(options.max_concurrent_removals) != machine_config.max_concurrent_removals
+        and int(options.max_concurrent_removals)
+        != machine_config.max_concurrent_removals
     ):
         cfg["max_concurrent_removals"] = int(options.max_concurrent_removals)
     if (
         options.max_concurrent_operations
-        and int(options.max_concurrent_operations) != machine_config.max_concurrent_operations
+        and int(options.max_concurrent_operations)
+        != machine_config.max_concurrent_operations
     ):
         cfg["max_concurrent_operations"] = int(options.max_concurrent_operations)
     if options.node_storage and options.node_storage != machine_config.node_storage:
@@ -706,7 +717,10 @@ def merge_config_changes(options, machine_config):
         and float(options.desired_load_average) != machine_config.desired_load_average
     ):
         cfg["desired_load_average"] = float(options.desired_load_average)
-    if options.port_start and normalize_port_start(options.port_start) != machine_config.port_start:
+    if (
+        options.port_start
+        and normalize_port_start(options.port_start) != machine_config.port_start
+    ):
         cfg["port_start"] = normalize_port_start(options.port_start)
     if (
         options.hdio_read_less_than
@@ -755,12 +769,14 @@ def merge_config_changes(options, machine_config):
         cfg["crisis_bytes"] = int(options.crisis_bytes)
     if (
         options.metrics_port_start
-        and normalize_port_start(options.metrics_port_start) != machine_config.metrics_port_start
+        and normalize_port_start(options.metrics_port_start)
+        != machine_config.metrics_port_start
     ):
         cfg["metrics_port_start"] = normalize_port_start(options.metrics_port_start)
     if (
         options.rpc_port_start
-        and normalize_port_start(options.rpc_port_start) != machine_config.rpc_port_start
+        and normalize_port_start(options.rpc_port_start)
+        != machine_config.rpc_port_start
     ):
         cfg["rpc_port_start"] = normalize_port_start(options.rpc_port_start)
     if options.environment and options.environment != machine_config.environment:
@@ -789,11 +805,18 @@ def merge_config_changes(options, machine_config):
         cfg["antctl_path"] = options.antctl_path
     # Only update antctl_debug if explicitly provided (check if in command line or env var)
     # Don't update based on store_true default value of False
-    if "--antctl_debug" in sys.argv or "--antctl-debug" in sys.argv or os.getenv("ANTCTL_DEBUG"):
+    if (
+        "--antctl_debug" in sys.argv
+        or "--antctl-debug" in sys.argv
+        or os.getenv("ANTCTL_DEBUG")
+    ):
         if bool(options.antctl_debug) != bool(machine_config.antctl_debug):
             cfg["antctl_debug"] = bool(options.antctl_debug)
     # Only update antctl_version if explicitly provided (not None)
-    if options.antctl_version and options.antctl_version != machine_config.antctl_version:
+    if (
+        options.antctl_version
+        and options.antctl_version != machine_config.antctl_version
+    ):
         cfg["antctl_version"] = options.antctl_version
 
     # highest_node_id_used override (only with --force_action update_config)
@@ -913,10 +936,14 @@ def load_anm_config(options):
     try:
         with open("/usr/bin/anms.sh", "r") as file:
             data = file.read()
-        anm_config["port_start"] = normalize_port_start(int(re.findall(r"ntpr\=(\d+)", data)[0]))
+        anm_config["port_start"] = normalize_port_start(
+            int(re.findall(r"ntpr\=(\d+)", data)[0])
+        )
     except (FileNotFoundError, IndexError, ValueError) as e:
         logging.debug(f"Unable to read PortStart from anms.sh: {e}")
-        anm_config["port_start"] = normalize_port_start(_get_option(options, "port_start") or 55)
+        anm_config["port_start"] = normalize_port_start(
+            _get_option(options, "port_start") or 55
+        )
 
     anm_config["metrics_port_start"] = normalize_port_start(
         _get_option(options, "metrics_port_start") or 13
@@ -1065,14 +1092,26 @@ def define_machine(options):
         "crisis_bytes": int(
             _get_option(options, "crisis_bytes") or DEFAULT_CRISIS_BYTES
         ),
-        "metrics_port_start": normalize_port_start(_get_option(options, "metrics_port_start") or 13),
-        "rpc_port_start": normalize_port_start(_get_option(options, "rpc_port_start") or 30),
+        "metrics_port_start": normalize_port_start(
+            _get_option(options, "metrics_port_start") or 13
+        ),
+        "rpc_port_start": normalize_port_start(
+            _get_option(options, "rpc_port_start") or 30
+        ),
         "environment": _get_option(options, "environment") or "",
         "start_args": _get_option(options, "start_args") or "",
-        "max_concurrent_upgrades": int(_get_option(options, "max_concurrent_upgrades") or 1),
-        "max_concurrent_starts": int(_get_option(options, "max_concurrent_starts") or 1),
-        "max_concurrent_removals": int(_get_option(options, "max_concurrent_removals") or 1),
-        "max_concurrent_operations": int(_get_option(options, "max_concurrent_operations") or 1),
+        "max_concurrent_upgrades": int(
+            _get_option(options, "max_concurrent_upgrades") or 1
+        ),
+        "max_concurrent_starts": int(
+            _get_option(options, "max_concurrent_starts") or 1
+        ),
+        "max_concurrent_removals": int(
+            _get_option(options, "max_concurrent_removals") or 1
+        ),
+        "max_concurrent_operations": int(
+            _get_option(options, "max_concurrent_operations") or 1
+        ),
         "node_removal_strategy": "youngest",
         "max_node_per_container": 200,
         "min_container_count": 1,
@@ -1187,8 +1226,10 @@ else:
 did_we_init = False
 
 # Skip machine configuration check in test mode, when using --version/--remove_lockfile, or when running migrations
-if os.getenv("WNM_TEST_MODE") or _SKIP_DB_INIT or (
-    hasattr(options, "force_action") and options.force_action == "wnm-db-migration"
+if (
+    os.getenv("WNM_TEST_MODE")
+    or _SKIP_DB_INIT
+    or (hasattr(options, "force_action") and options.force_action == "wnm-db-migration")
 ):
     # In test mode, with --version/--remove_lockfile, or running migrations, use a minimal machine config or None
     machine_config = None
@@ -1208,7 +1249,9 @@ if (
     not machine_config
     and not os.getenv("WNM_TEST_MODE")
     and not _SKIP_DB_INIT
-    and not (hasattr(options, "force_action") and options.force_action == "wnm-db-migration")
+    and not (
+        hasattr(options, "force_action") and options.force_action == "wnm-db-migration"
+    )
 ):
     # Are we initializing a new machine?
     if options.init:
@@ -1256,8 +1299,11 @@ if (
             # This prevents the next execution from incorrectly detecting a reboot
             if did_we_init:
                 from wnm.utils import get_system_start_time
+
                 system_start = get_system_start_time()
-                logging.info(f"Setting last_stopped_at to system start time: {system_start}")
+                logging.info(
+                    f"Setting last_stopped_at to system start time: {system_start}"
+                )
                 with S() as session:
                     session.query(Machine).filter(Machine.id == 1).update(
                         {"last_stopped_at": system_start}
@@ -1269,11 +1315,17 @@ if (
                         machine_config = machine_config[0]
 
                 # Initialize highest_node_id_used for antctl process managers
-                if machine_config and machine_config.process_manager in ["antctl+user", "antctl+sudo", "antctl+zen"]:
+                if machine_config and machine_config.process_manager in [
+                    "antctl+user",
+                    "antctl+sudo",
+                    "antctl+zen",
+                ]:
                     from wnm.node_id_tracker import initialize_node_id_tracking
 
                     with S() as session:
-                        needs_update, initial_value = initialize_node_id_tracking(session, machine_config)
+                        needs_update, initial_value = initialize_node_id_tracking(
+                            session, machine_config
+                        )
                         if needs_update:
                             session.query(Machine).filter(Machine.id == 1).update(
                                 {"highest_node_id_used": initial_value}
@@ -1295,7 +1347,10 @@ else:
     if (
         not os.getenv("WNM_TEST_MODE")
         and not _SKIP_DB_INIT
-        and not (hasattr(options, "force_action") and options.force_action == "wnm-db-migration")
+        and not (
+            hasattr(options, "force_action")
+            and options.force_action == "wnm-db-migration"
+        )
     ):
         machine_config = machine_config[0]
 
@@ -1308,14 +1363,36 @@ config_updates = (
 # Failfirst on invalid config change - only error if values are actually different
 immutable_changes = []
 if not did_we_init and machine_config:
-    if options.port_start and normalize_port_start(options.port_start) != machine_config.port_start:
-        immutable_changes.append(f"port_start (trying to change from {machine_config.port_start} to {normalize_port_start(options.port_start)})")
-    if options.metrics_port_start and normalize_port_start(options.metrics_port_start) != machine_config.metrics_port_start:
-        immutable_changes.append(f"metrics_port_start (trying to change from {machine_config.metrics_port_start} to {normalize_port_start(options.metrics_port_start)})")
-    if options.rpc_port_start and normalize_port_start(options.rpc_port_start) != machine_config.rpc_port_start:
-        immutable_changes.append(f"rpc_port_start (trying to change from {machine_config.rpc_port_start} to {normalize_port_start(options.rpc_port_start)})")
-    if options.process_manager and options.process_manager != machine_config.process_manager:
-        immutable_changes.append(f"process_manager (trying to change from {machine_config.process_manager} to {options.process_manager})")
+    if (
+        options.port_start
+        and normalize_port_start(options.port_start) != machine_config.port_start
+    ):
+        immutable_changes.append(
+            f"port_start (trying to change from {machine_config.port_start} to {normalize_port_start(options.port_start)})"
+        )
+    if (
+        options.metrics_port_start
+        and normalize_port_start(options.metrics_port_start)
+        != machine_config.metrics_port_start
+    ):
+        immutable_changes.append(
+            f"metrics_port_start (trying to change from {machine_config.metrics_port_start} to {normalize_port_start(options.metrics_port_start)})"
+        )
+    if (
+        options.rpc_port_start
+        and normalize_port_start(options.rpc_port_start)
+        != machine_config.rpc_port_start
+    ):
+        immutable_changes.append(
+            f"rpc_port_start (trying to change from {machine_config.rpc_port_start} to {normalize_port_start(options.rpc_port_start)})"
+        )
+    if (
+        options.process_manager
+        and options.process_manager != machine_config.process_manager
+    ):
+        immutable_changes.append(
+            f"process_manager (trying to change from {machine_config.process_manager} to {options.process_manager})"
+        )
 
 if immutable_changes:
     logging.warning(
@@ -1325,13 +1402,23 @@ if immutable_changes:
 
 # Validate highest_node_id_used override - only allowed with --force_action update_config
 if not did_we_init and machine_config:
-    if hasattr(options, "highest_node_id_used") and options.highest_node_id_used is not None:
-        if not hasattr(options, "force_action") or options.force_action != "update_config":
+    if (
+        hasattr(options, "highest_node_id_used")
+        and options.highest_node_id_used is not None
+    ):
+        if (
+            not hasattr(options, "force_action")
+            or options.force_action != "update_config"
+        ):
             logging.error(
                 "The parameter --highest_node_id_used can only be used with --force_action update_config"
             )
-            logging.error("This restriction prevents accidental node ID/port tracking desynchronization.")
-            logging.error(f"To override node ID tracking, use: wnm --force_action update_config --highest_node_id_used <value>")
+            logging.error(
+                "This restriction prevents accidental node ID/port tracking desynchronization."
+            )
+            logging.error(
+                f"To override node ID tracking, use: wnm --force_action update_config --highest_node_id_used <value>"
+            )
             sys.exit(1)
 
 

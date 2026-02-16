@@ -48,7 +48,8 @@ def detect_port_ranges_from_nodes(nodes: list) -> dict:
             node_name = node_dict["node_name"]
             # Handle formats like "antnode1", "antnode0001", or just "0001"
             import re
-            match = re.search(r'\d+', str(node_name))
+
+            match = re.search(r"\d+", str(node_name))
             if match:
                 try:
                     return int(match.group())
@@ -74,7 +75,9 @@ def detect_port_ranges_from_nodes(nodes: list) -> dict:
                 node_1 = node
 
     if node_1 is None:
-        logging.debug("Could not find any node with valid ID for port detection (using defaults)")
+        logging.debug(
+            "Could not find any node with valid ID for port detection (using defaults)"
+        )
         return {}
 
     # Extract node_id, port, and metrics_port
@@ -147,7 +150,10 @@ def survey_machine(machine_config, manager_type: str = None) -> list:
     """
     if manager_type is None:
         # Try to use manager type from machine config first
-        if hasattr(machine_config, 'process_manager') and machine_config.process_manager:
+        if (
+            hasattr(machine_config, "process_manager")
+            and machine_config.process_manager
+        ):
             manager_type = machine_config.process_manager
         else:
             # Auto-detect manager type from platform
