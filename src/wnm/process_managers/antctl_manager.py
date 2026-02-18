@@ -13,8 +13,8 @@ import re
 import subprocess
 from typing import Optional
 
+from wnm import config
 from wnm.common import DEAD, RESTARTING, RUNNING, STOPPED
-from wnm.config import machine_config, options
 from wnm.models import Node
 from wnm.process_managers.base import NodeProcess, ProcessManager
 from wnm.utils import read_node_metadata
@@ -63,12 +63,12 @@ class AntctlManager(ProcessManager):
         # Get antctl path from machine config
         antctl_path = "antctl"  # Default fallback
         if (
-            machine_config
-            and hasattr(machine_config, "antctl_path")
-            and machine_config.antctl_path
+            config.machine_config
+            and hasattr(config.machine_config, "antctl_path")
+            and config.machine_config.antctl_path
         ):
             # Expand ~ to user home directory
-            antctl_path = os.path.expanduser(machine_config.antctl_path)
+            antctl_path = os.path.expanduser(config.machine_config.antctl_path)
 
         # Build base antctl command
         if self.use_sudo:
@@ -84,9 +84,9 @@ class AntctlManager(ProcessManager):
 
         # Check machine config for antctl_debug setting
         if (
-            machine_config
-            and hasattr(machine_config, "antctl_debug")
-            and machine_config.antctl_debug
+            config.machine_config
+            and hasattr(config.machine_config, "antctl_debug")
+            and config.machine_config.antctl_debug
         ):
             debug_mode = True
 
@@ -128,7 +128,7 @@ class AntctlManager(ProcessManager):
         # Check both environment variable and command line argument
         env = None
         rust_backtrace = os.getenv("RUST_BACKTRACE") or getattr(
-            options, "rust_backtrace", None
+            config.options, "rust_backtrace", None
         )
         if rust_backtrace:
             # Copy current environment and add RUST_BACKTRACE

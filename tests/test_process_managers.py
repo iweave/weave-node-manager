@@ -604,7 +604,9 @@ class TestAntctlManager:
         mock_isdir.return_value = True
         manager = AntctlManager(mode="user")
 
-        with patch("wnm.process_managers.antctl_manager.read_node_metadata") as mock_read:
+        with patch(
+            "wnm.process_managers.antctl_manager.read_node_metadata"
+        ) as mock_read:
             # Node is stopped
             mock_read.return_value = {"status": STOPPED}
             status = manager.get_status(mock_node)
@@ -699,9 +701,12 @@ class TestAntctlManager:
         result = manager.teardown_cluster()
         assert result is True
         # Verify antctl reset was called
-        assert any("reset" in str(call) and "--force" in str(call) for call in mock_run.call_args_list)
+        assert any(
+            "reset" in str(call) and "--force" in str(call)
+            for call in mock_run.call_args_list
+        )
 
-    @patch("wnm.process_managers.antctl_manager.machine_config", None)
+    @patch("wnm.config.machine_config", None)
     def test_mode_selection(self):
         """Test user vs sudo mode selection"""
         from wnm.process_managers.antctl_manager import AntctlManager

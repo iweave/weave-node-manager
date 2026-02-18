@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-02-17
+
+### Changed
+- Deferred `config.py` import-time side effects into explicit `initialize()` function
+
 ## [0.6.1] - 2026-02-16
 
 ### Changed

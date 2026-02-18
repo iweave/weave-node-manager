@@ -8,16 +8,8 @@ import time
 
 from sqlalchemy import insert, select
 
-from wnm import __version__
-from wnm.config import (
-    LOCK_FILE,
-    S,
-    apply_config_updates,
-    config_updates,
-    engine,
-    machine_config,
-    options,
-)
+from wnm import __version__, config
+from wnm.config import LOCK_FILE, apply_config_updates
 from wnm.decision_engine import DecisionEngine
 from wnm.executor import ActionExecutor
 from wnm.migration import detect_port_ranges_from_nodes, survey_machine
@@ -69,7 +61,7 @@ atexit.register(cleanup_lock_file)
 
 
 # Make a decision about what to do (new implementation using DecisionEngine)
-def choose_action(machine_config, metrics, dry_run):
+def choose_action(machine_config, metrics, dry_run, options, S):
     """Plan and execute actions using DecisionEngine and ActionExecutor.
 
     This function now acts as a thin wrapper around the new decision engine
@@ -79,6 +71,8 @@ def choose_action(machine_config, metrics, dry_run):
         machine_config: Machine configuration dictionary
         metrics: Current system metrics
         dry_run: If True, log actions without executing
+        options: Parsed CLI options
+        S: Database session factory
 
     Returns:
         Dictionary with execution status
@@ -119,14 +113,14 @@ def choose_action(machine_config, metrics, dry_run):
     )
 
     # Use the new DecisionEngine to plan actions
-    engine = DecisionEngine(
+    de = DecisionEngine(
         machine_config,
         metrics,
         is_init=is_init,
         should_survey_init=should_survey_init,
         enable_upgrade=getattr(options, "enable_upgrade", False),
     )
-    actions = engine.plan_actions()
+    actions = de.plan_actions()
 
     # Log the computed features for debugging
     if (
@@ -134,7 +128,7 @@ def choose_action(machine_config, metrics, dry_run):
         or options.v
         or logging.getLogger().isEnabledFor(logging.DEBUG)
     ):
-        logging.info(json.dumps(engine.get_features(), indent=2))
+        logging.info(json.dumps(de.get_features(), indent=2))
 
     # Inject transient action delay override into machine_config if provided
     # Priority: --interval takes precedence over --this_action_delay
@@ -155,6 +149,15 @@ def choose_action(machine_config, metrics, dry_run):
 
 
 def main():
+    config.initialize()
+
+    # Bind locals from config module (set by initialize())
+    options = config.options
+    S = config.S
+    engine = config.engine
+    machine_config = config.machine_config
+    config_updates = config.config_updates
+
     # Handle --version flag (before any lock file or database checks)
     if options.version:
         print(f"wnm version {__version__}")
@@ -443,7 +446,7 @@ def main():
             count=options.count if hasattr(options, "count") else 1,
         )
     else:
-        this_action = choose_action(local_config, metrics, options.dry_run)
+        this_action = choose_action(local_config, metrics, options.dry_run, options, S)
 
     logging.info("Action: " + json.dumps(this_action, indent=2))
 

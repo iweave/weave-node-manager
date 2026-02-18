@@ -243,29 +243,6 @@ else:
 LOCK_FILE = os.path.join(BASE_DIR, "wnm_active")
 DEFAULT_DB_PATH = f"sqlite:///{os.path.join(BASE_DIR, 'colony.db')}"
 
-# Create minimal directories needed for config.py (except in test mode)
-# Note: NODE_STORAGE and LOG_DIR are created by ProcessManager when nodes are created
-if not os.getenv("WNM_TEST_MODE"):
-    if _PM_MODE == "sudo":
-        # For sudo mode with system paths, use sudo to create directories
-        for directory in [BASE_DIR, BOOTSTRAP_CACHE_DIR]:
-            if not os.path.exists(directory):
-                try:
-                    subprocess.run(
-                        ["sudo", "mkdir", "-p", directory],
-                        check=True,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                    )
-                except (subprocess.CalledProcessError, FileNotFoundError) as e:
-                    # If sudo fails or isn't available, silently continue
-                    # (logging not yet configured at module import time)
-                    pass
-    else:
-        # For user mode, create directories normally (no sudo needed)
-        os.makedirs(BASE_DIR, exist_ok=True)
-        os.makedirs(BOOTSTRAP_CACHE_DIR, exist_ok=True)
-
 
 # Config file parser
 # This is a simple wrapper around configargparse that reads the config file from the default locations
@@ -1039,276 +1016,317 @@ def apply_config_updates(config_updates):
             machine_config = machine_config[0]
 
 
-# Load options now so we know what database to load
-options = load_config()
-
-# Expand ~ and environment variables in dbpath if needed
-if hasattr(options, "dbpath") and options.dbpath:
-    # Handle both bare paths and sqlite:/// URLs
-    if options.dbpath.startswith("sqlite:///"):
-        path_part = options.dbpath[10:]
-        path_part = os.path.expandvars(path_part)
-        path_part = os.path.expanduser(path_part)
-        options.dbpath = f"sqlite:///{path_part}"
-    else:
-        # If it's a bare path without sqlite:///, expand and re-add prefix
-        path_part = os.path.expandvars(options.dbpath)
-        path_part = os.path.expanduser(path_part)
-        if not path_part.startswith("sqlite:///"):
-            options.dbpath = f"sqlite:///{path_part}"
-        else:
-            options.dbpath = path_part
-
-# Skip database initialization for --version, --remove_lockfile, and test mode
-# These cases should work without any database or lock file checks
-_SKIP_DB_INIT = (
-    getattr(options, "version", False)
-    or getattr(options, "remove_lockfile", False)
-    or os.getenv("WNM_TEST_MODE")
-)
-
-# Setup Database engine (skip if --version, --remove_lockfile, or test mode)
-if not _SKIP_DB_INIT:
-    # Extract the actual file path from the database URL
-    db_file_path = options.dbpath
-    if db_file_path.startswith("sqlite:///"):
-        db_file_path = db_file_path[10:]
-
-    # Check if database exists
-    db_exists = os.path.exists(db_file_path)
-
-    # If database doesn't exist and we're not initializing, exit with helpful message
-    if not db_exists and not getattr(options, "init", False):
-        logging.error("No database found. Please initialize wnm first:")
-        logging.error("  wnm --init --rewards_address YOUR_ETH_ADDRESS")
-        logging.error("")
-        logging.error("For more information, run: wnm --help")
-        sys.exit(1)
-
-    # Disable SQLAlchemy's echo to prevent it from reconfiguring logging
-    engine = create_engine(options.dbpath, echo=False)
-    # Generate ORM (this will create the database file if it doesn't exist)
-    Base.metadata.create_all(engine)
-    # Create a connection to the ORM
-    session_factory = sessionmaker(bind=engine)
-    S = scoped_session(session_factory)
-
-    # Import migration utilities
-    from wnm.db_migration import auto_stamp_new_database, check_and_warn_migrations
-
-    # Auto-stamp new databases with current migration version
-    auto_stamp_new_database(engine, options.dbpath)
-
-    # Check for pending migrations (skip if running migration command)
-    if not (
-        hasattr(options, "force_action") and options.force_action == "wnm-db-migration"
-    ):
-        check_and_warn_migrations(engine, options.dbpath)
-else:
-    # Create dummy objects for --version, --remove_lockfile, or test mode
-    engine = None
-    S = None
-
-# Remember if we init a new machine
+# Module-level sentinels — set by initialize()
+options = None
+engine = None
+S = None
+machine_config = None
+config_updates = {}
 did_we_init = False
 
-# Skip machine configuration check in test mode, when using --version/--remove_lockfile, or when running migrations
-if (
-    os.getenv("WNM_TEST_MODE")
-    or _SKIP_DB_INIT
-    or (hasattr(options, "force_action") and options.force_action == "wnm-db-migration")
-):
-    # In test mode, with --version/--remove_lockfile, or running migrations, use a minimal machine config or None
-    machine_config = None
-else:
-    # Check if we have a defined machine
-    try:
-        with S() as session:
-            machine_config = session.execute(select(Machine)).first()
-    except Exception as e:
-        # If there's an error loading the machine config (e.g., schema mismatch),
-        # set to None and let the init process handle it
-        logging.debug(f"Error loading machine config (may need schema upgrade): {e}")
-        machine_config = None
 
-# No machine configured
-if (
-    not machine_config
-    and not os.getenv("WNM_TEST_MODE")
-    and not _SKIP_DB_INIT
-    and not (
-        hasattr(options, "force_action") and options.force_action == "wnm-db-migration"
-    )
-):
-    # Are we initializing a new machine?
-    if options.init:
-        # Init and dry-run are mutually exclusive
-        if options.dry_run:
-            logging.error("dry run not supported during init.")
-            sys.exit(1)
+def initialize():
+    """Initialize config: parse options, create directories, set up database, load machine config.
+
+    Must be called once from __main__.py before using options, S, engine, or machine_config.
+    """
+    global options, engine, S, machine_config, config_updates, did_we_init
+
+    # Create minimal directories needed (except in test mode)
+    # Note: NODE_STORAGE and LOG_DIR are created by ProcessManager when nodes are created
+    if not os.getenv("WNM_TEST_MODE"):
+        if _PM_MODE == "sudo":
+            for directory in [BASE_DIR, BOOTSTRAP_CACHE_DIR]:
+                if not os.path.exists(directory):
+                    try:
+                        subprocess.run(
+                            ["sudo", "mkdir", "-p", directory],
+                            check=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                        )
+                    except (subprocess.CalledProcessError, FileNotFoundError):
+                        pass
         else:
-            # Did we get a request to migrate from anm?
-            if options.migrate_anm:
-                if anm_config := migrate_anm(options):
-                    # Save and reload config
-                    with S() as session:
-                        session.execute(insert(Machine), [anm_config])
-                        session.commit()
-                        machine_config = session.execute(select(Machine)).first()
-                    if not machine_config:
-                        logging.error(
-                            "Unable to locate record after successful migration"
-                        )
-                        sys.exit(1)
-                    # Get Machine from Row
-                    machine_config = machine_config[0]
-                    did_we_init = True
-                else:
-                    logging.error("Failed to migrate machine from anm")
-                    sys.exit(1)
+            os.makedirs(BASE_DIR, exist_ok=True)
+            os.makedirs(BOOTSTRAP_CACHE_DIR, exist_ok=True)
+
+    # Load options now so we know what database to load
+    options = load_config()
+
+    # Expand ~ and environment variables in dbpath if needed
+    if hasattr(options, "dbpath") and options.dbpath:
+        # Handle both bare paths and sqlite:/// URLs
+        if options.dbpath.startswith("sqlite:///"):
+            path_part = options.dbpath[10:]
+            path_part = os.path.expandvars(path_part)
+            path_part = os.path.expanduser(path_part)
+            options.dbpath = f"sqlite:///{path_part}"
+        else:
+            # If it's a bare path without sqlite:///, expand and re-add prefix
+            path_part = os.path.expandvars(options.dbpath)
+            path_part = os.path.expanduser(path_part)
+            if not path_part.startswith("sqlite:///"):
+                options.dbpath = f"sqlite:///{path_part}"
             else:
-                if define_machine(options):
-                    with S() as session:
-                        machine_config = session.execute(select(Machine)).first()
-                    if not machine_config:
-                        logging.error(
-                            "Failed to locate record after successfully defining a machine"
-                        )
-                        sys.exit(1)
-                    # Get Machine from Row
-                    machine_config = machine_config[0]
-                    did_we_init = True
-                else:
-                    logging.error("Failed to create machine")
-                    sys.exit(1)
+                options.dbpath = path_part
 
-            # If we just initialized, set last_stopped_at to current system start time
-            # This prevents the next execution from incorrectly detecting a reboot
-            if did_we_init:
-                from wnm.utils import get_system_start_time
+    # Skip database initialization for --version, --remove_lockfile, and test mode
+    _skip_db_init = (
+        getattr(options, "version", False)
+        or getattr(options, "remove_lockfile", False)
+        or os.getenv("WNM_TEST_MODE")
+    )
 
-                system_start = get_system_start_time()
-                logging.info(
-                    f"Setting last_stopped_at to system start time: {system_start}"
-                )
-                with S() as session:
-                    session.query(Machine).filter(Machine.id == 1).update(
-                        {"last_stopped_at": system_start}
-                    )
-                    session.commit()
-                    # Reload machine config to reflect the update
-                    machine_config = session.execute(select(Machine)).first()
-                    if machine_config:
-                        machine_config = machine_config[0]
+    # Setup Database engine (skip if --version, --remove_lockfile, or test mode)
+    if not _skip_db_init:
+        # Extract the actual file path from the database URL
+        db_file_path = options.dbpath
+        if db_file_path.startswith("sqlite:///"):
+            db_file_path = db_file_path[10:]
 
-                # Initialize highest_node_id_used for antctl process managers
-                if machine_config and machine_config.process_manager in [
-                    "antctl+user",
-                    "antctl+sudo",
-                    "antctl+zen",
-                ]:
-                    from wnm.node_id_tracker import initialize_node_id_tracking
+        # Check if database exists
+        db_exists = os.path.exists(db_file_path)
 
-                    with S() as session:
-                        needs_update, initial_value = initialize_node_id_tracking(
-                            session, machine_config
-                        )
-                        if needs_update:
-                            session.query(Machine).filter(Machine.id == 1).update(
-                                {"highest_node_id_used": initial_value}
-                            )
-                            session.commit()
-                            # Reload machine_config to reflect updates
-                            machine_config = session.execute(select(Machine)).first()
-                            if machine_config:
-                                machine_config = machine_config[0]
+        # If database doesn't exist and we're not initializing, exit with helpful message
+        if not db_exists and not getattr(options, "init", False):
+            logging.error("No database found. Please initialize wnm first:")
+            logging.error("  wnm --init --rewards_address YOUR_ETH_ADDRESS")
+            logging.error("")
+            logging.error("For more information, run: wnm --help")
+            sys.exit(1)
+
+        # Disable SQLAlchemy's echo to prevent it from reconfiguring logging
+        engine = create_engine(options.dbpath, echo=False)
+        # Generate ORM (this will create the database file if it doesn't exist)
+        Base.metadata.create_all(engine)
+        # Create a connection to the ORM
+        session_factory = sessionmaker(bind=engine)
+        S = scoped_session(session_factory)
+
+        # Import migration utilities
+        from wnm.db_migration import auto_stamp_new_database, check_and_warn_migrations
+
+        # Auto-stamp new databases with current migration version
+        auto_stamp_new_database(engine, options.dbpath)
+
+        # Check for pending migrations (skip if running migration command)
+        if not (
+            hasattr(options, "force_action")
+            and options.force_action == "wnm-db-migration"
+        ):
+            check_and_warn_migrations(engine, options.dbpath)
     else:
-        logging.error("No config found")
-        sys.exit(1)
-else:
-    # Fail if we are trying to init a machine that is already initialized
-    if options.init:
-        logging.warning("Machine already initialized")
-        sys.exit(1)
-    # Get Machine from Row (skip in test mode, when using --version/--remove_lockfile, or when running migrations)
+        # Create dummy objects for --version, --remove_lockfile, or test mode
+        engine = None
+        S = None
+
+    # Remember if we init a new machine
+    did_we_init = False
+
+    # Skip machine configuration check in test mode, when using --version/--remove_lockfile, or when running migrations
     if (
-        not os.getenv("WNM_TEST_MODE")
-        and not _SKIP_DB_INIT
+        os.getenv("WNM_TEST_MODE")
+        or _skip_db_init
+        or (
+            hasattr(options, "force_action")
+            and options.force_action == "wnm-db-migration"
+        )
+    ):
+        machine_config = None
+    else:
+        # Check if we have a defined machine
+        try:
+            with S() as session:
+                machine_config = session.execute(select(Machine)).first()
+        except Exception as e:
+            logging.debug(
+                f"Error loading machine config (may need schema upgrade): {e}"
+            )
+            machine_config = None
+
+    # No machine configured
+    if (
+        not machine_config
+        and not os.getenv("WNM_TEST_MODE")
+        and not _skip_db_init
         and not (
             hasattr(options, "force_action")
             and options.force_action == "wnm-db-migration"
         )
     ):
-        machine_config = machine_config[0]
+        # Are we initializing a new machine?
+        if options.init:
+            # Init and dry-run are mutually exclusive
+            if options.dry_run:
+                logging.error("dry run not supported during init.")
+                sys.exit(1)
+            else:
+                # Did we get a request to migrate from anm?
+                if options.migrate_anm:
+                    if anm_config := migrate_anm(options):
+                        # Save and reload config
+                        with S() as session:
+                            session.execute(insert(Machine), [anm_config])
+                            session.commit()
+                            machine_config = session.execute(select(Machine)).first()
+                        if not machine_config:
+                            logging.error(
+                                "Unable to locate record after successful migration"
+                            )
+                            sys.exit(1)
+                        # Get Machine from Row
+                        machine_config = machine_config[0]
+                        did_we_init = True
+                    else:
+                        logging.error("Failed to migrate machine from anm")
+                        sys.exit(1)
+                else:
+                    if define_machine(options):
+                        with S() as session:
+                            machine_config = session.execute(select(Machine)).first()
+                        if not machine_config:
+                            logging.error(
+                                "Failed to locate record after successfully defining a machine"
+                            )
+                            sys.exit(1)
+                        # Get Machine from Row
+                        machine_config = machine_config[0]
+                        did_we_init = True
+                    else:
+                        logging.error("Failed to create machine")
+                        sys.exit(1)
 
-# Collect the proposed changes unless we are initializing (skip in test mode or when using --version/--remove_lockfile)
-config_updates = (
-    merge_config_changes(options, machine_config)
-    if not os.getenv("WNM_TEST_MODE") and not _SKIP_DB_INIT
-    else {}
-)
-# Failfirst on invalid config change - only error if values are actually different
-immutable_changes = []
-if not did_we_init and machine_config:
-    if (
-        options.port_start
-        and normalize_port_start(options.port_start) != machine_config.port_start
-    ):
-        immutable_changes.append(
-            f"port_start (trying to change from {machine_config.port_start} to {normalize_port_start(options.port_start)})"
-        )
-    if (
-        options.metrics_port_start
-        and normalize_port_start(options.metrics_port_start)
-        != machine_config.metrics_port_start
-    ):
-        immutable_changes.append(
-            f"metrics_port_start (trying to change from {machine_config.metrics_port_start} to {normalize_port_start(options.metrics_port_start)})"
-        )
-    if (
-        options.rpc_port_start
-        and normalize_port_start(options.rpc_port_start)
-        != machine_config.rpc_port_start
-    ):
-        immutable_changes.append(
-            f"rpc_port_start (trying to change from {machine_config.rpc_port_start} to {normalize_port_start(options.rpc_port_start)})"
-        )
-    if (
-        options.process_manager
-        and options.process_manager != machine_config.process_manager
-    ):
-        immutable_changes.append(
-            f"process_manager (trying to change from {machine_config.process_manager} to {options.process_manager})"
-        )
+                # If we just initialized, set last_stopped_at to current system start time
+                # This prevents the next execution from incorrectly detecting a reboot
+                if did_we_init:
+                    from wnm.utils import get_system_start_time
 
-if immutable_changes:
-    logging.warning(
-        f"Cannot change immutable settings on an active machine: {', '.join(immutable_changes)}"
-    )
-    sys.exit(1)
+                    system_start = get_system_start_time()
+                    logging.info(
+                        f"Setting last_stopped_at to system start time: {system_start}"
+                    )
+                    with S() as session:
+                        session.query(Machine).filter(Machine.id == 1).update(
+                            {"last_stopped_at": system_start}
+                        )
+                        session.commit()
+                        # Reload machine config to reflect the update
+                        machine_config = session.execute(select(Machine)).first()
+                        if machine_config:
+                            machine_config = machine_config[0]
 
-# Validate highest_node_id_used override - only allowed with --force_action update_config
-if not did_we_init and machine_config:
-    if (
-        hasattr(options, "highest_node_id_used")
-        and options.highest_node_id_used is not None
-    ):
-        if (
-            not hasattr(options, "force_action")
-            or options.force_action != "update_config"
-        ):
-            logging.error(
-                "The parameter --highest_node_id_used can only be used with --force_action update_config"
-            )
-            logging.error(
-                "This restriction prevents accidental node ID/port tracking desynchronization."
-            )
-            logging.error(
-                f"To override node ID tracking, use: wnm --force_action update_config --highest_node_id_used <value>"
-            )
+                    # Initialize highest_node_id_used for antctl process managers
+                    if machine_config and machine_config.process_manager in [
+                        "antctl+user",
+                        "antctl+sudo",
+                        "antctl+zen",
+                    ]:
+                        from wnm.node_id_tracker import initialize_node_id_tracking
+
+                        with S() as session:
+                            needs_update, initial_value = initialize_node_id_tracking(
+                                session, machine_config
+                            )
+                            if needs_update:
+                                session.query(Machine).filter(Machine.id == 1).update(
+                                    {"highest_node_id_used": initial_value}
+                                )
+                                session.commit()
+                                # Reload machine_config to reflect updates
+                                machine_config = session.execute(
+                                    select(Machine)
+                                ).first()
+                                if machine_config:
+                                    machine_config = machine_config[0]
+        else:
+            logging.error("No config found")
             sys.exit(1)
+    else:
+        # Fail if we are trying to init a machine that is already initialized
+        if options.init:
+            logging.warning("Machine already initialized")
+            sys.exit(1)
+        # Get Machine from Row (skip in test mode, when using --version/--remove_lockfile, or when running migrations)
+        if (
+            not os.getenv("WNM_TEST_MODE")
+            and not _skip_db_init
+            and not (
+                hasattr(options, "force_action")
+                and options.force_action == "wnm-db-migration"
+            )
+        ):
+            machine_config = machine_config[0]
+
+    # Collect the proposed changes unless we are initializing (skip in test mode or when using --version/--remove_lockfile)
+    config_updates = (
+        merge_config_changes(options, machine_config)
+        if not os.getenv("WNM_TEST_MODE") and not _skip_db_init
+        else {}
+    )
+    # Failfirst on invalid config change - only error if values are actually different
+    immutable_changes = []
+    if not did_we_init and machine_config:
+        if (
+            options.port_start
+            and normalize_port_start(options.port_start) != machine_config.port_start
+        ):
+            immutable_changes.append(
+                f"port_start (trying to change from {machine_config.port_start} to {normalize_port_start(options.port_start)})"
+            )
+        if (
+            options.metrics_port_start
+            and normalize_port_start(options.metrics_port_start)
+            != machine_config.metrics_port_start
+        ):
+            immutable_changes.append(
+                f"metrics_port_start (trying to change from {machine_config.metrics_port_start} to {normalize_port_start(options.metrics_port_start)})"
+            )
+        if (
+            options.rpc_port_start
+            and normalize_port_start(options.rpc_port_start)
+            != machine_config.rpc_port_start
+        ):
+            immutable_changes.append(
+                f"rpc_port_start (trying to change from {machine_config.rpc_port_start} to {normalize_port_start(options.rpc_port_start)})"
+            )
+        if (
+            options.process_manager
+            and options.process_manager != machine_config.process_manager
+        ):
+            immutable_changes.append(
+                f"process_manager (trying to change from {machine_config.process_manager} to {options.process_manager})"
+            )
+
+    if immutable_changes:
+        logging.warning(
+            f"Cannot change immutable settings on an active machine: {', '.join(immutable_changes)}"
+        )
+        sys.exit(1)
+
+    # Validate highest_node_id_used override - only allowed with --force_action update_config
+    if not did_we_init and machine_config:
+        if (
+            hasattr(options, "highest_node_id_used")
+            and options.highest_node_id_used is not None
+        ):
+            if (
+                not hasattr(options, "force_action")
+                or options.force_action != "update_config"
+            ):
+                logging.error(
+                    "The parameter --highest_node_id_used can only be used with --force_action update_config"
+                )
+                logging.error(
+                    "This restriction prevents accidental node ID/port tracking desynchronization."
+                )
+                logging.error(
+                    f"To override node ID tracking, use: wnm --force_action update_config --highest_node_id_used <value>"
+                )
+                sys.exit(1)
 
 
 if __name__ == "__main__":
+    initialize()
     logging.debug("Changes: " + json.dumps(config_updates))
     logging.debug(json.dumps(machine_config))
