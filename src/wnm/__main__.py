@@ -148,34 +148,24 @@ def choose_action(machine_config, metrics, dry_run, options, S):
     return result
 
 
-def main():
-    config.initialize()
-
-    # Bind locals from config module (set by initialize())
-    options = config.options
-    S = config.S
-    engine = config.engine
-    machine_config = config.machine_config
-    config_updates = config.config_updates
-
-    # Handle --version flag (before any lock file or database checks)
-    if options.version:
-        print(f"wnm version {__version__}")
+def _handle_remove_lockfile():
+    """Handle --remove_lockfile flag and exit."""
+    if os.path.exists(LOCK_FILE):
+        try:
+            os.remove(LOCK_FILE)
+            logging.info(f"Lock file removed: {LOCK_FILE}")
+            sys.exit(0)
+        except (PermissionError, OSError) as e:
+            logging.error(f"Error removing lock file: {e}")
+            sys.exit(1)
+    else:
+        logging.info(f"Lock file does not exist: {LOCK_FILE}")
         sys.exit(0)
 
-    # Handle --remove_lockfile flag (before normal lock file check)
-    if options.remove_lockfile:
-        if os.path.exists(LOCK_FILE):
-            try:
-                os.remove(LOCK_FILE)
-                logging.info(f"Lock file removed: {LOCK_FILE}")
-                sys.exit(0)
-            except (PermissionError, OSError) as e:
-                logging.error(f"Error removing lock file: {e}")
-                sys.exit(1)
-        else:
-            logging.info(f"Lock file does not exist: {LOCK_FILE}")
-            sys.exit(0)
+
+def acquire_lock():
+    """Check for existing lock file, create a new one, or exit."""
+    global _lock_file_created
 
     # Are we already running
     if os.path.exists(LOCK_FILE):
@@ -183,7 +173,6 @@ def main():
         sys.exit(1)
 
     # We're starting, so lets create a lock file
-    global _lock_file_created
     try:
         with open(LOCK_FILE, "w") as file:
             file.write(str(int(time.time())))
@@ -193,40 +182,51 @@ def main():
         logging.error(f"Unable to create lock file: {e}")
         sys.exit(1)
 
-    # Handle database migration command first (before any config checks)
-    if options.force_action == "wnm-db-migration":
-        if not options.confirm:
-            logging.error("Database migration requires --confirm flag for safety")
-            logging.info("Use: wnm --force_action wnm-db-migration --confirm")
-            sys.exit(1)
 
-        # Import migration utilities
-        from wnm.db_migration import has_pending_migrations, run_migrations
+def handle_db_migration(engine, options):
+    """Handle --force_action wnm-db-migration. Returns if not applicable."""
+    if options.force_action != "wnm-db-migration":
+        return
 
-        # Check if there are pending migrations
-        pending, current, head = has_pending_migrations(engine, options.dbpath)
+    if not options.confirm:
+        logging.error("Database migration requires --confirm flag for safety")
+        logging.info("Use: wnm --force_action wnm-db-migration --confirm")
+        sys.exit(1)
 
-        if not pending:
-            logging.info("Database is already up to date!")
-            logging.info(f"Current revision: {current}")
-            sys.exit(0)
+    # Import migration utilities
+    from wnm.db_migration import has_pending_migrations, run_migrations
 
+    # Check if there are pending migrations
+    pending, current, head = has_pending_migrations(engine, options.dbpath)
+
+    if not pending:
+        logging.info("Database is already up to date!")
+        logging.info(f"Current revision: {current}")
+        sys.exit(0)
+
+    logging.info("=" * 70)
+    logging.info("RUNNING DATABASE MIGRATIONS")
+    logging.info("=" * 70)
+    logging.info(f"Upgrading database from {current or 'unversioned'} to {head}")
+
+    try:
+        run_migrations(engine, options.dbpath)
+        logging.info("Database migration completed successfully!")
         logging.info("=" * 70)
-        logging.info("RUNNING DATABASE MIGRATIONS")
+        sys.exit(0)
+    except Exception as e:
+        logging.error(f"Migration failed: {e}")
+        logging.error("Please restore from backup and report this issue.")
         logging.info("=" * 70)
-        logging.info(f"Upgrading database from {current or 'unversioned'} to {head}")
+        sys.exit(1)
 
-        try:
-            run_migrations(engine, options.dbpath)
-            logging.info("Database migration completed successfully!")
-            logging.info("=" * 70)
-            sys.exit(0)
-        except Exception as e:
-            logging.error(f"Migration failed: {e}")
-            logging.error("Please restore from backup and report this issue.")
-            logging.info("=" * 70)
-            sys.exit(1)
 
+def validate_and_apply_config(options, machine_config, config_updates):
+    """Validate machine config, handle config-only actions, apply updates.
+
+    Returns:
+        local_config dict for use by subsequent phases.
+    """
     # Config should have loaded the machine_config
     if machine_config:
         # Only log machine config at INFO level if --show_machine_config or -v is set
@@ -278,6 +278,15 @@ def main():
     else:
         local_config = json.loads(json.dumps(machine_config))
 
+    return local_config
+
+
+def collect_metrics(S, local_config, options):
+    """Collect system and node metrics.
+
+    Returns:
+        metrics dict.
+    """
     metrics = get_machine_metrics(
         S,
         local_config["node_storage"],
@@ -292,6 +301,15 @@ def main():
     ):
         logging.info(json.dumps(metrics, indent=2))
 
+    return metrics
+
+
+def handle_init_survey(options, S, machine_config, local_config, metrics):
+    """Handle node survey/import during --init, then exit if --init is set.
+
+    Returns:
+        Potentially-reloaded metrics dict.
+    """
     # Do we already have nodes
     if metrics["total_nodes"] == 0:
         # Survey for existing nodes only if explicitly requested:
@@ -380,6 +398,11 @@ def main():
         logging.info("Initialization complete")
         sys.exit(0)
 
+    return metrics
+
+
+def run_or_report(options, S, local_config, metrics):
+    """Handle reports, forced actions, or the normal decision cycle."""
     # Check for reports
     if options.report:
         from wnm.reports import (
@@ -450,11 +473,38 @@ def main():
 
     logging.info("Action: " + json.dumps(this_action, indent=2))
 
+
+def main():
+    config.initialize()
+
+    # Bind locals from config module (set by initialize())
+    options = config.options
+    S = config.S
+    engine = config.engine
+    machine_config = config.machine_config
+    config_updates = config.config_updates
+
+    # Handle --version flag (before any lock file or database checks)
+    if options.version:
+        print(f"wnm version {__version__}")
+        sys.exit(0)
+
+    # Handle --remove_lockfile flag (before normal lock file check)
+    if options.remove_lockfile:
+        _handle_remove_lockfile()
+
+    acquire_lock()
+    handle_db_migration(engine, options)
+
+    local_config = validate_and_apply_config(options, machine_config, config_updates)
+    metrics = collect_metrics(S, local_config, options)
+    metrics = handle_init_survey(options, S, machine_config, local_config, metrics)
+    run_or_report(options, S, local_config, metrics)
+
     # Exit normally (atexit will clean up lock file)
     sys.exit(0)
 
 
 if __name__ == "__main__":
     main()
-    # print(options.MemRemove)
     logging.debug("End of program")

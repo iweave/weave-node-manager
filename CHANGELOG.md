@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-02-17
+
+### Changed
+- Split monolithic `main()` into named phase functions for readability
+
 ## [0.6.2] - 2026-02-17
 
 ### Changed
